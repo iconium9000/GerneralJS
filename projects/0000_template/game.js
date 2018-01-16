@@ -1,14 +1,25 @@
 log = console.log
-log('init game.js', 'template')
 
 PROJECT_NAME = 'Template Project'
+log('init game.js', PROJECT_NAME)
 
-function RCV_MSG() {
 
+
+GAME_MSG = (key, sndr, rcvr, msg) => {
+  switch (key) {
+  default:
+    log(key, sndr, rcvr, msg)
+  }
 }
 
-function INIT() {
-  
+GAME_SRVR_INIT = () => {
+  log('init game srvr')
 }
 
-log('sum', PT.sum(1,2), PT)
+GAME_CLNT_INIT = () => {
+  log('init game clnt')
+}
+
+GAME_TICK = () => {
+
+}

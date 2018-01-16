@@ -18,16 +18,30 @@ try {
   serv.listen(port = default_port)
 }
 
-try {
-  require(`./client/fu.js`)
-  require(`./client/pt.js`)
-  require(`./projects/${project}/game.js`)
-  log(PROJECT_NAME)
-} catch (e) {
-  log(e)
+var socket_io = require('socket.io')(serv, {})
+
+function HOST_MSG(key, sndr, rcvr, msg) {
+
 }
 
-log(port)
-log(process.argv)
+require(`./client/fu.js`)
+require(`./client/pt.js`)
 
+// PROJECT_NAME : name of project
+// GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
+// GAME_SRVR_INIT() : set up srvr
+require(`./projects/${project}/game.js`)
+log('init app.js', PROJECT_NAME, `port:${port}`)
+
+process.openStdin().addListener('data', msg => {
+  msg = msg.toString().trim().split(' ')
+  GAME_MSG(msg[0], 'HOST', 'GAME', msg)
+})
+
+GAME_SRVR_INIT()
+
+
+socket_io.sockets.on('connection', skt => {
+  skt.on('msg', GAME_MSG)
+})
 // process.exit(-1)

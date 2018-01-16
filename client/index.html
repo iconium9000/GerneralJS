@@ -1,4 +1,4 @@
-<head> <title id="title">Gengeral Project!</title></head>
+<head> <title id="title">General Project!</title></head>
 
 <canvas id="canvas" style="boarder:1px solid #000000" cursor="none">
 	Your browser does not support canvas element
@@ -6,13 +6,45 @@
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.js"></script>
 <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
-<script src="client/pt.js"></script> -->
+<script src="client/pt.js"></script>
 <script src="client/fu.js"></script>
+<!-- defines:
+  USR_IO_KYS()
+  USR_IO_MWS
+  USR_IO_SET_MWS()
+  USR_IO_DSPLY()
+  USR_IO_EVNTS()
+  USR_IO_UPDATE()
+-->
 <script src="client/usr_io.js"></script>
 <script>
-  // var skt = io()
+  var skt = io()
+
+  var reqFrame = FU.reqFrame()
+
+  var NAME = document.cookie.length ?
+    document.cookie.split('=')[1] :
+    'Johnny Appleseed'
+  NAME = prompt('What is your name?', NAME)
+  FU.setCookie('NAME', NAME, 2)
+
+  function HOST_MSG(key, sndr, rcvr, msg) {
+    skt.emit('msg', key, sndr, rcvr, msg)
+  }
 
 </script>
-<script src="game/game.js">
+
+<!-- defines:
+  PROJECT_NAME : name of project
+  GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
+  GAME_CLNT_INIT() : set up clnt
+  GAME_TICK() : update clnt
+-->
+<script src="game/game.js"></script>
+<script>
   document.getElementById('title').innerHTML = PROJECT_NAME
+  GAME_MSG('handShake','HOST','GAME','hi there!')
+  GAME_CLNT_INIT()
+
+  skt.on('msg', GAME_MSG)
 </script>
