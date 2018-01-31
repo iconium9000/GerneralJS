@@ -15,5 +15,10 @@
   "bugs": {
     "url": "https://github.com/iconium9000/GeneralJS/issues"
   },
-  "homepage": "https://github.com/iconium9000/GeneralJS#readme"
+  "homepage": "https://github.com/iconium9000/GeneralJS#readme",
+  "dependencies": {
+    "express": "^4.16.2",
+    "socket.io": "^2.0.4"
+  },
+  "devDependencies": {}
 }
