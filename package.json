@@ -1,19 +1,19 @@
 {
-  "name": "gerneral-js",
+  "name": "general-js",
   "version": "0.0.0",
-  "description": "gerneral javascript project",
+  "description": "general javascript project",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iconium9000/GerneralJS.git"
+    "url": "git+https://github.com/iconium9000/GeneralJS.git"
   },
   "author": "IC90",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/iconium9000/GerneralJS/issues"
+    "url": "https://github.com/iconium9000/GeneralJS/issues"
   },
-  "homepage": "https://github.com/iconium9000/GerneralJS#readme"
+  "homepage": "https://github.com/iconium9000/GeneralJS#readme"
 }
