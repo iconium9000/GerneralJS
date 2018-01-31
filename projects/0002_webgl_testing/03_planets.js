@@ -5,7 +5,7 @@ var vertexShaderText = `
 
   attribute vec3 vertPosition;
   attribute vec3 vertColor;
-  varying vec4 fragColor;
+  varying vec3 fragColor;
 
   uniform mat4 mWorld;
   uniform mat4 mView;
@@ -15,104 +15,27 @@ var vertexShaderText = `
   uniform vec3 yColor;
   uniform vec3 zColor;
 
-  void main()
-  {
-    // fragColor = vertColor;
-    fragColor = vec4(
-      dot(xColor,vertPosition),
-      dot(yColor,vertPosition),
-      dot(zColor,vertPosition), 1);
+  void main() {
+    // fragColor = vec4(
+    //   dot(xColor,vertColor),
+    //   dot(yColor,vertColor),
+    //   dot(zColor,vertColor));
+    fragColor = vertColor;
 
-    // fragColor = vec3(0.4,0.4,0.4);
-    // gl_Position = mView * vec4(vertPosition, 1.0);
-    gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);
+    // gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);
+    gl_Position = mProj * mView * vec4(vertPosition, 1.0);
   }
 `
 
 var fragmentShaderText = `
   precision mediump float;
 
-  varying vec4 fragColor;
+  varying vec3 fragColor;
   void main()
   {
-    gl_FragColor = fragColor;//vec4(fragColor, 1.0);
+    gl_FragColor = vec4(fragColor, 1.0);
   }
 `
-
-function f32(a) {
-  return new Float32Array(a)
-}
-
-var gl;
-
-//
-// Create buffer
-//
-var boxVertices =
-[ // X, Y, Z           R, G, B
-  // Top
-  -1.0, 1.0, -1.0,   0.5, 0.5, 0.5,
-  -1.0, 1.0, 1.0,    0.5, 0.5, 0.5,
-  1.0, 1.0, 1.0,     0.5, 0.5, 0.5,
-  1.0, 1.0, -1.0,    0.5, 0.5, 0.5,
-
-  // Left
-  -1.0, 1.0, 1.0,    0.75, 0.25, 0.5,
-  -1.0, -1.0, 1.0,   0.75, 0.25, 0.5,
-  -1.0, -1.0, -1.0,  0.75, 0.25, 0.5,
-  -1.0, 1.0, -1.0,   0.75, 0.25, 0.5,
-
-  // Right
-  1.0, 1.0, 1.0,    0.25, 0.25, 0.75,
-  1.0, -1.0, 1.0,   0.25, 0.25, 0.75,
-  1.0, -1.0, -1.0,  0.25, 0.25, 0.75,
-  1.0, 1.0, -1.0,   0.25, 0.25, 0.75,
-
-  // Front
-  1.0, 1.0, 1.0,    1.0, 0.0, 0.15,
-  1.0, -1.0, 1.0,    1.0, 0.0, 0.15,
-  -1.0, -1.0, 1.0,    1.0, 0.0, 0.15,
-  -1.0, 1.0, 1.0,    1.0, 0.0, 0.15,
-
-  // Back
-  1.0, 1.0, -1.0,    0.0, 1.0, 0.15,
-  1.0, -1.0, -1.0,    0.0, 1.0, 0.15,
-  -1.0, -1.0, -1.0,    0.0, 1.0, 0.15,
-  -1.0, 1.0, -1.0,    0.0, 1.0, 0.15,
-
-  // Bottom
-  -1.0, -1.0, -1.0,   0.5, 0.5, 1.0,
-  -1.0, -1.0, 1.0,    0.5, 0.5, 1.0,
-  1.0, -1.0, 1.0,     0.5, 0.5, 1.0,
-  1.0, -1.0, -1.0,    0.5, 0.5, 1.0,
-];
-
-var boxIndices =
-[
-  // Top
-  0, 1, 2,
-  0, 2, 3,
-
-  // Left
-  5, 4, 6,
-  6, 4, 7,
-
-  // Right
-  8, 9, 10,
-  8, 10, 11,
-
-  // Front
-  13, 12, 14,
-  15, 14, 12,
-
-  // Back
-  16, 17, 18,
-  16, 18, 19,
-
-  // Bottom
-  21, 20, 22,
-  22, 20, 23
-];
 
 function get_gl() {
   var canvas = document.getElementById('game-surface');
@@ -177,7 +100,10 @@ function createProgram(gl, vertexShaderText, fragmentShaderText) {
   }
   return program
 }
-function createArray(gl, program, verticies, indicies) {
+function createArray(gl, program, verticies_indicies) {
+  var verticies = verticies_indicies[0]
+  var indicies = verticies_indicies[1]
+
   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticies), gl.STATIC_DRAW);
 
@@ -208,19 +134,23 @@ function createArray(gl, program, verticies, indicies) {
   gl.enableVertexAttribArray(colorAttribLocation);
 }
 
-var sphere_points = []
-var sphere_lines = []
-var sphere_triangles = []
+var zero = vec3.create
+var unit = (v3,s) => vec3.scale(zero(), v3, s / vec3.len(v3))
+var rand_scal = () => 2 * Math.random() - 1
+var f_vec3 = f => [f(), f(), f()]
 
-var n_points = 100
-{
-  var zero = vec3.create
-  var unit = (v3,s) => vec3.scale(v3, v3, s / vec3.len(v3))
-  var rand_scal = () => 2 * Math.random() - 1
-  var f_vec3 = f => [f(), f(), f()]
+function get_sphere(n_points, cntr_pt, scal, mass, velcty) {
+  var sphere_points = []
+  var sphere_lines = []
+  var sphere_triangles = []
+
+  var dif = 0.5
 
   for (var i = 0; i < n_points; ++i) {
-    var c = unit(f_vec3(rand_scal),1)
+    var c = [
+      dif + Math.random() * (1 - dif),
+      dif + Math.random() * (1 - dif),
+      0]
     var v = unit(f_vec3(rand_scal),1)//vec3.clone(c)
     sphere_points.push([v,c,[],[]])
   }
@@ -242,8 +172,8 @@ var n_points = 100
     var a2 = sphere_points[a[1]][0]
     // a[3] = Math.random() < 0.1
 
-    var pctg = Math.floor(i / sphere_lines.length * 100)
-    pctg != prev && log(prev = pctg)
+    // var pctg = Math.floor(i / sphere_lines.length * 100)
+    // pctg != prev && log(prev = pctg)
 
     for (var j = i+1; a[3] && j < sphere_lines.length; ++j) {
       var b = sphere_lines[j]
@@ -297,28 +227,159 @@ var n_points = 100
       }
     }
   }
+  return [cntr_pt, scal, sphere_points, sphere_triangles, mass, velcty]
 }
 
-function get_verticies() {
+var bg_C = 0.2
+var reps = 300
+
+var Z = 5e2
+var Z_s = 1e-1
+var G = 1e-4
+var M1 = 1e5
+var M2 = 1e3
+var M3 = 1e-14
+
+var d1 = 0.1
+var d2 = 0.01
+var d3 = 0.005
+
+var r2 = Z * 0.25
+var r3 = Z * 0.6
+var r4 = r3 + 0.3 * r3 / (Math.sqrt(M1 / M2) - 1)
+var r5 = r2 + 0.3 * r2 / (Math.sqrt(M1 / M2) - 1)
+
+var v2 = Math.sqrt(G * M1 / r2)
+var v3 = Math.sqrt(G * M1 / r3)
+var v4 = v3 + Math.sqrt(G * M2 / (r4 - r3))
+var v5 = v2 + Math.sqrt(G * M2 / (r5 - r2))
+var v1 = - (v2 * M2 + v3 * M2 + v4 * M3) / M1
+
+
+{
+  log(v1, v2, v3, v4)
+}
+
+
+// log(M1 / M2, (r4 * r4) / (r4 - r3) / (r4 - r3))
+
+/*
+  G * M1 * M3 / (r3 + r4) / (r3 + r4) = G * M2 * M3 / (r4 r4)
+  M1 / (r3 + r4) / (r3 + r4) = M2 / (r4 r4)
+  p = ±1
+  p sqrt(M1) / (r3 + r4) = sqrt(M2) / r4
+  p sqrt(M1) r4 = sqrt(M2) (r3 + r4)
+  MT = p sqrt(M1/M2)
+ MT r4 = r3 + r4
+  (MT - 1) r4 = r3
+  r4 = r3 / (MT - 1)
+*/
+
+
+
+var cntr_point_triangle_ary = [
+  get_sphere(100,[0,0,0], Z * d1, M1, [0,v1,0])
+]
+
+// 0 cntr_pt
+// 1 scal
+// 2 sphere_points
+// 3 sphere_triangles
+// 4 m
+// 5 v
+// 6 f
+
+function get_verticies_indicies(dt) {
   var verticies = []
-  for (var i = 0; i < n_points; ++i) {
-    for (var j = 0; j < 3; ++j)
-      verticies.push(sphere_points[i][0][j])
-    for (var j = 0; j < 3; ++j)
-      verticies.push(sphere_points[i][1][j])
-  }
-  return verticies
-}
-function get_indicies() {
   var indicies = []
-  for (var i = 0; i < sphere_triangles.length; ++i) {
-    for (var j = 0; j < 3; ++j)
-      indicies.push(sphere_triangles[i][j])
+
+
+  for (var rep = 0; rep < reps; ++rep) {
+    for (var i = 0; i < cntr_point_triangle_ary.length; ++i) {
+      cntr_point_triangle_ary[i][6] = zero()
+    }
+
+    for (var i = 0; i < cntr_point_triangle_ary.length; ++i) {
+      var a = cntr_point_triangle_ary[i]
+      var a_p = a[0]
+      var a_m = a[4]
+      var a_a = a[6]
+      for (var j = i+1; j < cntr_point_triangle_ary.length; ++j) {
+        var b = cntr_point_triangle_ary[j]
+        var b_p = b[0]
+        var b_m = b[4]
+        var b_a = b[6]
+
+        var force = vec3.sub(zero(), b_p, a_p)
+        var len = vec3.len(force)
+        vec3.scale(force, force, G * a_m * b_m / len / len / len)
+        vec3.add(a_a, a_a, force)
+        vec3.sub(b_a, b_a, force)
+      }
+    }
+
+    for (var cptal = 0; cptal < cntr_point_triangle_ary.length; ++cptal) {
+      var cntr_point_triangle = cntr_point_triangle_ary[cptal]
+      var cntr_pt = cntr_point_triangle[0]
+      var m = cntr_point_triangle[4]
+      var v = cntr_point_triangle[5]
+      var a = cntr_point_triangle[6]
+
+      var temp = vec3.scale(zero(), a, dt / m)
+      var v = vec3.add(v, v, temp)
+      // log(vec3.len(v))
+      var temp = vec3.scale(temp, v, dt)
+
+      vec3.add(cntr_pt, cntr_pt, temp)
+    }
   }
-  return indicies
+
+  var light = cntr_point_triangle_ary[0][0]
+  var light_color_v = [0.8, 0.8, 0]
+
+  for (var cptal = 0; cptal < cntr_point_triangle_ary.length; ++cptal) {
+    var cntr_point_triangle = cntr_point_triangle_ary[cptal]
+
+    var scal = cntr_point_triangle[1]
+    var points = cntr_point_triangle[2]
+    var triangles = cntr_point_triangle[3]
+    var offset = verticies.length / 6
+
+    var cntr_pt = cntr_point_triangle[0]
+
+    var color_dot = cptal && unit(vec3.sub(zero(), light, cntr_pt), 1)
+
+    for (var i = 0; i < points.length; ++i) {
+      var point = points[i][0]
+      var color = points[i][1]
+      verticies.push(parseFloat(cntr_pt[0] + scal * point[0]))
+      verticies.push(parseFloat(cntr_pt[1] + scal * point[1]))
+      verticies.push(parseFloat(cntr_pt[2] + scal * point[2]))
+      if (cptal) {
+        var dot = vec3.dot(point, color_dot)
+        verticies.push(0)
+        verticies.push(0)
+        verticies.push(dot)
+      } else {
+        verticies.push(color[0])//light_color_v[0])
+        verticies.push(color[1])//light_color_v[1])
+        verticies.push(color[2])//light_color_v[2])
+      }
+
+    }
+
+    for (var i = 0; i < triangles.length; ++i) {
+      var triangle = triangles[i]
+      indicies.push(offset + triangle[0])
+      indicies.push(offset + triangle[1])
+      indicies.push(offset + triangle[2])
+    }
+  }
+
+  return [verticies, indicies]
 }
 
-function do_program() {
+function InitDemo() {
   var got_gl = get_gl()
   if (got_gl == null) return
   var gl = got_gl[0]
@@ -343,22 +404,19 @@ function do_program() {
 	var projMatrix = new Float32Array(16);
 
 	mat4.identity(worldMatrix);
-	mat4.lookAt(viewMatrix, [0, 0, -3], [0, 0, 0], [0, 1, 0]);
-	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 1000.0);
+	mat4.perspective(projMatrix, glMatrix.toRadian(45),
+    canvas.width / canvas.height, 0.1, 1000.0);
 
   var xColor = [1,0,0]
   var yColor = [0,1,0]
   var zColor = [0,0,1]
 
 	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, worldMatrix);
-	gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
+	// gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
 	gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, projMatrix);
 
 	var xRotationMatrix = new Float32Array(16);
 	var yRotationMatrix = new Float32Array(16);
-
-  var indicies = get_indicies()
-  createArray(gl, program, get_verticies(), indicies)
 
 	//
 	// Main render loop
@@ -366,28 +424,48 @@ function do_program() {
 	var identityMatrix = new Float32Array(16);
 	mat4.identity(identityMatrix);
 	var angle = 0;
+
+  var p_now = () => performance.now() / 1000
+
+  var prevTime = p_now() - 0.01
 	var loop = function () {
-		angle = performance.now() / 1000 * 2 * Math.PI;
+    now = p_now()
+    var dt = now - prevTime
+    prevTime = now
+    // log(dt)
+
+    var verticies_indicies = get_verticies_indicies(dt)
+    var indicies = verticies_indicies[1]
+    createArray(gl, program, verticies_indicies)
+
+		angle = p_now() * 2 * Math.PI;
 		mat4.rotate(yRotationMatrix, identityMatrix, angle / 1000, [0, 1, 0]);
 		mat4.rotate(xRotationMatrix, identityMatrix, angle / 1000, [1, 0, 0]);
 		mat4.mul(worldMatrix, yRotationMatrix, xRotationMatrix);
 		gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, worldMatrix);
 
     {
-      var a = angle / 10
+      var a = angle / 20
       var cos = Math.cos(a)
       var sin = Math.sin(a)
+
+      // var p = cntr_point_triangle_ary[3][0]
+      // var up = vec3.scale(zero(), p, -4)
+
+      mat4.lookAt(viewMatrix, [0, 0, -2 * Z], [0, 0, 0], [1, 0, 0]);
+      // mat4.lookAt(viewMatrix, [0, 0, -2 * Z * Z_s], p, up);
+      gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
 
       gl.uniform3fv(vecXColorUniformLocation, [cos,sin,0])
       gl.uniform3fv(vecYColorUniformLocation, [0,cos,sin])
       gl.uniform3fv(vecZColorUniformLocation, [sin,0,cos])
 
-      // gl.uniform3fv(vecXColorUniformLocation, [1,0,0])
-      // gl.uniform3fv(vecYColorUniformLocation, [0,1,0])
-      // gl.uniform3fv(vecZColorUniformLocation, [0,0,1])
+      // gl.uniform3fv(vecXColorUniformLocation, [0,0,-1])
+      // gl.uniform3fv(vecYColorUniformLocation, [0,0,-1])
+      // gl.uniform3fv(vecZColorUniformLocation, [0,0,-1])
     }
 
-		gl.clearColor(0,0,0,1)//0.75, 0.85, 0.8, 1.0);
+		gl.clearColor(bg_C,bg_C,bg_C,1)//0.75, 0.85, 0.8, 1.0);
 		gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 		gl.drawElements(gl.TRIANGLES, indicies.length, gl.UNSIGNED_SHORT, 0);
 
@@ -395,5 +473,3 @@ function do_program() {
 	};
 	requestAnimationFrame(loop);
 }
-
-var InitDemo = do_program

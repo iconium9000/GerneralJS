@@ -1,5 +1,6 @@
-// import: FU
-// import: PT
+// requires: INDEX_CANVAS
+// requires: FU
+// requires: PT
 
 log = console.log
 log('init io.js')
@@ -20,10 +21,11 @@ function USR_IO_EVNTS() {
 
 function USR_IO_DSPLY() {
   var d = USR_IO_DSPLY
-  d.cnvs = d.cnvs || document.getElementById('canvas')
+  d.cnvs = d.cnvs || INDEX_CANVAS
   d.g = d.g || d.cnvs.getContext('2d')
   d.w = d.cnvs.width = window.innerWidth - 20
   d.h = d.cnvs.height = window.innerHeight - 22
+  d.d = [d.w,d.h]
 }
 
 USR_IO_MWS = []
@@ -31,13 +33,6 @@ function USR_IO_SET_MWS() {
   USR_IO_MWS.hsDn = USR_IO_MWS.hsDrgd = USR_IO_MWS.hsUp = false
   USR_IO_MWS.prv = PT.copy(USR_IO_MWS)
   USR_IO_MWS.prv.isDn = USR_IO_MWS.isDn
-}
-
-function USR_IO_UPDATE() {
-  USR_IO_KYS()
-  USR_IO_EVNTS()
-  USR_IO_DSPLY()
-  USR_IO_SET_MWS()
 }
 
 // non-global functions

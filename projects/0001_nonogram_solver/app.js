@@ -226,7 +226,7 @@ function solve_board(game) {
 }
 
 // rows, cols
-var game = get_game(50,50,0.6)
+var game = get_game(10,10,0.6)
 print_board(game)
 solve_board(game)
 

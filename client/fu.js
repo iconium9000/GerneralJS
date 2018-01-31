@@ -1,7 +1,7 @@
 log = console.log
 log('init fu.js')
 
-FU = new Object
+fu = FU = new Object
 FU.reqFrame = () => window.requestAnimationFrame ||
   window.webkitRequestAnimationFrame ||
   window.mozRequestAnimationFrame ||
@@ -16,3 +16,13 @@ FU.setCookie = (cname, cvalue, exdays) => {
 }
 
 FU.etochar = e => String.fromCharCode(e.which | 0x20)
+
+FU.forlen = (l,f) => {
+  for (var i = 0; i < l; ++i) {
+    f(i,l)
+  }
+}
+
+FU.forEach = (l,f) => {
+  for (var i in l) f(l[i],i,l)
+}
