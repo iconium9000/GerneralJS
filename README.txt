@@ -4,7 +4,7 @@ General Purpose JavaScript Project
 This repository is managed by a node server.
 Node server instructions:
   install node: https://nodejs.org/en/download/
-  cmd: npm inito
+  cmd: npm init
   cmd: npm install express
   cmd: npm install socket.io
 To activate server:
