@@ -571,6 +571,37 @@ PT.color = p => PT.suma(PT.mats(p, 1, c => {
   return c
 }, 4), '#')
 
+// converts vector [H,S,L,A] to vector [R,G,B,A]
+// where A is alpha [0,1]
+// H is hue [0,2π]
+// S is saturation [0,1]
+// L is lightness [0,1]
+// R,G,B is red,green,blue [0,1]
+PT.hue_to_color = h => {
+  var hue = h[0] || 0
+  var s = h[1] || 0
+  var l = h[2] || 0
+  var a = h[3] || 0
+  var c = (1 - Math.abs(2 * l - 1)) * s
+  h = (hue * 3 / (Math.PI)) % 6
+  var x = c * (1 - Math.abs(h % 2 - 1))
+  var rgb
+  if (h < 0) rgb = []
+  else if (h <= 1) rgb = [c,x,0]
+  else if (h <= 2) rgb = [x,c,0]
+  else if (h <= 3) rgb = [0,c,x]
+  else if (h <= 4) rgb = [0,x,c]
+  else if (h <= 5) rgb = [x,0,c]
+  else if (h <= 6) rgb = [c,0,x]
+  else rgb = []
+  var m = l - c / 2
+
+  log(Math.abs(2 * l - 1))
+  // log()
+  
+  return [0,0,0,0]
+}
+
 PT.drawLine = (g,a,b) => {
   g.beginPath()
   g.moveTo(a[0] || 0, a[1] || 0)
