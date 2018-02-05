@@ -25,7 +25,7 @@ function USR_IO_DSPLY() {
   d.g = d.g || d.cnvs.getContext('2d')
   d.w = d.cnvs.width = window.innerWidth - 20
   d.h = d.cnvs.height = window.innerHeight - 22
-  d.d = [d.w,d.h]
+  d.wh = [d.w,d.h]
 }
 
 USR_IO_MWS = []

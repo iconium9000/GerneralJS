@@ -12,6 +12,9 @@ app.get('/', (req, res) => res.sendFile(__dirname + '/client/index.html'))
 app.use('/client', express.static(__dirname + '/client'))
 app.use('/game', express.static(__dirname + '/projects/' + project))
 
+require(`./client/fu.js`)
+require(`./client/pt.js`)
+
 try {
   serv.listen(port)
 } catch (e) {
@@ -20,12 +23,29 @@ try {
 
 var socket_io = require('socket.io')(serv, {})
 
-function HOST_MSG(key, sndr, rcvr, msg) {
+SRVR_CLNTS = {}
+SRVR_CLNT_IDX = 0
 
+CLNT_NAME = 'SRVR'
+CLNT_IDX = SRVR_CLNT_IDX
+CLNT_KEY = PT.unique_key()
+CLNT = {
+  id: CLNT_IDX,
+  skt: null
 }
+SRVR_CLNTS[CLNT_IDX] = CLNT
 
-require(`./client/fu.js`)
-require(`./client/pt.js`)
+function SRVR_MSG(key,sndr,rcvr,msg) {
+  var snd = srvr_clnt => {
+    if (srvr_clnt.skt) srvr_clnt.skt.emit('msg',key,sndr,rcvr,msg)
+    else GAME_MSG(key,sndr,rcvr,msg)
+  }
+  if (rcvr) FU.forEach(rcvr, id => SRVR_CLNTS[id] && snd(SRVR_CLNTS[id]))
+  else FU.forEach(SRVR_CLNTS, snd)
+}
+function HOST_MSG(key, rcvr, msg) {
+  SRVR_MSG(key,CLNT_IDX,rcvr,msg)
+}
 
 // PROJECT_NAME : name of project
 // GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
@@ -35,13 +55,25 @@ log('init app.js', PROJECT_NAME, `port:${port}`)
 
 process.openStdin().addListener('data', msg => {
   msg = msg.toString().trim().split(' ')
-  GAME_MSG(msg[0], 'HOST', 'GAME', msg)
+  GAME_MSG(msg[0], CLNT_IDX, [0], msg)
 })
 
 GAME_SRVR_INIT()
 
+socket_io.sockets.on('connection', clnt_skt => {
+  var clnt_id = ++SRVR_CLNT_IDX
+  var clnt = {
+    id: clnt_id,
+    skt: clnt_skt
+  }
+  SRVR_CLNTS[clnt_id] = clnt
 
-socket_io.sockets.on('connection', skt => {
-  skt.on('msg', GAME_MSG)
+  log('connection', clnt_id, clnt_skt.id)
+
+  clnt_skt.on('disconnect', msg => {
+    delete SRVR_CLNTS[clnt_id]
+    log('disconnect', clnt_id, clnt_skt.id)
+  })
+  clnt_skt.on('msg', (key,rcvr,msg) => SRVR_MSG(key,clnt_id,rcvr,msg))
 })
 // process.exit(-1)

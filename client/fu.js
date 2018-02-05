@@ -26,3 +26,7 @@ FU.forlen = (l,f) => {
 FU.forEach = (l,f) => {
   for (var i in l) f(l[i],i,l)
 }
+
+FU.rand_char = () => {
+
+}

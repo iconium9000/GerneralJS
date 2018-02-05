@@ -25,14 +25,14 @@
 
   var reqFrame = FU.reqFrame()
 
-  var NAME = document.cookie.length ?
+  CLNT_NAME = document.cookie.length ?
     document.cookie.split('=')[1] :
     'Johnny Appleseed'
-  NAME = prompt('What is your name?', NAME)
-  FU.setCookie('NAME', NAME, 2)
+  CLNT_NAME = prompt('What is your name?', CLNT_NAME)
+  FU.setCookie('NAME', CLNT_NAME, 2)
 
-  function HOST_MSG(key, sndr, rcvr, msg) {
-    skt.emit('msg', key, sndr, rcvr, msg)
+  function HOST_MSG(key, rcvr, msg) {
+    skt.emit('msg', key, rcvr, msg)
   }
 
 </script>
@@ -46,6 +46,7 @@
 <script src="game/game.js"></script>
 <script>
   document.getElementById('title').innerHTML = PROJECT_NAME
+	$(canvas).css('cursor', 'none')
   GAME_MSG('handShake','HOST','GAME','hi there!')
 	USR_IO_KYS()
   USR_IO_EVNTS()
