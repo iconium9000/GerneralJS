@@ -25,6 +25,8 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 }
 GAME_SRVR_INIT = () => {
   log('init game srvr')
+
+  log(CLNT_NAME)
 }
 GAME_CLNT_INIT = () => {
   log('init game clnt')

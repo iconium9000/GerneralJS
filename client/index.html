@@ -12,19 +12,21 @@
 <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
 <script src="client/pt.js"></script>
 <script src="client/fu.js"></script>
-<!-- defines:
-  USR_IO_KYS()
-  USR_IO_MWS
-  USR_IO_SET_MWS()
-  USR_IO_DSPLY()
-  USR_IO_EVNTS()
--->
-<script src="client/usr_io.js"></script>
+<script src="client/usr_io.js">
+	// USR_IO_KYS()
+	// USR_IO_MWS
+	// USR_IO_SET_MWS()
+	// USR_IO_DSPLY()
+	// USR_IO_EVNTS()
+</script>
 <script>
-  var skt = io()
+  CLNT_SKT = io()
 
   var reqFrame = FU.reqFrame()
 
+	CLNT = {}
+	CLNT_IDX = null
+	CLNT_KEY = null
   CLNT_NAME = document.cookie.length ?
     document.cookie.split('=')[1] :
     'Johnny Appleseed'
@@ -32,32 +34,38 @@
   FU.setCookie('NAME', CLNT_NAME, 2)
 
   function HOST_MSG(key, rcvr, msg) {
-    skt.emit('msg', key, rcvr, msg)
+    CLNT_SKT.emit('msg', key, rcvr, msg)
   }
+
+	CLNT_SKT.on('info', info => {
+		CLNT_KEY = info.key
+		CLNT_IDX = info.id
+		log(`clnt_id: ${CLNT_IDX}\n  clnt_key: ${CLNT_KEY}\n  clnt_name: ${CLNT_NAME}`)
+	})
 
 </script>
 
-<!-- defines:
-  PROJECT_NAME : name of project
-  GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
-  GAME_CLNT_INIT() : set up clnt
-  GAME_TICK() : update clnt
--->
-<script src="game/game.js"></script>
+<script src="game/game.js">
+	// PROJECT_NAME : name of project
+	// GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
+	// GAME_CLNT_INIT() : set up clnt
+	// GAME_TICK() : update clnt
+</script>
 <script>
   document.getElementById('title').innerHTML = PROJECT_NAME
+	CLNT_SKT.on('msg', GAME_MSG)
 	$(canvas).css('cursor', 'none')
-  GAME_MSG('handShake','HOST','GAME','hi there!')
 	USR_IO_KYS()
   USR_IO_EVNTS()
   USR_IO_SET_MWS()
 	USR_IO_DSPLY()
 	GAME_CLNT_INIT()
 
-
-  skt.on('msg', GAME_MSG)
-
 	// PT.fun(PT.test_fun)
+
+	CLNT_SKT.emit('info', {
+		name: CLNT_NAME
+	})
 
 	function index_tick() {
 		USR_IO_DSPLY()

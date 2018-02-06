@@ -28,14 +28,16 @@ SRVR_CLNT_IDX = 0
 
 CLNT_NAME = 'SRVR'
 CLNT_IDX = SRVR_CLNT_IDX
-CLNT_KEY = PT.unique_key()
+CLNT_KEY = CLNT_NAME
+CLNT_SKT = null
 CLNT = {
   id: CLNT_IDX,
-  skt: null
+  key: CLNT_KEY,
+  skt: CLNT_SKT
 }
 SRVR_CLNTS[CLNT_IDX] = CLNT
 
-function SRVR_MSG(key,sndr,rcvr,msg) {
+var SRVR_MSG = (key,sndr,rcvr,msg) => {
   var snd = srvr_clnt => {
     if (srvr_clnt.skt) srvr_clnt.skt.emit('msg',key,sndr,rcvr,msg)
     else GAME_MSG(key,sndr,rcvr,msg)
@@ -43,9 +45,7 @@ function SRVR_MSG(key,sndr,rcvr,msg) {
   if (rcvr) FU.forEach(rcvr, id => SRVR_CLNTS[id] && snd(SRVR_CLNTS[id]))
   else FU.forEach(SRVR_CLNTS, snd)
 }
-function HOST_MSG(key, rcvr, msg) {
-  SRVR_MSG(key,CLNT_IDX,rcvr,msg)
-}
+HOST_MSG = (key, rcvr, msg) => SRVR_MSG(key,CLNT_IDX,rcvr,msg)
 
 // PROJECT_NAME : name of project
 // GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
@@ -62,18 +62,29 @@ GAME_SRVR_INIT()
 
 socket_io.sockets.on('connection', clnt_skt => {
   var clnt_id = ++SRVR_CLNT_IDX
-  var clnt = {
+  var clnt_key = clnt_skt.id
+  var clnt_name = null
+  SRVR_CLNTS[clnt_id] = {
     id: clnt_id,
-    skt: clnt_skt
+    key: clnt_key,
+    name: clnt_name
   }
-  SRVR_CLNTS[clnt_id] = clnt
 
-  log('connection', clnt_id, clnt_skt.id)
+  log('connection', clnt_id, clnt_key)
 
   clnt_skt.on('disconnect', msg => {
     delete SRVR_CLNTS[clnt_id]
     log('disconnect', clnt_id, clnt_skt.id)
   })
   clnt_skt.on('msg', (key,rcvr,msg) => SRVR_MSG(key,clnt_id,rcvr,msg))
+  clnt_skt.on('info', info => {
+    clnt_name = info.name
+    log(`clnt_id: ${clnt_id}\n\tclnt_key: ${clnt_key}\n\tclnt_name: ${clnt_name}`)
+  })
+
+  clnt_skt.emit('info',{
+    id: clnt_id,
+    key: clnt_key
+  })
 })
 // process.exit(-1)
