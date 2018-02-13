@@ -212,7 +212,7 @@ var sphere_points = []
 var sphere_lines = []
 var sphere_triangles = []
 
-var n_points = 100
+var n_points = 20
 {
   var zero = vec3.create
   var unit = (v3,s) => vec3.scale(v3, v3, s / vec3.len(v3))
@@ -368,8 +368,8 @@ function do_program() {
 	var angle = 0;
 	var loop = function () {
 		angle = performance.now() / 1000 * 2 * Math.PI;
-		mat4.rotate(yRotationMatrix, identityMatrix, angle / 1000, [0, 1, 0]);
-		mat4.rotate(xRotationMatrix, identityMatrix, angle / 1000, [1, 0, 0]);
+		mat4.rotate(yRotationMatrix, identityMatrix, angle / 10, [0, 1, 0]);
+		mat4.rotate(xRotationMatrix, identityMatrix, angle / 10, [1, 0, 0]);
 		mat4.mul(worldMatrix, yRotationMatrix, xRotationMatrix);
 		gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, worldMatrix);
 
