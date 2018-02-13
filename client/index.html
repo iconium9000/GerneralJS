@@ -25,7 +25,7 @@
   var reqFrame = FU.reqFrame()
 
 	CLNT = {}
-	CLNT_IDX = null
+	CLNT_ID = null
 	CLNT_KEY = null
   CLNT_NAME = document.cookie.length ?
     document.cookie.split('=')[1] :
@@ -38,9 +38,12 @@
   }
 
 	CLNT_SKT.on('info', info => {
+		if (CLNT_KEY == info.key) return
+
+		CLNT_SKT.emit('info', {name: CLNT_NAME})
 		CLNT_KEY = info.key
-		CLNT_IDX = info.id
-		log(`clnt_id: ${CLNT_IDX}\n  clnt_key: ${CLNT_KEY}\n  clnt_name: ${CLNT_NAME}`)
+		CLNT_ID = info.id
+		log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)
 	})
 
 </script>
@@ -63,9 +66,7 @@
 
 	// PT.fun(PT.test_fun)
 
-	CLNT_SKT.emit('info', {
-		name: CLNT_NAME
-	})
+	CLNT_SKT.emit('info', {name: CLNT_NAME})
 
 	function index_tick() {
 		USR_IO_DSPLY()

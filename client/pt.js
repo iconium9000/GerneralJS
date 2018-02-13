@@ -1,5 +1,6 @@
 // import FU
 
+π = Math.PI
 log = console.log
 srfy = JSON.stringify
 log('init pt.js')
@@ -276,356 +277,112 @@ PT.fillRect = (g, a, b) => {
 }
 
 
-PT.fun = txt => {
-  var lines = PT.fun.parse(txt)
-  var symbol_table = {}
-  PT.fun.get_symbol_table(lines,symbol_table)
-  log(lines)
-  log(symbol_table)
-
-  PT.fun.set_functions(lines)
-}
-PT.fun.natives = {
-  '*': a => {
-
-  },
-  '+': a => {
-
-  },
-  '-': a => {
-
-  },
-  '/': a => {
-
-  },
-  '=': a => {
-
-  },
-  '>': a => {
-
-  },
-  '<': a => {
-
-  },
-  '>=': a => {
-
-  },
-  '<=': a => {
-
-  },
-  '==': a => {
-
-  },
-  'mat': a => {
-
-  },
-  'bool': a => {
-
-  },
-  'def': a => {
-
-  },
-  'fun': a => {
-
-  },
-  'vec': a => {
-
-  },
-  'scal': a => {
-
-  },
-  'if': a => {
-
-  },
-  'len': a => {
-
-  },
-  'dot': a => {
-
-  },
-  'sqrt': a => {
-
-  },
-  'pow': a => {
-
-  },
-  'root': a => {
-
-  },
-  'let': a => {
-
-  },
-  'return': a => {
-
-  },
-  'cat': a => {
-
-  },
-  'size': a => {
-
-  },
-}
-
-PT.fun.parse = txt => {
-  var lines = []
-
-  var new_line = txt.split('\n')
-
-  var prev = 0
-  var line_stack = []
-
-  var place = 0
-
-  var stack = []
-  var words = []
-
-  var comment
-  var word = ''
-
-  var char_to_word = c => word += c
-  var word_to_words = () => {
-    var temp = word.split('//')
-    if (comment = comment || temp.length > 1) word = temp[0]
-    word && words.push(word)
-    word = ''
-  }
-  var parse_words = words => {
-    var commas = PT.mata(words,0,(w,s) => s + (w == ','))
-    if (commas) {
-      var temp_words = []
-      var temp_line = ['vec']
-      if (words[0] == 'vec') words.splice(0,1)
-
-      FU.forEach(words, w => {
-        if (w == ',') {
-          temp_words = parse_words(temp_words)
-          temp_words.length && temp_line.push(temp_words)
-          temp_words = []
-        }
-        else temp_words.push(w)
-      })
-      temp_words.length && temp_line.push(temp_words)
-      return temp_line
-    } else {
-      var temp_words = []
-      FU.forEach(words, w => {
-        var n = parseFloat(w)
-        temp_words.push(isNaN(n) ? w : n)
-      })
-      return temp_words
+/*
+vector method compiler
+s: sting of argument types
+  'v': vector
+  's': scaler
+  examples:
+    'vvvs'
+    'vvss'
+    'vs'
+    'v'
+f: function that rcvs
+returns: a function that rcvs the arguments of type specified by s
+  note: the argument list is terminated by an required length argument
+    that defines the length of the returned value
+  examples:
+    vcc('vssv', f) -> (v1,s1,s2,v2,l) => {}
+*/
+PT.vcc = (s,f,l) => {
+  if (!f) return ()=>[]
+  else if (!s) {
+    if (l == 1) return () => [f.apply(0,[])]
+    else if (l > 1) return () => {
+      var ans = []
+      for (var i = 0; i < l; ++i)
+        ans[i] = f.apply(i,[])
+      return ans
+    }
+    else return len => {
+      var ans = []
+      for (var i = 0; i < len; ++i)
+        ans[i] = f.apply(i,[])
+      return ans
     }
   }
-  var words_to_stack = () => {
-    stack.push(parse_words(words))
-    words = []
-  }
-  var stack_to_words = () => {
-    words = parse_words(words)
-    var temp = stack.pop()
-    if (temp) {
-      temp.push(words)
-      words = temp
+  else if (s.length == 1) {
+    if (s == 'v') {
+      if (l == 1) return v => [f.apply(0,v)]
+      else if (l > 1) return v => {
+        var ans = []
+        for (var i = 0; i < l; ++i)
+          ans[i] = f.apply(i,[v[i] || 0])
+        return ans
+      }
+      else return (v,len) => {
+        var ans = []
+        for (var i = 0; i < len; ++i)
+          ans[i] = f.apply(i,[v[i] || 0])
+        return ans
+      }
+    }
+    else if (l == 1) return s => [f.apply(l,[s || 0])]
+    else if (l > 1) return s => {
+      var ans = []
+      s = s || 0
+      for (var i = 0; i < l; ++i)
+        ans[i] = f.apply(i,[s])
+      return ans
+    }
+    else return (s,len) => {
+      var ans = []
+      s = s || 0
+      for (var i = 0; i < len; ++i)
+        ans[i] = f.apply(i,[s])
+      return ans
     }
   }
-  var lines_to_line_stack = () => {
-    line_stack.push(lines)
-    lines = []
+  else if (l == 1) return function() {
+    var arg = []
+    for (var j = 0; j < s.length; ++j)
+      arg[j] = arguments[j] ?
+        s[j] == 'v' ?
+          arguments[j][0] || 0 :
+          arguments[j] : 0
+    return [f.apply(0,arg)]
   }
-  var line_stack_to_lines = () => {
-    var temp_lines = line_stack.pop()
-    var temp_words = temp_lines.pop()
-    if (lines.length > 1) lines = PT.cat('vec', lines)
-    if (temp_words) {
-      temp_words.push(lines.length == 1 ? lines[0] : lines)
-      // temp_words.push(lines)
-      temp_lines.push(temp_words)
+  else if (l > 1) return function() {
+    var ans = [], arg = []
+    for (var i = 0; i < l; ++i) {
+      for (var j = 0; j < s.length; ++j)
+        arg[j] = arguments[j] ?
+          s[j] == 'v' ?
+            arguments[j][i] || 0 :
+            arguments[j] : 0
+      ans[i] = f.apply(i,arg)
     }
-    else {
-      // temp_words.push(lines)
-      temp_lines.push(lines.length == 1 ? lines[0] : lines)
+    return ans
+  }
+  else return function() {
+    var len = arguments[s.length]
+    var ans = [], arg = []
+    for (var i = 0; i < len; ++i) {
+      for (var j = 0; j < s.length; ++j)
+        arg[j] = arguments[j] ?
+          s[j] == 'v' ?
+            arguments[j][i] || 0 :
+            arguments[j] : 0
+      ans[i] = f.apply(i,arg)
     }
-    lines = temp_lines
-  }
-  var words_to_lines = () => lines.push(words)
-
-  FU.forEach(new_line, line => {
-    line = line.split(' ')
-    var count = PT.find(line, l => l.length)/2
-    line = PT.spliceif(line, l => !l.length)
-
-    comment = false
-
-    stack = []
-    words = []
-    FU.forEach(line, l => {
-      word = ''
-      FU.forEach(l, c => {
-        if (comment) return
-        else if (c == '(') {
-          word_to_words()
-          words_to_stack()
-        }
-        else if (c == '[' || c == '{') {
-          word_to_words()
-          words_to_stack()
-          char_to_word('vec')
-          word_to_words()
-        }
-        else if (c == ')' || c == ']' || c == '}') {
-          word_to_words()
-          stack_to_words()
-        }
-        else if (c == ',') {
-          word_to_words()
-          char_to_word(c)
-          word_to_words()
-        }
-        else char_to_word(c)
-      })
-      word_to_words()
-    })
-
-    while (stack.length) words = stack.pop()
-
-    if (words.length) {
-      var dif = count-prev
-
-      // if (dif > 0) FU.forlen(dif, lines_to_line_stack)
-      if (dif > 0) FU.forlen(1, lines_to_line_stack)
-      else if (dif) FU.forlen(-dif, line_stack_to_lines)
-      words_to_lines()
-
-      prev = count
-    }
-  })
-  while (line_stack.length) line_stack_to_lines()
-  return PT.cat('vec',lines)
-}
-PT.fun.get_symbol_table = (lines,symbol_table) =>
-  FU.forlen(lines.length, i => {
-    var l = lines[i]
-    if (typeof l == 'string' || typeof l == 'number') {
-      symbol_table[l] = lines[i] = symbol_table[l] ||
-        { lex:true, n:l, u:[], f:PT.fun.natives[l] }
-      symbol_table[l].u.push([lines,i])
-    }
-    else {
-      PT.fun.get_symbol_table(l,symbol_table)
-      l.scope = lines
-    }
-  })
-PT.fun.set_functions = lines => {
-
-
-}
-
-main1 = (a1,a2,a3) => {
-  var p1 = resolve(a1)
-  var p2 = resolve(a2)
-  var p3 = resolve(a3)
-
-  var u = []
-
-  u1 = f1(p2, p1)
-  u2 = f2(u1)
-  u1 = f3(u1, u2)
-
-  return express(u1)
-}
-main2 = a1 => {
-  var p1 = resolve(a1)
-
-  if (f1(p1)) {
-    return true
-  }
-  else {
-    return false
+    return ans
   }
 }
-main3 = (a1,a2) => {
-  var p1 = resolve(a1)
-  var p2 = resolve(a2)
+PT.fcc = function() {
 
-  var t1
 
-  if (f1(p1)) {
-    return express(p2)
-  }
-  else {
-    p2 = false
-  }
-  p1 = f2(a)
-  return express(p1)
-}
-main4 = () => {
-  var u1
 
-  u1 = [1,2,3,4]
-  u1 = [4,2,3,4]
-}
-main5 = (a1,a2,a3,a4) => {
-  var p1 = resolve(a1)
-  var p2 = resolve(a2)
-  var p3 = resolve(a3)
-  var p4 = resolve(a4)
+  return (s,f) => {
 
-  var u1
-
-  u1 = f1(p1, p2)
-  return f2(u1, p4, p3)
-}
-main6 = (a1,a2,a3,a4) => {
-  var p1 = resolve(a1)
-  var p2 = resolve(a2)
-  var p3 = resolve(a3)
-  var p4 = resolve(a4)
-
-  if (f1(p4)) {
-    return f2(p1,p3)
-  }
-  else {
-    return f2(p2,p3)
   }
 }
-
-PT_FUN_TXT =
-
-// `1
-//   111 112 113
-//   121 122 123
-//     1241 1242
-//   131 132 133
-//     1341 1342
-// 2
-//   211 212 213
-//   221 222 223
-// `
-`
-def main [a b c f]
-  let u (- b a)
-  let l (len u)
-  = u (/ u l)
-  return u
-def main a
-  if (> (len a) 1)
-    return true
-    return false
-def main [a b]
-  if (> (len a) 1)
-    return b
-    = b false
-  = a (* a 4)
-  return a
-def main []
-  = a [1 2 3 4]
-  = a [+ 1 3, 2, 3, 4]
-
-// PT.divs(PT.sum(wh, PT.muls(PT.cat(p,r), scale, 3)), 2)
-def main [p r wh scale]
-  let t (cat (size p 2) (scal r))
-  return (/ (+ (* t scale) wh) 2)
-def main [ma mb v f]
-  if f
-    return (ma v)
-    return (mb v)
-`

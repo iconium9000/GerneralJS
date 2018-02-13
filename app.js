@@ -27,25 +27,31 @@ SRVR_CLNTS = {}
 SRVR_CLNT_IDX = 0
 
 CLNT_NAME = 'SRVR'
-CLNT_IDX = SRVR_CLNT_IDX
+CLNT_ID = SRVR_CLNT_IDX
 CLNT_KEY = CLNT_NAME
 CLNT_SKT = null
 CLNT = {
-  id: CLNT_IDX,
+  id: CLNT_ID,
   key: CLNT_KEY,
   skt: CLNT_SKT
 }
-SRVR_CLNTS[CLNT_IDX] = CLNT
+SRVR_CLNTS[CLNT_ID] = CLNT
+log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)
 
 var SRVR_MSG = (key,sndr,rcvr,msg) => {
+  log('SRVR_MSG', key, sndr, rcvr, msg)
+  // log(SRVR_CLNTS)
+
   var snd = srvr_clnt => {
+    log('snd_msg',srvr_clnt)
+
     if (srvr_clnt.skt) srvr_clnt.skt.emit('msg',key,sndr,rcvr,msg)
     else GAME_MSG(key,sndr,rcvr,msg)
   }
-  if (rcvr) FU.forEach(rcvr, id => SRVR_CLNTS[id] && snd(SRVR_CLNTS[id]))
+  if (rcvr) FU.forEach(rcvr, id => log(id,SRVR_CLNTS) || (SRVR_CLNTS[id] && snd(SRVR_CLNTS[id])))
   else FU.forEach(SRVR_CLNTS, snd)
 }
-HOST_MSG = (key, rcvr, msg) => SRVR_MSG(key,CLNT_IDX,rcvr,msg)
+HOST_MSG = (key, rcvr, msg) => SRVR_MSG(key,CLNT_ID,rcvr,msg)
 
 // PROJECT_NAME : name of project
 // GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
@@ -55,7 +61,7 @@ log('init app.js', PROJECT_NAME, `port:${port}`)
 
 process.openStdin().addListener('data', msg => {
   msg = msg.toString().trim().split(' ')
-  GAME_MSG(msg[0], CLNT_IDX, [0], msg)
+  GAME_MSG(msg[0], CLNT_ID, [0], msg)
 })
 
 GAME_SRVR_INIT()
@@ -64,10 +70,11 @@ socket_io.sockets.on('connection', clnt_skt => {
   var clnt_id = ++SRVR_CLNT_IDX
   var clnt_key = clnt_skt.id
   var clnt_name = null
-  SRVR_CLNTS[clnt_id] = {
+  var clnt = SRVR_CLNTS[clnt_id] = {
     id: clnt_id,
     key: clnt_key,
-    name: clnt_name
+    name: clnt_name,
+    skt: clnt_skt
   }
 
   log('connection', clnt_id, clnt_key)
@@ -78,13 +85,13 @@ socket_io.sockets.on('connection', clnt_skt => {
   })
   clnt_skt.on('msg', (key,rcvr,msg) => SRVR_MSG(key,clnt_id,rcvr,msg))
   clnt_skt.on('info', info => {
-    clnt_name = info.name
-    log(`clnt_id: ${clnt_id}\n\tclnt_key: ${clnt_key}\n\tclnt_name: ${clnt_name}`)
+    if (clnt_name == info.name) return
+
+    clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })
+    clnt.name = clnt_name = info.name
+    log('info',clnt_id,clnt_name,clnt_key)
   })
 
-  clnt_skt.emit('info',{
-    id: clnt_id,
-    key: clnt_key
-  })
+  clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })
 })
 // process.exit(-1)
