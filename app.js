@@ -12,8 +12,12 @@ app.get('/', (req, res) => res.sendFile(__dirname + '/client/index.html'))
 app.use('/client', express.static(__dirname + '/client'))
 app.use('/game', express.static(__dirname + '/projects/' + project))
 
+PROJ_PATH = `projects/${project}/`
+CLNT_PATH = `client/`
+
 require(`./client/fu.js`)
 require(`./client/pt.js`)
+FS = require('fs')
 
 try {
   serv.listen(port)
@@ -39,16 +43,18 @@ SRVR_CLNTS[CLNT_ID] = CLNT
 log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)
 
 var SRVR_MSG = (key,sndr,rcvr,msg) => {
-  log('SRVR_MSG', key, sndr, rcvr, msg)
+  // log('SRVR_MSG', key, sndr, rcvr, msg)
   // log(SRVR_CLNTS)
 
-  var snd = srvr_clnt => {
-    log('snd_msg',srvr_clnt)
+  // log(rcvr)
 
-    if (srvr_clnt.skt) srvr_clnt.skt.emit('msg',key,sndr,rcvr,msg)
+  var snd = srvr_clnt => {
+    // log('snd_msg',srvr_clnt)
+    if (!srvr_clnt) return
+    else if (srvr_clnt.skt) srvr_clnt.skt.emit('msg',key,sndr,rcvr,msg)
     else GAME_MSG(key,sndr,rcvr,msg)
   }
-  if (rcvr) FU.forEach(rcvr, id => log(id,SRVR_CLNTS) || (SRVR_CLNTS[id] && snd(SRVR_CLNTS[id])))
+  if (rcvr) FU.forEach(rcvr, id => snd(SRVR_CLNTS[id]))
   else FU.forEach(SRVR_CLNTS, snd)
 }
 HOST_MSG = (key, rcvr, msg) => SRVR_MSG(key,CLNT_ID,rcvr,msg)

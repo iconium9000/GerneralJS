@@ -6,6 +6,9 @@
 </canvas>
 <script>
 	INDEX_CANVAS = document.getElementById('canvas')
+	GAME_HIDE_CURSER = true
+	PROJ_PATH = 'game/'
+	CLNT_PATH = 'client/'
 </script>
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.js"></script>
@@ -57,7 +60,7 @@
 <script>
   document.getElementById('title').innerHTML = PROJECT_NAME
 	CLNT_SKT.on('msg', GAME_MSG)
-	$(canvas).css('cursor', 'none')
+	GAME_HIDE_CURSER && $(canvas).css('cursor', 'none')
 	USR_IO_KYS()
   USR_IO_EVNTS()
   USR_IO_SET_MWS()
