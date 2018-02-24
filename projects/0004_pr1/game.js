@@ -640,6 +640,18 @@ function isOn(_fx,fx_fy_cl) {
   }
   return false
 }
+function calOn(_fx,_cl,nal) {
+  for (var _al in ALS[_cl][nal]) {
+    var fx_fy = SRC[_al]
+    var _fx_fy = FNS[_fx][fx_fy]
+    if (_fx_fy) {
+      var _nal = NAL[_al]
+      var _fx_fy_al = ALS[_fx_fy][_nal]
+      if (OT[_fx_fy_al]) return true
+    }
+  }
+  return false
+}
 // are all als in _cl on (ON[_al] == true)
 function allOn(_fx,fx_fy_cl) {
   var _als = ALS[fx_fy_cl]
@@ -696,7 +708,8 @@ function getMsk(_cl,_txt) {
   var nalj = nalij[1]
   var nalk = nali * nalj
 
-  if (_txt == '=') {
+  if (!_txt) return
+  else if (_txt == '=') {
     var _msk = []
     for (var k = 0; k < nalk; ++k) {
       _msk[k] = {}
@@ -710,8 +723,8 @@ function getMsk(_cl,_txt) {
       for (var i = 0; i < nali; ++i) {
         var ij = j * nali + i
         var ji = i * nalj + j
-        _msk[ij] = {}
-        _msk[ij][ji] = SEL
+        _msk[ji] = {}
+        _msk[ji][ij] = SEL
       }
     }
     return [[nalj,nali],_msk]
@@ -814,6 +827,49 @@ function getMsk(_cl,_txt) {
     }
     return
   }
+  else if (_txt.slice(0,2) == 'LI') {
+    var l = parseInt(_txt.slice(3))
+    if (l > 0 && nali % l == 0) {
+      var _msk = []
+      var m = Math.floor(nali / l)
+      var j = nalj
+      for (var _j = 0; _j < j; ++_j) {
+        for (var _m = 0; _m < m; ++_m) {
+          for (var _l = 0; _l < l; ++_l) {
+            var k = _l + _m * l + _j * m * l
+            var lk = _m + _l * m + _j * m * l
+            _msk[k] = {}
+            _msk[k][lk] = SEL
+          }
+        }
+      }
+      return [[l,m*j],_msk]
+    }
+    return
+  }
+  else if (_txt.slice(0,2) == 'LJ') {
+    var l = parseInt(_txt.slice(3))
+
+
+    var j = nalj
+    if (l > 0 && j % l == 0) {
+      var i = nali
+      var m = Math.floor(j / l)
+      var _msk = []
+      for (var _i = 0; _i < i; ++_i) {
+        for (var _l = 0; _l < l; ++_l) {
+          for (var _m = 0; _m < m; ++_m) {
+            var k = _m + _i * m + _l * m * i
+            var lk = _i + _m * i + _l * m * i
+            _msk[k] = {}
+            _msk[k][lk] = SEL
+          }
+        }
+      }
+      return [[m*i,l],_msk]
+    }
+    return
+  }
 
   var split = _txt.split(',')
   if (split.length == 1) {
@@ -855,7 +911,7 @@ function getMsk(_cl,_txt) {
     var idxjl = idxj.length
     var idxi1 = idxi[0] == '' ? 0 : parseInt(idxi[0])
     var idxi2 = idxil == 1 ? idxi1 : idxi[1] == '' ? nali-1 : parseInt(idxi[1])
-    var idxj1 = idxj[1] == '' ? 0 : parseInt(idxj[0])
+    var idxj1 = idxj[0] == '' ? 0 : parseInt(idxj[0])
     var idxj2 = idxjl == 1 ? idxj1 : idxj[1] == '' ? nalj-1 : parseInt(idxj[1])
 
     if (0 <= idxi1 && 0 <= idxi2 && 0 <= idxj1 && 0 <= idxj2 &&
@@ -957,7 +1013,6 @@ function setup(fxs,scp,src,nal,txt,loc,ots) {
         var _nal = nal[id] || 1
         new_cl = newCfn(new_fx,new_fy,_nal,clij,_txt)
       }
-      ots[id] && ots[id].forEach(_ot => newClk(new_cl,read(_ot)))
       return new_id[id] = new_cl
     }
     else {
@@ -968,6 +1023,10 @@ function setup(fxs,scp,src,nal,txt,loc,ots) {
     }
   }
   for (var cl in loc) read(cl)
+  for (var _cl in ots) {
+    for (var i in ots[_cl])
+      newClk(read(_cl),read(ots[_cl][i]))
+  }
   for (var txt in fxs) {
     var old_fx = fxs[txt]
     var new_fx = read(old_fx)
@@ -1005,6 +1064,8 @@ function getRead(o) {
 TICKS = 0
 
 getRead()
+var busBottomRight = PT.vcc('vvvss',(w,_i,i,s,o)=> w - o + s * (_i - i),2)// + s * (_i - i))
+
 GAME_TICK = () => {
   var g = USR_IO_DSPLY.g
   if (TICKS++ < 10) {
@@ -1017,6 +1078,7 @@ GAME_TICK = () => {
   CNTR_PT = PT.divs(USR_IO_DSPLY.wh,2)
   ELAPSED_TIME = USR_IO_EVNTS.nw
   var kydn = USR_IO_KYS.hsDn
+  var WH = USR_IO_DSPLY.wh
 
   var mws = USR_IO_MWS
   var clij = msij_to_clij(mws)
@@ -1040,7 +1102,7 @@ GAME_TICK = () => {
       _FX = fx
       clearSel()
     }
-    else alert(`no function for ${fun_name}`)
+    else alert(`no function for '${fun_name}'`)
   }
   else if (kydn['n']) {
     var name = prompt('New Function Name:',PREV_NAME)
@@ -1068,6 +1130,13 @@ GAME_TICK = () => {
   }
   else if (kydn['r']) {
     HOST_MSG('rqst_update',[0])
+  }
+
+  var h = 0
+  g.textAlign = 'right'
+  g.fillStyle = 'white'
+  for (var txt in FXS) {
+    g.fillText(txt,WH[0] - 10,h += 20)
   }
 
   if (!_FX) return
@@ -1137,12 +1206,26 @@ GAME_TICK = () => {
     }
   }
 
+  g.textAlign = 'left'
   g.fillStyle = 'white'
   g.fillText(TXT[fx], 20, 40)
-  SEL_CL && g.fillText(SEL_CL, 20, 60)
-  SEL_CL && g.fillText(NAL[SEL_CL], 40, 60)
-  _cls[srij] && g.fillText(_cls[srij], 20, 80)
-  _cls[srij] && g.fillText(NAL[_cls[srij]], 40, 80)
+  SEL_CL && g.fillText(`${SEL_CL}   ${NAL[SEL_CL]}`, 20, 60)
+
+  if (_cls[srij]) {
+    var _cl = _cls[srij]
+    g.fillText(`${_cl}   ${NAL[_cls[srij]]}`, 20, 80)
+
+    var nalij = NAL[_cl]
+    var nali = nalij[0]
+    var nalj = nalij[1]
+
+    for (var j = 0; j < nalj; ++j) {
+      for (var i = 0; i < nali; ++i) {
+        g.fillStyle = calOn(_FX,_cl,j * nali + i) ? '#800000' : '#404040'
+        PT.fillSquare(g, busBottomRight(WH,[i,j],nalij,10,10), 4)
+      }
+    }
+  }
 
   g.textAlign = 'center'
 
