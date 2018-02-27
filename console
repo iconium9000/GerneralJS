@@ -1,0 +1,33 @@
+init fu.js
+init pt.js
+info 0 SRVR SRVR
+init game.js Graph Theory
+init app.js Graph Theory port:2000
+init game srvr
+connection 1 gdZBsNe0z0kJ1z45AAAA
+info 1 Johnny Appleseed gdZBsNe0z0kJ1z45AAAA
+disconnect 1 gdZBsNe0z0kJ1z45AAAA
+connection 2 aAzw5cZA3WE5CJqrAAAB
+info 2 Johnny Appleseed aAzw5cZA3WE5CJqrAAAB
+disconnect 2 aAzw5cZA3WE5CJqrAAAB
+connection 3 GqVjw7mM7vnnzXMhAAAC
+info 3 Johnny Appleseed GqVjw7mM7vnnzXMhAAAC
+disconnect 3 GqVjw7mM7vnnzXMhAAAC
+connection 4 L-VQSY8Xp-7mHpFzAAAD
+info 4 Johnny Appleseed L-VQSY8Xp-7mHpFzAAAD
+disconnect 4 L-VQSY8Xp-7mHpFzAAAD
+connection 5 zJGq-_DKUyimJ5f0AAAE
+info 5 Johnny Appleseed zJGq-_DKUyimJ5f0AAAE
+disconnect 5 zJGq-_DKUyimJ5f0AAAE
+connection 6 uKir7ROoaFuZ9eOCAAAF
+info 6 Johnny Appleseed uKir7ROoaFuZ9eOCAAAF
+disconnect 6 uKir7ROoaFuZ9eOCAAAF
+connection 7 f4E-HRlT6r_PH1oKAAAG
+info 7 Johnny Appleseed f4E-HRlT6r_PH1oKAAAG
+disconnect 7 f4E-HRlT6r_PH1oKAAAG
+connection 8 zpenXZyM7bWiumlTAAAH
+info 8 Johnny Appleseed zpenXZyM7bWiumlTAAAH
+disconnect 8 zpenXZyM7bWiumlTAAAH
+connection 9 s2JzRlQD549fKIIsAAAI
+info 9 Johnny Appleseed s2JzRlQD549fKIIsAAAI
+disconnect 9 s2JzRlQD549fKIIsAAAI

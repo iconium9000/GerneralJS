@@ -13,7 +13,7 @@ ARROW_TIME = 20
 ELAPSED_TIME = 0
 CEL_WDTH = 10
 
-var SAVE_FILE = PROJ_PATH + 'gameSave.txt'
+var SAVE_FILE = PROJ_PATH + 'pr.json'
 
 var msij_to_clij = function() {
   var fun = PT.vcc('vvvs',(m,p,c,z) => Math.round((m-c)/z+p), 2)
