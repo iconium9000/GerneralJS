@@ -4,9 +4,9 @@ PROJECT_NAME = 'Project Redstone'
 GAME_HIDE_CURSER = false
 log('init game.js', PROJECT_NAME)
 
-var CEL_SIZE = 25
-var PLR_PT = []
-var CNTR_PT = []
+CEL_SIZE = 25
+PLR_PT = [-8,-4]
+CNTR_PT = []
 
 ARROW_SIZE = 3
 ARROW_TIME = 20
@@ -264,7 +264,7 @@ function clearAll() {
   ot[fx_fyz_ck] = fx_fz_cl
 */
 
-function newFun(nal) {
+function newFun(nal,txt) {
   var fx = newID(FUN)
   SCP[fx] = fx
   SRC[fx] = fx
@@ -272,11 +272,13 @@ function newFun(nal) {
   NAL[fx] = nal
   ALS[fx] = []
   LKS[fx] = {}
+  TXT[fx] = txt
 
   CFS[fx] = {}
   CLS[fx] = {}
 
   FNS[fx][fx] = fx
+
 
   for (var i = 0; i < nal; ++i) {
     var fx_al = newID(FAL)
@@ -849,8 +851,6 @@ function getMsk(_cl,_txt) {
   }
   else if (_txt.slice(0,2) == 'LJ') {
     var l = parseInt(_txt.slice(3))
-
-
     var j = nalj
     if (l > 0 && j % l == 0) {
       var i = nali
@@ -869,6 +869,30 @@ function getMsk(_cl,_txt) {
       return [[m*i,l],_msk]
     }
     return
+  }
+  else if (_txt.slice(0,2) == 'EI') {
+    var ei = parseInt(_txt.slice(3))
+    var _msk = []
+    for (var j = 0; j < nalj; ++j) {
+      for (var i = 0; i < ei; ++i) {
+        var ek = j * ei + i
+        _msk[ek] = {}
+        if (i < nali) _msk[ek][j * nali + i] = SEL
+      }
+    }
+    return [[ei,nalj],_msk]
+  }
+  else if (_txt.slice(0,2) == 'EJ') {
+    var ej = parseInt(_txt.slice(3))
+    var _msk = []
+    for (var j = 0; j < ej; ++j) {
+      for (var i = 0; i < nali; ++i) {
+        var k = j * nali + i
+        _msk[k] = {}
+        if (j < nalj) _msk[k][k] = SEL
+      }
+    }
+    return [[nali,ej],_msk]
   }
 
   var split = _txt.split(',')
@@ -945,7 +969,7 @@ function saveAll() {
   var nal = {}
   var txt = {}
   var loc = {}
-  var ots = {}
+  var lks = []
 
   var save = id => {
     if (flag[id]) return
@@ -971,8 +995,7 @@ function saveAll() {
       txt[id] = TXT[id]
       loc[id] = LOC[id]
       if (!FU.isEmpty(OTS[id])) {
-        ots[id] = []
-        for (var cl in OTS[id]) ots[id].push(cl)
+        for (var cl in OTS[id]) lks.push(clij_to_srij([id,cl]))
       }
       break
     }
@@ -980,11 +1003,11 @@ function saveAll() {
 
   FU.forEach(FXS,save)
 
-  var o = {fxs:FXS, scp:scp, src:src, nal:nal, txt:txt, loc:loc, ots:ots}
+  var o = {fxs:FXS, scp:scp, src:src, nal:nal, txt:txt, loc:loc, lks:lks}
   return JSON.stringify(o,null,' ')
 }
 
-function setup(fxs,scp,src,nal,txt,loc,ots) {
+function setup(fxs,scp,src,nal,txt,loc,lks) {
   clearAll()
 
   var new_id = {}
@@ -1017,15 +1040,16 @@ function setup(fxs,scp,src,nal,txt,loc,ots) {
     }
     else {
       var _nal = nal[id] || 1
-      var new_fx = newFun(_nal)
-      TXT[new_fx] = _txt
+      var new_fx = newFun(_nal,_txt)
       return new_id[id] = new_fx
     }
   }
   for (var cl in loc) read(cl)
-  for (var _cl in ots) {
-    for (var i in ots[_cl])
-      newClk(read(_cl),read(ots[_cl][i]))
+  for (var i in lks) {
+    var lkij = srij_to_clij(lks[i])
+    var _cl1 = lkij[0]
+    var _cl2 = lkij[1]
+    newClk(read(_cl1),read(_cl2))
   }
   for (var txt in fxs) {
     var old_fx = fxs[txt]
@@ -1036,7 +1060,7 @@ function setup(fxs,scp,src,nal,txt,loc,ots) {
 function getRead(o) {
   if (o) {
     try {
-      setup(o.fxs, o.scp, o.src, o.nal, o.txt, o.loc, o.ots)
+      setup(o.fxs, o.scp, o.src, o.nal, o.txt, o.loc, o.lks)
       TRN = FXS['+']
       TRN_AL0 = ALS[TRN][0]
       TRN_AL1 = ALS[TRN][1]
@@ -1048,15 +1072,13 @@ function getRead(o) {
   }
 
   clearAll()
-  TRN = newFun(3)
-  TXT[TRN] = '+'
+  TRN = newFun(3,'+')
   FXS['+'] = TRN
   TRN_AL0 = ALS[TRN][0]
   TRN_AL1 = ALS[TRN][1]
   TRN_AL2 = ALS[TRN][2]
 
-  _FX = newFun(3)
-  TXT[_FX] = 'and'
+  _FX = newFun(3,'and')
   FXS['and'] = _FX
   SEL_CL = newCfn(_FX,_FX,1,[0,0],'and')
 }
@@ -1064,7 +1086,7 @@ function getRead(o) {
 TICKS = 0
 
 getRead()
-var busBottomRight = PT.vcc('vvvss',(w,_i,i,s,o)=> w - o + s * (_i - i),2)// + s * (_i - i))
+var busBottomRight = PT.vcc('vvvss',(w,_i,i,s,o)=> w - o + s * (_i - i),2)
 
 GAME_TICK = () => {
   var g = USR_IO_DSPLY.g
@@ -1113,9 +1135,8 @@ GAME_TICK = () => {
         var nal = parseInt(prompt('Bus size:',PREV_NAL))
         if (nal > 0) {
           PREV_NAL = nal
-          var fx = newFun(nal)
+          var fx = newFun(nal,name)
           FXS[name] = fx
-          TXT[fx] = name
           _FX = fx
           clearSel()
         }
@@ -1209,6 +1230,7 @@ GAME_TICK = () => {
   g.textAlign = 'left'
   g.fillStyle = 'white'
   g.fillText(TXT[fx], 20, 40)
+  g.fillText(FU.count(VALS),100,40)
   SEL_CL && g.fillText(`${SEL_CL}   ${NAL[SEL_CL]}`, 20, 60)
 
   if (_cls[srij]) {

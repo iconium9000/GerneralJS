@@ -66,6 +66,7 @@ require(`./projects/${project}/game.js`)
 log('init app.js', PROJECT_NAME, `port:${port}`)
 
 process.openStdin().addListener('data', msg => {
+  log('datastrema',msg)
   msg = msg.toString().trim().split(' ')
   GAME_MSG(msg[0], CLNT_ID, [0], msg)
 })

@@ -59,22 +59,22 @@ var f_bounce_ball = (a,b,av,bv,ar,br,am,bm,s) => {
     // PT.set(av,bu)
     // PT.set(bv,au)
 
-    var adot = PT.dot(av,sub)
-    var bdot = PT.dot(bv,sub)
-    var sdot = -1/len/len
+    // var adot = PT.dot(av,sub)
+    // var bdot = PT.dot(bv,sub)
+    // var sdot = -1/len/len
 
     // adot > 0 && PT.set(av,f_move(av,sub,adot*sdot))
     // bdot < 0 && PT.set(bv,f_move(bv,sub,bdot*sdot))
 
-    adot > 0 && PT.set(bv,f_move(bv,sub,-adot*sdot*am/bm))
-    bdot < 0 && PT.set(av,f_move(av,sub,-bdot*sdot*bm/am))
+    // adot > 0 && PT.set(bv,f_move(bv,sub,-adot*sdot*am/bm))
+    // bdot < 0 && PT.set(av,f_move(av,sub,-bdot*sdot*bm/am))
 
-    // var au1 = PT.muls(sub,PT.dot(PT.muls(av,am),sub)/len/len)
-    // var bu1 = PT.muls(sub,PT.dot(PT.muls(bv,bm),sub)/len/len)
-    // var au2 = PT.divs(PT.sub(bu1,au1),am)
-    // var bu2 = PT.divs(PT.sub(au1,bu1),bm)
-    // PT.sume(av, au2)
-    // PT.sume(bv, bu2)
+    var au1 = PT.muls(sub,PT.dot(PT.muls(av,am),sub)/len/len)
+    var bu1 = PT.muls(sub,PT.dot(PT.muls(bv,bm),sub)/len/len)
+    var au2 = PT.divs(PT.sub(bu1,au1),am)
+    var bu2 = PT.divs(PT.sub(au1,bu1),bm)
+    PT.sume(av, au2)
+    PT.sume(bv, bu2)
   }
 }
 
