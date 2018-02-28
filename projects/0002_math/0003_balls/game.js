@@ -24,12 +24,14 @@ PLANES = [
   { n: [-1,0], p: [0,0]}, // 3
 ]
 
+MAX_V = 100
+
 REPS = 10
 N_BALLS = 1
 MWS_PRV = null
 
 MIN_RAD = 8
-MAX_RAD = 2 + MIN_RAD
+MAX_RAD = 20 + MIN_RAD
 
 TICKS = 0
 
@@ -49,6 +51,7 @@ var f_bounce_plane = (b,v,r,p,n,s) => {
 var f_bounce_ball = (a,b,av,bv,ar,br,am,bm,s) => {
   var sub = PT.sub(b,a,2)
   var len = PT.length(sub)
+  var dot = len * len
   if (len && len < ar + br) {
     var mid = PT.muls(sub, ((ar + br) / len - 1) / 2)
     PT.sume(b,mid)
@@ -59,9 +62,17 @@ var f_bounce_ball = (a,b,av,bv,ar,br,am,bm,s) => {
     // PT.set(av,bu)
     // PT.set(bv,au)
 
-    // var adot = PT.dot(av,sub)
-    // var bdot = PT.dot(bv,sub)
-    // var sdot = -1/len/len
+    var adot = PT.dot(av,sub) / dot
+    var bdot = PT.dot(bv,sub) / dot
+
+    if (adot > 0) {
+      PT.set(av,f_move(av,sub,-adot))
+      PT.set(bv,f_move(bv,sub,adot * (am/bm)))
+    }
+    if (bdot < 0) {
+      PT.set(bv,f_move(bv,sub,-bdot))
+      PT.set(av,f_move(av,sub,bdot * (bm/am)))
+    }
 
     // adot > 0 && PT.set(av,f_move(av,sub,adot*sdot))
     // bdot < 0 && PT.set(bv,f_move(bv,sub,bdot*sdot))
@@ -69,12 +80,12 @@ var f_bounce_ball = (a,b,av,bv,ar,br,am,bm,s) => {
     // adot > 0 && PT.set(bv,f_move(bv,sub,-adot*sdot*am/bm))
     // bdot < 0 && PT.set(av,f_move(av,sub,-bdot*sdot*bm/am))
 
-    var au1 = PT.muls(sub,PT.dot(PT.muls(av,am),sub)/len/len)
-    var bu1 = PT.muls(sub,PT.dot(PT.muls(bv,bm),sub)/len/len)
-    var au2 = PT.divs(PT.sub(bu1,au1),am)
-    var bu2 = PT.divs(PT.sub(au1,bu1),bm)
-    PT.sume(av, au2)
-    PT.sume(bv, bu2)
+    // var au1 = PT.muls(sub,PT.dot(PT.muls(av,am),sub)/len/len)
+    // var bu1 = PT.muls(sub,PT.dot(PT.muls(bv,bm),sub)/len/len)
+    // var au2 = PT.divs(PT.sub(bu1,au1),am)
+    // var bu2 = PT.divs(PT.sub(au1,bu1),bm)
+    // PT.sume(av, au2)
+    // PT.sume(bv, bu2)
   }
 }
 
@@ -85,10 +96,13 @@ GAME_TICK = () => {
   var dt = USR_IO_EVNTS.dt / 1e3
   var mws = USR_IO_MWS
   var hsDn = USR_IO_KYS.hsDn
+  var isDn = USR_IO_KYS.isDn
   PLANES[3].p[0] = USR_IO_DSPLY.w
   PLANES[2].p[1] = USR_IO_DSPLY.h
 
   var MWS = PT.copy(mws)
+
+  if (hsDn['r']) BALLS = []
 
   if (mws.hsDn) MWS_PRV = MWS
   if (mws.hsUp && MWS_PRV) {
@@ -97,7 +111,11 @@ GAME_TICK = () => {
         p: PT.copy(MWS_PRV),
         v: PT.sub(MWS, MWS_PRV),
         c: PT.color(PT.cat(f_color(),1)),
-        r: MIN_RAD + Math.random() * (MAX_RAD - MIN_RAD)
+        r: isDn['x'] ?
+          MIN_RAD :
+          isDn['z'] ?
+            MAX_RAD :
+            MIN_RAD + Math.random() * (MAX_RAD - MIN_RAD)
       }
       ball.m = π * ball.r * ball.r
       BALLS.push(ball)
@@ -107,6 +125,8 @@ GAME_TICK = () => {
 
   FU.forlen(REPS, () => {
     var t_dt = 1 * dt / REPS
+    // BALLS.forEach(ball => PT.length(ball.v) > MAX_V && PT.mulse(ball.v, 0.99))
+    BALLS.forEach(ball => PT.length(ball.v) > MAX_V && PT.mulse(ball.v, 0.999))
     BALLS.forEach(ball => ball.p = f_move(ball.p,ball.v, t_dt))
     BALLS.forEach(ball => PLANES.forEach(plane =>
       f_bounce_plane(ball.p,ball.v,ball.r,plane.p,plane.n, t_dt)))
@@ -127,6 +147,10 @@ GAME_TICK = () => {
   BALLS.forEach(ball => {
     g.fillStyle = ball.c
     pt.fillCircle(g, ball.p, ball.r)
+    if (PT.length(ball.v) > MAX_V) {
+      g.strokeStyle = 'red'
+      pt.drawCircle(g, ball.p, ball.r+2)
+    }
     PT.sume(cntr,PT.muls(ball.p, ball.m),2)
     PT.sume(cntrv,PT.muls(ball.v, ball.m),2)
     energy += PT.length(ball.v) * ball.m

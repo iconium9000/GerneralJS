@@ -49,3 +49,12 @@ FU.cmb = (a,b) => {
   for (var i in b) c[i] = b[i]
   return a
 }
+FU.shuffle = a => {
+  var j, t, i
+  for (i = a.length - 1; i > 0; --i) {
+    j = Math.floor(Math.random() * (i + 1))
+    t = a[i]
+    a[i] = a[j]
+    a[j] = t
+  }
+}
