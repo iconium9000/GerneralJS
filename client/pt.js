@@ -200,7 +200,7 @@ PT.rand = l => {
 }
 
 PT.length = p => Math.sqrt(PT.suma(PT.mul(p,p)))
-
+PT.dist = (a,b) => PT.length(PT.sub(a,b))
 PT.unit = p => PT.divs(p,PT.length(p))
 
 PT.dot = (a,b) => PT.suma(PT.mul(a,b))
@@ -227,6 +227,7 @@ PT.spliceif = (p,f) => {
       p.splice(i--,1)
   return p
 }
+PT.circle = a => [Math.cos(a),Math.sin(a)]
 PT.color = p => PT.suma(PT.mats(p, 1, c => {
   c = c > 1 ? 1 : c < 0 ? 0 : c
   c = Math.floor(c * 255).toString(16)
@@ -249,8 +250,9 @@ PT.drawCircle = (g, p, r) => {
   g.arc(p[0] || 0, p[1] || 0, r, 0, 2 * Math.PI)
   g.stroke()
 }
-PT.fillCircle = (g, p, r) => {
+PT.fillCircle = (g, p, r, c) => {
   if (!r) return
+  if (c) g.fillStyle = c
   g.beginPath()
   g.arc(p[0] || 0, p[1] || 0, r, 0, 2 * Math.PI)
   g.fill()
@@ -260,7 +262,8 @@ PT.drawSquare = (g, p, r) => {
   g.rect((p[0] || 0) - r, (p[1] || 0) - r, 2*r, 2*r)
   g.stroke()
 }
-PT.fillSquare = (g, p, r) => {
+PT.fillSquare = (g, p, r, c) => {
+  if (c) g.fillStyle = c
   g.beginPath()
   g.rect((p[0] || 0) - r, (p[1] || 0) - r, 2*r, 2*r)
   g.fill()
@@ -270,7 +273,8 @@ PT.drawRect = (g, a, b) => {
   g.rect(a[0] || 0, a[1] || 0, b[0] || 0, b[1] || 0)
   g.draw()
 }
-PT.fillRect = (g, a, b) => {
+PT.fillRect = (g, a, b, c) => {
+  if (c) g.fillStyle = c
   g.beginPath()
   g.rect(a[0] || 0, a[1] || 0, b[0] || 0, b[1] || 0)
   g.fill()
