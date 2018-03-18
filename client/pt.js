@@ -200,7 +200,17 @@ PT.rand = l => {
 }
 
 PT.length = p => Math.sqrt(PT.suma(PT.mul(p,p)))
+PT.dist = (a,b) => PT.length(PT.sub(a,b))
 
+PT.cross = (a,b) => {
+  var u2v3 = a[1] * b[2]
+  var u3v2 = a[2] * b[1]
+  var u3v1 = a[2] * b[0]
+  var u1v3 = a[0] * b[2]
+  var u1v2 = a[0] * b[1]
+  var u2v1 = a[1] * b[0]
+  return [u2v3-u3v2,u3v1-u1v3,u1v2-u2v1]
+}
 PT.unit = p => PT.divs(p,PT.length(p))
 
 PT.dot = (a,b) => PT.suma(PT.mul(a,b))
@@ -237,40 +247,54 @@ PT.color = p => PT.suma(PT.mats(p, 1, c => {
 PT_UNIQUE_KEYS = {}
 PT.unique_key = l => PT.matlse(l,'',(n,s)=>s+FU.rand_char())
 
-PT.drawLine = (g,a,b) => {
+PT.drawLine = (g,a,b,c) => {
+  if (c) g.strokeStyle = c
+
   g.beginPath()
   g.moveTo(a[0] || 0, a[1] || 0)
   g.lineTo(b[0] || 0, b[1] || 0)
   g.stroke()
 }
-PT.drawCircle = (g, p, r) => {
+PT.drawCircle = (g, p, r, c) => {
   if (!r) return
+  if (c) g.strokeStyle = c
+
   g.beginPath()
   g.arc(p[0] || 0, p[1] || 0, r, 0, 2 * Math.PI)
   g.stroke()
 }
-PT.fillCircle = (g, p, r) => {
+PT.fillCircle = (g, p, r, c) => {
   if (!r) return
+  if (c) g.fillStyle = c
+
   g.beginPath()
   g.arc(p[0] || 0, p[1] || 0, r, 0, 2 * Math.PI)
   g.fill()
 }
-PT.drawSquare = (g, p, r) => {
+PT.drawSquare = (g, p, r, c) => {
+  if (c) g.strokeStyle = c
+
   g.beginPath()
   g.rect((p[0] || 0) - r, (p[1] || 0) - r, 2*r, 2*r)
   g.stroke()
 }
-PT.fillSquare = (g, p, r) => {
+PT.fillSquare = (g, p, r, c) => {
+  if (c) g.fillStyle = c
+
   g.beginPath()
   g.rect((p[0] || 0) - r, (p[1] || 0) - r, 2*r, 2*r)
   g.fill()
 }
-PT.drawRect = (g, a, b) => {
+PT.drawRect = (g, a, b, c) => {
+  if (c) g.strokeStyle = c
+
   g.beginPath()
   g.rect(a[0] || 0, a[1] || 0, b[0] || 0, b[1] || 0)
   g.draw()
 }
-PT.fillRect = (g, a, b) => {
+PT.fillRect = (g, a, b, c) => {
+  if (c) g.fillStyle = c
+
   g.beginPath()
   g.rect(a[0] || 0, a[1] || 0, b[0] || 0, b[1] || 0)
   g.fill()
