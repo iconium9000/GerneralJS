@@ -211,7 +211,25 @@ PT.cross = (a,b) => {
   var u2v1 = a[1] * b[0]
   return [u2v3-u3v2,u3v1-u1v3,u1v2-u2v1]
 }
+PT.cross2 = (a,b) => {
+  var a0 = a[0] || 0
+  var a1 = a[1] || 0
+  var b0 = b[0] || 0
+  var b1 = b[1] || 0
+  return a1 * b0 - a0 * b1
+}
 PT.unit = p => PT.divs(p,PT.length(p))
+
+PT.lineCross = (a0,a1,b0,b1) => {
+  var a0_b0 = PT.sub(a0,b0)
+  var b1_b0 = PT.sub(b1,b0)
+  var a1_b0 = PT.sub(a1,b0)
+  var a1_a0 = PT.sub(a1,a0)
+  var b1_a0 = PT.sub(b1,a0)
+  var ab = PT.cross2(a0_b0,b1_b0) * PT.cross2(a1_b0,b1_b0)
+  var ba = PT.cross2(a1_a0,a0_b0) * PT.cross2(b1_a0,a1_a0)
+  return ab < 0 && ba < 0
+}
 
 PT.dot = (a,b) => PT.suma(PT.mul(a,b))
 PT.cat = function() {
