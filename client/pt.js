@@ -201,6 +201,7 @@ PT.rand = l => {
 
 PT.length = p => Math.sqrt(PT.suma(PT.mul(p,p)))
 PT.dist = (a,b) => PT.length(PT.sub(a,b))
+<<<<<<< HEAD
 
 PT.cross = (a,b) => {
   var u2v3 = a[1] * b[2]
@@ -211,6 +212,8 @@ PT.cross = (a,b) => {
   var u2v1 = a[1] * b[0]
   return [u2v3-u3v2,u3v1-u1v3,u1v2-u2v1]
 }
+=======
+>>>>>>> 810fd6d0e57bc595a7d79eceaedeabddea6a1e8d
 PT.unit = p => PT.divs(p,PT.length(p))
 
 PT.dot = (a,b) => PT.suma(PT.mul(a,b))
@@ -237,6 +240,7 @@ PT.spliceif = (p,f) => {
       p.splice(i--,1)
   return p
 }
+PT.circle = a => [Math.cos(a),Math.sin(a)]
 PT.color = p => PT.suma(PT.mats(p, 1, c => {
   c = c > 1 ? 1 : c < 0 ? 0 : c
   c = Math.floor(c * 255).toString(16)
@@ -266,7 +270,10 @@ PT.drawCircle = (g, p, r, c) => {
 PT.fillCircle = (g, p, r, c) => {
   if (!r) return
   if (c) g.fillStyle = c
+<<<<<<< HEAD
 
+=======
+>>>>>>> 810fd6d0e57bc595a7d79eceaedeabddea6a1e8d
   g.beginPath()
   g.arc(p[0] || 0, p[1] || 0, r, 0, 2 * Math.PI)
   g.fill()
@@ -280,7 +287,10 @@ PT.drawSquare = (g, p, r, c) => {
 }
 PT.fillSquare = (g, p, r, c) => {
   if (c) g.fillStyle = c
+<<<<<<< HEAD
 
+=======
+>>>>>>> 810fd6d0e57bc595a7d79eceaedeabddea6a1e8d
   g.beginPath()
   g.rect((p[0] || 0) - r, (p[1] || 0) - r, 2*r, 2*r)
   g.fill()
@@ -294,7 +304,10 @@ PT.drawRect = (g, a, b, c) => {
 }
 PT.fillRect = (g, a, b, c) => {
   if (c) g.fillStyle = c
+<<<<<<< HEAD
 
+=======
+>>>>>>> 810fd6d0e57bc595a7d79eceaedeabddea6a1e8d
   g.beginPath()
   g.rect(a[0] || 0, a[1] || 0, b[0] || 0, b[1] || 0)
   g.fill()

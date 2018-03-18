@@ -212,7 +212,7 @@ var sphere_points = []
 var sphere_lines = []
 var sphere_triangles = []
 
-var n_points = 20
+var n_points = 180
 {
   var zero = vec3.create
   var unit = (v3,s) => vec3.scale(v3, v3, s / vec3.len(v3))
