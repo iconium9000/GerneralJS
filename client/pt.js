@@ -201,14 +201,16 @@ PT.rand = l => {
 
 PT.length = p => Math.sqrt(PT.suma(PT.mul(p,p)))
 PT.dist = (a,b) => PT.length(PT.sub(a,b))
+PT.invert = p => [-p[1] || 0, p[0] || 0]
+PT.tan2 = p => Math.atan2(p[1] || 0, p[0] || 0)
 
 PT.cross = (a,b) => {
-  var u2v3 = a[1] * b[2]
-  var u3v2 = a[2] * b[1]
-  var u3v1 = a[2] * b[0]
-  var u1v3 = a[0] * b[2]
-  var u1v2 = a[0] * b[1]
-  var u2v1 = a[1] * b[0]
+  var u2v3 = (a[1] * b[2]) || 0
+  var u3v2 = (a[2] * b[1]) || 0
+  var u3v1 = (a[2] * b[0]) || 0
+  var u1v3 = (a[0] * b[2]) || 0
+  var u1v2 = (a[0] * b[1]) || 0
+  var u2v1 = (a[1] * b[0]) || 0
   return [u2v3-u3v2,u3v1-u1v3,u1v2-u2v1]
 }
 PT.cross2 = (a,b) => {
@@ -229,6 +231,27 @@ PT.lineCross = (a0,a1,b0,b1) => {
   var ab = PT.cross2(a0_b0,b1_b0) * PT.cross2(a1_b0,b1_b0)
   var ba = PT.cross2(a1_a0,a0_b0) * PT.cross2(b1_a0,a1_a0)
   return ab < 0 && ba < 0
+}
+PT.lineDist = (p,a,b) => {
+  var ba = PT.sub(b,a)
+  var ba_len = PT.length(ba)
+  var ba_sqr = ba_len * ba_len
+
+  var pa = PT.sub(p,a)
+  var pa_len = PT.length(pa)
+  if (ba_len == 0) return pa_len
+
+  var pb_len = PT.dist(p,b)
+
+  var dot = PT.dot(ba,pa)
+  if (dot < 0) return pa_len
+  if (dot > ba_sqr) return pb_len
+
+  var cross_pb = PT.cross(pa,ba)
+  if (cross_pb == 0)
+    return pa_len < pb_len ? pa_len : pb_len
+
+  return Math.abs(PT.dot(pa, PT.unit(PT.cross(ba,cross_pb))))
 }
 
 PT.dot = (a,b) => PT.suma(PT.mul(a,b))

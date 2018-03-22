@@ -15,6 +15,9 @@ FU.setCookie = (cname, cvalue, exdays) => {
   document.cookie = `${cname}=${cvalue};expires=${d.toUTCString()};path=/`
 }
 
+FU.mod = (x,y) => x < 0 ? y + (x%y) : x%y
+FU.flr = (x,y) => y * Math.floor(x / y)
+
 FU.trueif = (l,f) => {
   for (var i = 0; i < l; ++i) if (f(i,l)) return true
   return false

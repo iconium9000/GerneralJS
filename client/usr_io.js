@@ -5,6 +5,9 @@
 log = console.log
 log('init io.js')
 
+USR_IO_KYS()
+USR_IO_EVNTS()
+
 function USR_IO_KYS() {
   USR_IO_KYS.isDn = USR_IO_KYS.isDn || {}
   USR_IO_KYS.hsDn = {}
