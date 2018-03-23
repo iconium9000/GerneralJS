@@ -1,11 +1,19 @@
 // import FU
 
-π = Math.PI
+// π = Math.PI
 log = console.log
 srfy = JSON.stringify
 log('init pt.js')
 
 pt = PT = {}
+
+PT.vec = (a,b,s,l) => {
+  var p = []
+  s = s || 0
+  FU.forlen(l || (a.length > b.length ? a : b).length,
+    i => p[i] = (a[i] || 0) + s * (b[i] || 0))
+  return p
+}
 
 // c = mat a b
 PT.sum = (a,b,l) => {
@@ -13,7 +21,7 @@ PT.sum = (a,b,l) => {
   FU.forlen(l || (a.length > b.length ? a : b).length,
     i => p[i] = (a[i] || 0) + (b[i] || 0))
   return p
-  }
+}
 PT.sub = (a,b,l) => {
   var p = []
   FU.forlen(l || (a.length > b.length ? a : b).length,
@@ -199,7 +207,7 @@ PT.rand = l => {
   return p
 }
 
-PT.length = p => Math.sqrt(PT.suma(PT.mul(p,p)))
+PT.length = (p,l) => Math.sqrt(PT.suma(PT.mul(p,p,l)))
 PT.dist = (a,b) => PT.length(PT.sub(a,b))
 PT.invert = p => [-p[1] || 0, p[0] || 0]
 PT.tan2 = p => Math.atan2(p[1] || 0, p[0] || 0)
@@ -220,7 +228,7 @@ PT.cross2 = (a,b) => {
   var b1 = b[1] || 0
   return a1 * b0 - a0 * b1
 }
-PT.unit = p => PT.divs(p,PT.length(p))
+PT.unit = (p,l) => PT.divs(p,PT.length(p,l))
 
 PT.lineCross = (a0,a1,b0,b1) => {
   var a0_b0 = PT.sub(a0,b0)
@@ -444,11 +452,177 @@ PT.vcc = (s,f,l) => {
     return ans
   }
 }
+
 PT.fcc = function() {
-
-
-
-  return (s,f) => {
-
+  var temp = ()=>{}
+  var tokens = {
+    ' ': ' ',
+    '(': '(',
+    ')': ')',
+    '+': '+',
+    '-': '-',
+    '*': '*',
+    '%': '%',
+    '!': '!',
+    '^': '^',
+    '{': '{',
+    '}': '}',
+    ';': ';',
+    '?': '?',
+    ':': ':',
+    '[': '[',
+    ']': ']',
+    '++': '++',
+    '--': '--',
+    '//': '//',
+    '\n': '\n',
+    '\t': '\t',
+    '$': '$',
+    '#': '#',
+    '&': '&',
+    '#': '#',
+    '=': '=',
+    '~': '~',
+    ',': ','
   }
-}
+
+  function parseString(string) {
+    var word = ''
+    var ans = []
+
+    var line = 0
+    var char = 0
+
+    for (var c in string) {
+      c = string[c]
+
+      if (tokens[c] && !tokens[word]) {
+        ans.push([false,word,line,char])
+        word = ''
+      }
+
+      if (tokens[word]) {
+        if (tokens[word+c]) word += c
+        else {
+          ans.push([true,word,line,char])
+          if (word == '\n') {
+            ++line
+            char = 0
+          }
+          word = c
+        }
+      } else {
+        word += c
+      }
+      ++char
+    }
+
+    if (word) ans.push([!!tokens[word],word,line,char])
+
+    return ans
+  }
+  function parseComments(p1) {
+    var flag = false
+    var p2 = []
+    for (var p in p1) {
+      p = p1[p]
+      var c = p[1]
+      if (flag) {
+        if (c == '\n') {
+          flag = false
+          p2.push(p)//[true,';'])
+        }
+      }
+      else if (c == '//') {
+        flag = true
+      }
+      // else if (c=='\n') p2.push([true,';'])
+      else if (c!=' ' && c!='\t') p2.push(p)
+    }
+    return p2
+  }
+  function parseDelims(parse) {
+    var stack = []
+    var stat_stack = []
+    var stat = []
+
+    var push = w => {
+      stack.push(w[0])
+      stat_stack.push(stat)
+      stat = [[true,w]]
+    }
+    var pop = () => {
+      stack.pop()
+      var temp_stat = stat_stack.pop()
+      temp_stat.push(stat)
+      stat = temp_stat
+    }
+    for (var c in parse) {
+      c = parse[c]
+      var w = c[1]
+
+      last = stack[stack.length-1]
+      var err = `invalid '${w}' at ${c[2]}:${c[3]}`
+
+      if (last == '(') {
+        if (w == '}' || w == ']') throw err
+        else if (w == ')') pop()
+        else if (w == '(') push('()')
+        else if (w == '[') push('[]')
+        else if (w == '{') push('{}')
+        else stat.push(c)
+      }
+      else if (last == '[') {
+        if (w == '}' || w == ')') throw err
+        else if (w == ']') pop()
+        else if (w == '(') push('()')
+        else if (w == '[') push('[]')
+        else if (w == '{') push('{}')
+        else stat.push(c)
+      }
+      else if (last == '{') {
+        if (w == ']' || w == ')') throw err
+        else if (w == '}') pop()
+        else if (w == '(') push('()')
+        else if (w == '[') push('[]')
+        else if (w == '{') push('{}')
+        else stat.push(c)
+      }
+      else if (w == '(') push('()')
+      else if (w == '[') push('[]')
+      else if (w == '{') push('{}')
+      else if (w==')'||w==']'||w=='}') throw err
+      else stat.push(c)
+    }
+
+    return stat
+  }
+
+  function printParse(parse) {
+    var s = ''
+    for(var c in parse) s += parse[c][1] == ';' ? '\n' : parse[c][1] + ' '
+    log(s)
+  }
+
+  return function(string) {
+
+    var parse = parseString(string)
+    log(parse)
+    parse = parseComments(parse)
+    printParse(parse)
+
+    parse = parseDelims(parse)
+    log(parse)
+    return function() {
+
+    }
+  }
+}()
+
+var fun = PT.fcc(`
+  vec3 main(vec3 a, vec3 b, vec1 c, mat3_4 m) {
+    // this is a comment
+    return (a + c b) // this is the ans
+  }
+`)
+log(fun)

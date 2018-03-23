@@ -187,155 +187,253 @@ phys.invs = function() {
 }()
 
 TICK = 0
-var objs = []
 
-var reps = 1e3
-var std_r = 10
-var prev = null
+var npts = 5e2
+var pts = []
+FU.forlen(npts, i => {
+  var a = pi2 * Math.random()
+  var ca = Math.cos(a)
+  var sa = Math.sin(a)
+  var cb = 2 * Math.random() - 1
+  var sb = Math.sqrt(1-cb*cb)
+  pts.push([sa*cb,sa*sb,ca,Math.random()])
+})
 
-function moveObj(b,u,dt) {
-  var r = PT.length(b.p)
-  var a = PT.muls(b.p, U/r/r/r)
-  PT.sube(b.v, PT.muls(a, dt))
-  PT.sume(b.p, PT.muls(b.v, dt))
-}
-function newObj(p,v) {
-  var b = {}
-
-  b.p = p
-  b.v = v
-  b.r = std_r
-
-  objs.push(b)
-}
-
-var U = phys.stdu(10,100)
-var z_ax = [0,0,1]
-
-function drawEllipse(g,cvec,p,v,wh) {
-  var vr = PT.length(v)
-  var pr = PT.length(p)
-  var pu = PT.divs(p,pr)
-  var sma = phys.sma(U,pr,vr)
-
-  var onv = phys.onv(p,v)
-  var opv = phys.opv(onv,p)
-
-  var pv = phys.pv(pu,opv,v)
-  var rv = phys.rv(pr,sma,pv)
-
-  var ra = phys.ra(rv,pv)
-  var ecc = phys.ecc(rv,pv,sma,pr)
-
-  var pa = PT.tan2(p)
-
-  var smb = Math.sqrt(sma*sma * (1 - ecc*ecc))
-  var smf = Math.sqrt(sma*sma - smb * smb)
-
-  var pf = PT.sum(cvec,phys.tfm(PT.muls(rv,smf),pu,opv))
-
-  var tra = PT.dot(onv,z_ax) > 0 ? -ra : ra
-
-  var k2 = Math.pow(1 - ecc*ecc, -1.5)
-  var k = Math.sqrt(sma*sma*sma/U)/k2
-
-  var rvp = phys.tfm(rv,pu,opv)
-  var rva = PT.tan2(rvp)
-
-  g.beginPath()
-  sma > 0 && g.ellipse(pf[0],pf[1],sma,smb,pa+tra,0,pi2)
-  g.stroke()
-
-  // g.fillText(ecc,20,20)
-  // g.fillText(onv,20,40)
-
-  var drwtfm = (p,r) => PT.drawCircle(g,PT.sum(cvec,phys.tfm(p,pu,opv)),r)
-
-  var apoap = phys.apoap(rv,sma,ecc)
-  var perap = phys.perap(rv,sma,ecc)
-
-  drwtfm(apoap,3)
-  drwtfm(perap,3)
-
-  PT.drawLine(g,cvec,PT.sum(cvec,PT.muls(rvp,100)))
-
-  var abs_ecc = Math.abs(ecc)
-
-  // g.fillText(`sma:${sma},ecc:${ecc},rva:${rva}`,20,20)
-  // g.fillText(phys.invs(pi2/k,ecc,0.5),20,40)
-
-  var nw = USR_IO_EVNTS.nw * 1e-3
-
-  var t = k * phys.area(ra,ecc,0.001)
-
-  var prev = null
-  var prev_o = -1
-  for (var i = 0; i < wh[0]; ++i) {
-    // var x = pi2 * i / 100
-    // var o = phys.invs(x/k,ecc,0.5)
-    // var y = phys.r(x,sma,ecc,rva)
-
-    // if (i % 100) continue
-
-    var x = i/100 - t
-    // var o = pi2 * x
-    var o = phys.invs(x/k,ecc,0.01) - rva
-    var y = phys.r(o,sma,ecc,0)
-
-    var point = [i,y]
-    var point_o = [i,10*FU.mod(o,pi2)]
-    prev && PT.drawLine(g,point,prev)
-    prev && PT.drawLine(g,point_o,prev_o)
-    prev = point
-    prev_o = point_o
-  }
-}
+// p x n = k
+// n x k = p
+// n x p = n
+// n, k, p
+var plr = [[1,0,0],[0,1,0],[0,0,1]]
+var tfm = PT.vcc('sv', (p,x) => PT.dot(p,x), 3)
 
 GAME_TICK = () => {
   var g = USR_IO_DSPLY.g
   var mws = USR_IO_MWS
   var kys = USR_IO_KYS.hsDn
+  var nw = USR_IO_EVNTS.nw * 1e-3
   var dt = USR_IO_EVNTS.dt * 1e-3
 
   var cvec = PT.divs(USR_IO_DSPLY.wh,2)
-  var clen = PT.length(cvec)/4
-
-  if (kys['q'])
-    if (prev) prev = null
-    else objs = []
-
-  if (mws.hsDn) {
-    if (prev == null) {
-      prev = PT.copy(mws)
-    }
-    else {
-      newObj(PT.sub(prev,cvec),PT.sub(mws,prev))
-      prev = null
-    }
-  }
+  var clen = PT.length(cvec)/3 * 1
+  cvec[1] *= 1
 
   g.strokeStyle = g.fillStyle = 'white'
+  PT.drawCircle(g,cvec,clen)
+  PT.fillCircle(g,cvec,3)
 
-  if (prev) {
-    var v = PT.sub(mws,prev)
-    var p = PT.sub(prev,cvec)
-    var pr = PT.length(p)
+  plr[1] = PT.cross(plr[2],plr[0])
 
-    drawEllipse(g,cvec,p,v,USR_IO_DSPLY.wh)
-    PT.drawLine(g,prev,mws)
-    PT.drawCircle(g,prev,Math.sqrt(2*U/pr))
+  pts.forEach(p => {
+    var rand = p[3]
+    var s = 10
+    var t = (s * rand + nw) % s / s * 2
+    t = t > 1 ? 2 - t : t
+
+    p = PT.copy(p)
+    // p[3] = (1-t)
+    p = tfm(PT.unit(p,3),plr)
+
+    // PT.mulse(p,p[2]*3,2)
+    if (p[2]<0) return
+
+    var z = 8
+    var a = 2 + z * t
+    var o = Math.atan2(p[2],PT.length(p,2))
+    var o2 = Math.atan2(p[1],p[0]) + pi/2
+    var b = a * Math.abs(Math.sin(o))
+    var f = Math.sqrt(a*a-b*b)
+
+    // log(p[0],p[1],o2)
+
+    p = PT.vec(cvec,p,clen)
+    g.beginPath()
+    g.ellipse(p[0],p[1],a,b,o2,0,pi2)
+    g.fill()
+
+    // PT.drawCircle(g,p,3)
+  })
+  // throw 'err'
+
+  var fwd = 0
+
+  if (USR_IO_KYS.isDn['w']) fwd += -dt
+  if (USR_IO_KYS.isDn['s']) fwd += dt
+
+  if (fwd) {
+    plr[2] = PT.unit(PT.sum(PT.muls(plr[2],Math.cos(fwd)),PT.muls(plr[1],Math.sin(fwd))))
+    plr[1] = PT.unit(PT.cross(plr[2],plr[0]))
   }
 
-  PT.fillCircle(g,cvec,4)
+  var mv = 0
+  if (USR_IO_KYS.isDn['a']) mv += -2*dt
+  if (USR_IO_KYS.isDn['d']) mv += 2*dt
 
-  var rdt = dt / reps
-  FU.forlen(reps, r => objs.forEach(b => moveObj(b,U,rdt)))
-  objs.forEach(b => {
-    PT.fillCircle(g, PT.sum(b.p,cvec), b.r)
-    drawEllipse(g,cvec,b.p,b.v,USR_IO_DSPLY.wh)
-    PT.drawLine(g,cvec,PT.sum(cvec,b.p))
-  })
+  if (mv) {
+    plr[0] = PT.unit(PT.sum(PT.muls(plr[0],Math.cos(mv)),PT.muls(plr[1],Math.sin(mv))))
+    plr[1] = PT.unit(PT.cross(plr[2],plr[0]))
+  }
+
+  var mw = 0
+  if (USR_IO_KYS.isDn['q']) mw += dt
+  if (USR_IO_KYS.isDn['e']) mw += -dt
+
+  if (mw) {
+    plr[0] = PT.unit(PT.sum(PT.muls(plr[0],Math.cos(mw)),PT.muls(plr[2],Math.sin(mw))))
+    plr[2] = PT.unit(PT.cross(plr[0],plr[1]))
+  }
+
+  // g.beginPath()
+  // g.ellipse(cvec[0],cvec[1],100,50,0,0,pi2)
+  // g.stroke()
 }
+
+
+// var objs = []
+// var reps = 1e3
+// var std_r = 10
+// var prev = null
+//
+// function moveObj(b,u,dt) {
+//   var r = PT.length(b.p)
+//   var a = PT.muls(b.p, U/r/r/r)
+//   PT.sube(b.v, PT.muls(a, dt))
+//   PT.sume(b.p, PT.muls(b.v, dt))
+// }
+// function newObj(p,v) {
+//   var b = {}
+//
+//   b.p = p
+//   b.v = v
+//   b.r = std_r
+//
+//   objs.push(b)
+// }
+// var U = phys.stdu(10,100)
+// var z_ax = [0,0,1]
+//
+// function drawEllipse(g,cvec,p,v,wh) {
+//   var vr = PT.length(v)
+//   var pr = PT.length(p)
+//   var pu = PT.divs(p,pr)
+//   var sma = phys.sma(U,pr,vr)
+//
+//   var onv = phys.onv(p,v)
+//   var opv = phys.opv(onv,p)
+//
+//   var pv = phys.pv(pu,opv,v)
+//   var rv = phys.rv(pr,sma,pv)
+//
+//   var ra = phys.ra(rv,pv)
+//   var ecc = phys.ecc(rv,pv,sma,pr)
+//
+//   var pa = PT.tan2(p)
+//
+//   var smb = Math.sqrt(sma*sma * (1 - ecc*ecc))
+//   var smf = Math.sqrt(sma*sma - smb * smb)
+//
+//   var pf = PT.sum(cvec,phys.tfm(PT.muls(rv,smf),pu,opv))
+//
+//   var tra = PT.dot(onv,z_ax) > 0 ? -ra : ra
+//
+//   var k2 = Math.pow(1 - ecc*ecc, -1.5)
+//   var k = Math.sqrt(sma*sma*sma/U)/k2
+//
+//   var rvp = phys.tfm(rv,pu,opv)
+//   var rva = PT.tan2(rvp)
+//
+//   g.beginPath()
+//   sma > 0 && g.ellipse(pf[0],pf[1],sma,smb,pa+tra,0,pi2)
+//   g.stroke()
+//
+//   // g.fillText(ecc,20,20)
+//   // g.fillText(onv,20,40)
+//
+//   var drwtfm = (p,r) => PT.drawCircle(g,PT.sum(cvec,phys.tfm(p,pu,opv)),r)
+//
+//   var apoap = phys.apoap(rv,sma,ecc)
+//   var perap = phys.perap(rv,sma,ecc)
+//
+//   drwtfm(apoap,3)
+//   drwtfm(perap,3)
+//
+//   PT.drawLine(g,cvec,PT.sum(cvec,PT.muls(rvp,100)))
+//
+//   var abs_ecc = Math.abs(ecc)
+//
+//   // g.fillText(`sma:${sma},ecc:${ecc},rva:${rva}`,20,20)
+//   // g.fillText(phys.invs(pi2/k,ecc,0.5),20,40)
+//
+//   var nw = USR_IO_EVNTS.nw * 1e-3
+//
+//   var t = k * phys.area(ra,ecc,0.001)
+//
+//   var prev = null
+//   var prev_o = null
+//   for (var i = 0; i < wh[0]; ++i) {
+//     // var x = pi2 * i / 100
+//     // var o = phys.invs(x/k,ecc,0.5)
+//     // var y = phys.r(x,sma,ecc,rva)
+//
+//     // if (i % 100) continue
+//
+//     var x = i/100 - t
+//     // var o = pi2 * x
+//     var o = phys.invs(x/k,ecc,0.01) - rva
+//     var y = phys.r(o,sma,ecc,0)
+//
+//     var point = [i,y]
+//     var point_o = [i,wh[1]-10*FU.mod(o,pi2)]
+//     prev && PT.drawLine(g,point,prev)
+//     prev && PT.drawLine(g,point_o,prev_o)
+//     prev = point
+//     prev_o = point_o
+//   }
+// }
+// GAME_TICK = () => {
+//   var g = USR_IO_DSPLY.g
+//   var mws = USR_IO_MWS
+//   var kys = USR_IO_KYS.hsDn
+//   var dt = USR_IO_EVNTS.dt * 1e-3
+//
+//   var cvec = PT.divs(USR_IO_DSPLY.wh,2)
+//   var clen = PT.length(cvec)/4
+//
+//   if (kys['q'])
+//     if (prev) prev = null
+//     else objs = []
+//
+//   if (mws.hsDn) {
+//     if (prev == null) {
+//       prev = PT.copy(mws)
+//     }
+//     else {
+//       newObj(PT.sub(prev,cvec),PT.sub(mws,prev))
+//       prev = null
+//     }
+//   }
+//
+//   g.strokeStyle = g.fillStyle = 'white'
+//
+//   if (prev) {
+//     var v = PT.sub(mws,prev)
+//     var p = PT.sub(prev,cvec)
+//     var pr = PT.length(p)
+//
+//     drawEllipse(g,cvec,p,v,USR_IO_DSPLY.wh)
+//     PT.drawLine(g,prev,mws)
+//     PT.drawCircle(g,prev,Math.sqrt(2*U/pr))
+//   }
+//
+//   PT.fillCircle(g,cvec,4)
+//
+//   var rdt = dt / reps
+//   FU.forlen(reps, r => objs.forEach(b => moveObj(b,U,rdt)))
+//   objs.forEach(b => {
+//     PT.fillCircle(g, PT.sum(b.p,cvec), b.r)
+//     drawEllipse(g,cvec,b.p,b.v,USR_IO_DSPLY.wh)
+//     PT.drawLine(g,cvec,PT.sum(cvec,b.p))
+//   })
+// }
 
 
 // var prev_cv = 0
