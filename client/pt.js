@@ -462,6 +462,9 @@ PT.fcc = function() {
     '+': '+',
     '-': '-',
     '*': '*',
+    '"': '"',
+    "`": "`",
+    "'": "'",
     '%': '%',
     '!': '!',
     '^': '^',
@@ -475,6 +478,8 @@ PT.fcc = function() {
     '++': '++',
     '--': '--',
     '//': '//',
+    '/*': '/*',
+    '*/': '*/',
     '\n': '\n',
     '\t': '\t',
     '$': '$',
@@ -488,7 +493,16 @@ PT.fcc = function() {
     '||': '||',
     '|': '|'
   }
+  var is_stat = {
+    '{}':true,
+    '()':true,
+    '[]':true
+  }
 
+  function match(s,ary) {
+    for (var i in ary) if (s == ary[i]) return true
+    return false
+  }
   function parseString(string) {
     var word = ''
     var ans = []
@@ -497,7 +511,6 @@ PT.fcc = function() {
     var char = 0
 
     var push = () => {
-      // log(word, isNaN(parseFloat(word)))
       if (word.length == 0) return
       else if (tokens[word]) ans.push(['tok',word,line,char])
       else if (isNaN(parseFloat(word))) ans.push(['wrd',word,line,char])
@@ -508,125 +521,42 @@ PT.fcc = function() {
     for (var c in string) {
       c = string[c]
 
-      if (tokens[c] && !tokens[word]) {
-        push()
-      }
-
-      if (tokens[word]) {
-        if (tokens[word+c]) word += c
-        else {
-          if (word == '\n') {
-            ++line
-            char = 0
-          }
-          push()
-          word = c
-        }
-      } else {
+      if (tokens[word+c]) {
         word += c
       }
-      ++char
+      else if (tokens[word]) {
+        push()
+        word = c
+      }
+      else word += c
     }
 
     push()
     return ans
   }
-  function parseComments(p1) {
-    var flag = false
-    var p2 = []
-    for (var p in p1) {
-      p = p1[p]
-      var c = p[1]
-      if (flag) {
-        if (c == '\n') {
-          flag = false
-          p2.push(p)//[true,';'])
-        }
-      }
-      else if (c == '//') {
-        flag = true
-      }
-      else if (p[0] == 'num') p2.push(p)
-      else if (c!=' ' && c!='\t') p2.push(p)
-    }
-    return p2
-  }
-  function parseDelims(parse) {
-    var stack = []
-    var stat_stack = []
-    var stat = ['{}']
-
-    var push = w => {
-      stack.push(w[0])
-      stat_stack.push(stat)
-      stat = [w]
-    }
-    var pop = () => {
-      stack.pop()
-      var temp_stat = stat_stack.pop()
-      temp_stat.push(stat)
-      stat = temp_stat
-    }
-    for (var c in parse) {
-      c = parse[c]
-      var w = c[1]
-
-      last = stack[stack.length-1]
-      var err = `invalid '${w}' at ${c[2]}:${c[3]}`
-
-      if (w == '(') push('()')
-      else if (w == '[') push('[]')
-      else if (w == '{') push('{}')
-      else if (w == ')' && last == '(') pop()
-      else if (w == ']' && last == '[') pop()
-      else if (w == '}' && last == '{') pop()
-      else if (w==')'||w==']'||w=='}') throw err
-      else stat.push(c)
-    }
-
-    return stat
-  }
-  function parseFuns(parse) {
-    var p0 = parse[0]
-    if (p0 != '{}' && p0 != '[]' && p0 != '()') return parse
-
+  function replace(parse, s, e, r) {
     var ans = []
     var stack = []
-    for (var c in parse) {
-      c = parse[c]
-      if (c[0] == 'tok') {
-        var stat = ans
-        for (var s in stack) {
-          var t = s >= stack.length-1 ? stack[s] : ['fun',stack[s]]
-          stat.push(t)
-          stat = t
+    for (var i in parse) {
+      var p = parse[i]
+      if (is_stat[parse[0]]) p = replace(p,s,e,r)
+      var l = stack.pop()
+      if (l == null) {
+        if (p[1] == s) {
+          stack.push([r])
         }
-        stack = []
-        ans.push(c)
+        else ans.push(p)
       }
-      else if (c == '{}' || c == '[]' || c == '()')
-        ans.push(c)
+      else if (p[1] == e) {
+        ans.push(l)
+      }
       else {
-        stack.push(parseFuns(c))
+        l.push(p)
+        stack.push(l)
       }
     }
-
-    var stat = ans
-    for (var s in stack) {
-      var t = s >= stack.length-1 ? stack[s] : ['fun',stack[s]]
-      stat.push(t)
-      stat = t
-    }
-
+    if (stack.length) throw `expected ${e}`
     return ans
-  }
-
-  function parseTok1(parse,ary) {
-    return parse
-  }
-  function parseTok2(parse,ary) {
-    var stack = []
-    return parse
   }
 
   function printParse(parse) {
@@ -635,19 +565,6 @@ PT.fcc = function() {
     log(s)
   }
 
-
-/*
-
-  <com> := $// <txt [no \n]> $\n
-  <stat> := <shl> <stat> | <fun> <stat> | <empty>
-  <par> := ( <stat> )
-  <brk> := { <stat> }
-  <brc> := [ <stat> ]
-  <str> := '<txt>' | "<txt>" | `<txt>`
-  <num> := <[native] float>
-  <shl> := <par> | <brk> | <brc>
-*/
-
   return function(string) {
 
     var parse = parseString(string)
@@ -655,6 +572,15 @@ PT.fcc = function() {
 
     printParse(parse)
 
+    parse = replace(parse, "'","'", 'str')
+    parse = replace(parse, '"','"', 'str')
+    parse = replace(parse, '`','`', 'str')
+    parse = replace(parse, '//', '\n', 'com')
+    parse = replace(parse, '/*', '*/', 'com')
+    parse = replace(parse, '(',')', '()')
+    parse = replace(parse, '[',']', '[]')
+    parse = replace(parse, '{','}', '{}')
+    log(parse)
 
     return function() {
 
@@ -665,6 +591,9 @@ PT.fcc = function() {
 var fun = PT.fcc(`
   vec3 main(vec3 a, vec3 b, vec1 c, mat3_4 m) {
     // this is a comment
+    str s = 'asdf'
+    /* this console.log(require('util').inspect(, { depth: null }));
+    as big as I want it to be */
     vec3 k = [1,0,0]
     return (a + c b) // this is the ans
   }
