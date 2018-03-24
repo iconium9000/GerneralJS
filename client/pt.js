@@ -483,7 +483,10 @@ PT.fcc = function() {
     '#': '#',
     '=': '=',
     '~': '~',
-    ',': ','
+    ',': ',',
+    '&&': '&&',
+    '||': '||',
+    '|': '|'
   }
 
   function parseString(string) {
@@ -493,22 +496,30 @@ PT.fcc = function() {
     var line = 0
     var char = 0
 
+    var push = () => {
+      // log(word, isNaN(parseFloat(word)))
+      if (word.length == 0) return
+      else if (tokens[word]) ans.push(['tok',word,line,char])
+      else if (isNaN(parseFloat(word))) ans.push(['wrd',word,line,char])
+      else ans.push(['num',parseFloat(word),line,char])
+      word = ''
+    }
+
     for (var c in string) {
       c = string[c]
 
       if (tokens[c] && !tokens[word]) {
-        ans.push([false,word,line,char])
-        word = ''
+        push()
       }
 
       if (tokens[word]) {
         if (tokens[word+c]) word += c
         else {
-          ans.push([true,word,line,char])
           if (word == '\n') {
             ++line
             char = 0
           }
+          push()
           word = c
         }
       } else {
@@ -517,8 +528,7 @@ PT.fcc = function() {
       ++char
     }
 
-    if (word) ans.push([!!tokens[word],word,line,char])
-
+    push()
     return ans
   }
   function parseComments(p1) {
@@ -536,7 +546,7 @@ PT.fcc = function() {
       else if (c == '//') {
         flag = true
       }
-      // else if (c=='\n') p2.push([true,';'])
+      else if (p[0] == 'num') p2.push(p)
       else if (c!=' ' && c!='\t') p2.push(p)
     }
     return p2
@@ -544,12 +554,12 @@ PT.fcc = function() {
   function parseDelims(parse) {
     var stack = []
     var stat_stack = []
-    var stat = []
+    var stat = ['{}']
 
     var push = w => {
       stack.push(w[0])
       stat_stack.push(stat)
-      stat = [[true,w]]
+      stat = [w]
     }
     var pop = () => {
       stack.pop()
@@ -564,38 +574,59 @@ PT.fcc = function() {
       last = stack[stack.length-1]
       var err = `invalid '${w}' at ${c[2]}:${c[3]}`
 
-      if (last == '(') {
-        if (w == '}' || w == ']') throw err
-        else if (w == ')') pop()
-        else if (w == '(') push('()')
-        else if (w == '[') push('[]')
-        else if (w == '{') push('{}')
-        else stat.push(c)
-      }
-      else if (last == '[') {
-        if (w == '}' || w == ')') throw err
-        else if (w == ']') pop()
-        else if (w == '(') push('()')
-        else if (w == '[') push('[]')
-        else if (w == '{') push('{}')
-        else stat.push(c)
-      }
-      else if (last == '{') {
-        if (w == ']' || w == ')') throw err
-        else if (w == '}') pop()
-        else if (w == '(') push('()')
-        else if (w == '[') push('[]')
-        else if (w == '{') push('{}')
-        else stat.push(c)
-      }
-      else if (w == '(') push('()')
+      if (w == '(') push('()')
       else if (w == '[') push('[]')
       else if (w == '{') push('{}')
+      else if (w == ')' && last == '(') pop()
+      else if (w == ']' && last == '[') pop()
+      else if (w == '}' && last == '{') pop()
       else if (w==')'||w==']'||w=='}') throw err
       else stat.push(c)
     }
 
     return stat
+  }
+  function parseFuns(parse) {
+    var p0 = parse[0]
+    if (p0 != '{}' && p0 != '[]' && p0 != '()') return parse
+
+    var ans = []
+    var stack = []
+    for (var c in parse) {
+      c = parse[c]
+      if (c[0] == 'tok') {
+        var stat = ans
+        for (var s in stack) {
+          var t = s >= stack.length-1 ? stack[s] : ['fun',stack[s]]
+          stat.push(t)
+          stat = t
+        }
+        stack = []
+        ans.push(c)
+      }
+      else if (c == '{}' || c == '[]' || c == '()')
+        ans.push(c)
+      else {
+        stack.push(parseFuns(c))
+      }
+    }
+
+    var stat = ans
+    for (var s in stack) {
+      var t = s >= stack.length-1 ? stack[s] : ['fun',stack[s]]
+      stat.push(t)
+      stat = t
+    }
+
+    return ans
+  }
+
+  function parseTok1(parse,ary) {
+    return parse
+  }
+  function parseTok2(parse,ary) {
+    var stack = []
+    return parse
   }
 
   function printParse(parse) {
@@ -604,15 +635,27 @@ PT.fcc = function() {
     log(s)
   }
 
+
+/*
+
+  <com> := $// <txt [no \n]> $\n
+  <stat> := <shl> <stat> | <fun> <stat> | <empty>
+  <par> := ( <stat> )
+  <brk> := { <stat> }
+  <brc> := [ <stat> ]
+  <str> := '<txt>' | "<txt>" | `<txt>`
+  <num> := <[native] float>
+  <shl> := <par> | <brk> | <brc>
+*/
+
   return function(string) {
 
     var parse = parseString(string)
     log(parse)
-    parse = parseComments(parse)
+
     printParse(parse)
 
-    parse = parseDelims(parse)
-    log(parse)
+
     return function() {
 
     }
@@ -622,6 +665,7 @@ PT.fcc = function() {
 var fun = PT.fcc(`
   vec3 main(vec3 a, vec3 b, vec1 c, mat3_4 m) {
     // this is a comment
+    vec3 k = [1,0,0]
     return (a + c b) // this is the ans
   }
 `)
