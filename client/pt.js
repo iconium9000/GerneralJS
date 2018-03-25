@@ -455,6 +455,10 @@ PT.vcc = (s,f,l) => {
 
 PT.fcc = function() {
   var temp = ()=>{}
+  var del_tok = {
+    ' ': true,
+    '\t': true
+  }
   var tokens = {
     ' ': ' ',
     '(': '(',
@@ -512,51 +516,62 @@ PT.fcc = function() {
 
     var push = () => {
       if (word.length == 0) return
+      else if (del_tok[word]) return
       else if (tokens[word]) ans.push(['tok',word,line,char])
       else if (isNaN(parseFloat(word))) ans.push(['wrd',word,line,char])
       else ans.push(['num',parseFloat(word),line,char])
+      if (word == '\n') {
+        ++line
+        char = 0
+      }
       word = ''
     }
 
     for (var c in string) {
       c = string[c]
-
       if (tokens[word+c]) {
         word += c
       }
-      else if (tokens[word]) {
+      else if (tokens[word] || tokens[c]) {
         push()
         word = c
       }
       else word += c
+
+      ++char
     }
 
     push()
     return ans
   }
-  function replace(parse, s, e, r) {
-    var ans = []
-    var stack = []
+  function replace(parse, s, e, r, reqe) {
+    var stack = [[]]
+    var p
+
+    // else if (reqe && p[1] == e) throw `unexpected '${e}' at ${p[2]}:${p[3]}`
+
     for (var i in parse) {
-      var p = parse[i]
+      p = parse[i]
       if (is_stat[parse[0]]) p = replace(p,s,e,r)
+
       var l = stack.pop()
-      if (l == null) {
-        if (p[1] == s) {
-          stack.push([r])
-        }
-        else ans.push(p)
+      
+      if (l == null)
+        throw `unexpected '${e}' before ${p[2]}:${p[3]}`
+
+      if (p[1] == s) {
+        var t = [r]
+        l.push(t)
+        stack.push(l,t)
       }
-      else if (p[1] == e) {
-        ans.push(l)
-      }
-      else {
+      else if (p[1] != e) {
         l.push(p)
         stack.push(l)
       }
     }
-    if (stack.length) throw `expected ${e}`
-    return ans
+    if (stack.length > 1) throw `expected '${e}' at ${p[2]}:${p[3]}`
+    else if (stack.length) return stack.pop()
+    else `unexpected '${s}' before ${p[2]}:${p[3]}`
   }
 
   function printParse(parse) {
@@ -577,9 +592,9 @@ PT.fcc = function() {
     parse = replace(parse, '`','`', 'str')
     parse = replace(parse, '//', '\n', 'com')
     parse = replace(parse, '/*', '*/', 'com')
-    parse = replace(parse, '(',')', '()')
-    parse = replace(parse, '[',']', '[]')
-    parse = replace(parse, '{','}', '{}')
+    parse = replace(parse, '(',')', '()', true)
+    parse = replace(parse, '[',']', '[]', true)
+    parse = replace(parse, '{','}', '{}', true)
     log(parse)
 
     return function() {
@@ -588,6 +603,8 @@ PT.fcc = function() {
   }
 }()
 
+var a = '1234'
+
 var fun = PT.fcc(`
   vec3 main(vec3 a, vec3 b, vec1 c, mat3_4 m) {
     // this is a comment
@@ -595,7 +612,7 @@ var fun = PT.fcc(`
     /* this console.log(require('util').inspect(, { depth: null }));
     as big as I want it to be */
     vec3 k = [1,0,0]
-    return (a + c b) // this is the ans
+    return (a + (c b)) // this is the ans
   }
 `)
 log(fun)
