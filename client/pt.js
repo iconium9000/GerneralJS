@@ -461,7 +461,6 @@ types: vec1, vec2, vec3, vec\X, mat3_3, mat4_4, mat\X_\Y, str, bol
 */
 
 PT.fcc = function() {
-  var temp = ()=>{}
   var del_tok = {
     ' ': true,
     '\t': true
@@ -532,15 +531,17 @@ PT.fcc = function() {
     ',': true,
     ';': true,
   }
+  var is_nat = {
+    'str':true,
+    'num':true,
+    'tok':true,
+    'wrd':true
+  }
 
   var tok_ops = {
 
   }
 
-  function match(s,ary) {
-    for (var i in ary) if (s == ary[i]) return true
-    return false
-  }
   function parseString(string) {
     var word = ''
     var ans = ['{}']
@@ -579,360 +580,108 @@ PT.fcc = function() {
     push()
     return ans
   }
-  function replace(parse, s, e, r, reqe, del) {
-    var stack = []
-    var ans = []
-    var p = null
-    for (var i in parse) {
-      p = parse[i]
-      var p1 = p[1]
 
-      if (i == 0) ans.push(p)
-      else if (is_scp[p[0]]) ans.push(replace(p,s,e,r,reqe))
-      else if (p1 == s && !(s == e && stack.length)) {
-        stack.push(ans)
-        ans = [r]
-      }
-      else if (p1 == e) {
-        var temp = stack.pop()
-        if (temp) {
-          del || temp.push(ans)
-          ans = temp
+  function matchTok(p,t) {
+    return (typeof p) == 'object' && p[0] == 'tok' && p[1] == t
+  }
+  function replace(parse, i, s, e, r, reqe, lar) {
+    i = parseInt(i)
+
+    var p = parse[i]
+    if (typeof p != 'object') return
+    if (p[0] != 'tok'){
+      for (var j in p) replace(p,j,s,e,r,reqe,lar)
+      return
+    }
+    if (p[1] != s) return
+
+    for (var j = i+1; j < parse.length; ++j) {
+      if (s != e && !lar) replace(parse,j,s,e,r,reqe)
+      if (matchTok(parse[j],e)) {
+        if (r) {
+          var rep = [r].concat(parse.slice(i+1,j))
+          parse.splice(i,j-i+1,rep)
         }
-        else if (reqe) throw `unexpected '${e}' at ${p[2]}`
-        else ans.push(p)
+        else parse.splice(i,j-i+1)
+        return
       }
-      else ans.push(p)
     }
 
-    if (stack.length) throw `expected '${e}' after ${p[2]}`
-
-    return ans
+    if (reqe) throw `expected '${e}' after ${p[2]}`
   }
   function parseStat(parse) {
-    var p0 = parse[0]
-    if (p0 == '()' || p0 == '[]' || p0 == '{}') {
-      var ans = [p0]
-
-      var stat = ['stat']
-      for (var i = 1; i < parse.length; ++i) {
-        var p = parseStat(parse[i])
-
-        if (is_dlm[p[1]]) {
-          stat.length>1 && ans.push(stat)
-          stat = ['stat']
-        }
-        else stat.push(p)
-      }
-
-      stat.length>1 && ans.push(stat)
-
-      if (ans.length == 2) {
-        ans = ans[1]
-        ans[0] = p0
-      }
-      return ans
-    }
-    return parse
-  }
-  function parseVal(parse) {
-    if (!is_scp[parse[0]]) return parse
-
-    var ans = []
-    var next = parseVal(parse[parse.length-1])
-    for (var i = parse.length-2; i >= 0; --i) {
-      var prev = parseVal(parse[i])
-      if (is_val[next[0]] && is_val[prev[0]]) {
-        next = ['fun', prev, next]
-      }
-      else {
-        ans.splice(0,0,next)
-        next = prev
-      }
-    }
-    ans.splice(0,0,next)
-    return ans
-  }
-  function parsePrefx(parse,toks) {
-    var p0 = parse[0]
-    if (p0 == 'fun') {
-      for (var i = 1; i < parse.length; ++i)
-        parse[i] = parsePrefx(parse[i],toks)
-    }
-    else if (is_scp[p0]) {
-      var ans = []
-      var next = parsePrefx(parse[parse.length-1],toks)
-      for (var i = parse.length-2;i>=0;--i) {
-        var prev = parsePrefx(parse[i],toks)
-        var tok = toks[prev[1]]
-        if (tok && is_val[next[0]] && (tok==1 || i <= 1 || !is_val[parse[i-1][0]])) {
-          next = ['fun',['prefx',prev[1]],next]
-        }
-        else {
-          ans.splice(0,0,next)
-          next = prev
-        }
-      }
-      ans.splice(0,0,next)
-      return ans
-    }
-    return parse
-  }
-  function parsePstfx(parse,toks) {
-    var p0 = parse[0]
-    var len = parse.length
-    if (p0 == 'fun') {
-      for (var i = 1; i < len; ++i)
-        parse[i] = parsePstfx(parse[i],toks)
-    }
-    else if (is_scp[p0]) {
-      var ans = []
-      var prev = parsePstfx(parse[0],toks)
-      for (var i = 1; i < len; ++i) {
-        var next = parsePstfx(parse[i],toks)
-        var tok = toks[next[1]]
-        if (tok && is_val[prev[0]] && (tok==1 || i > len-2 || !is_val[parse[i+1][0]])) {
-          prev = ['fun',['pstfx',next[1]], prev]
-        }
-        else {
-          ans.push(prev)
-          prev = next
-        }
-      }
-      ans.push(prev)
-      return ans
-    }
-    return parse
-  }
-  function parseMidfx_LfRt(parse,toks) {
-    if (!parse) return null
-
-    var p0 = parse[0]
-    var len = parse.length
-
-    if (is_scp[p0] || p0 == 'fun')
-      for (var i = 1; i < len; ++i)
-        parse[i] = parseMidfx_LfRt(parse[i],toks)
-
-    if (is_scp[p0]) {
-
-      var ans = []
-      var lexA = parse[0]
-      var lexB = parse[1]
-
-      for (var i = 2; i < len; ++i) {
-        var lexC = parse[i]
-
-        if (toks[lexB[1]] && lexA && is_val[lexA[0]] && is_val[lexC[0]]) {
-          lexB = ['fun',['midfx',lexB[1]],lexA,lexC]
-          lexA = null
-        }
-        else {
-          lexA && ans.push(lexA)
-
-          lexA = lexB;
-          lexB = lexC;
-        }
-      }
-
-      lexA && ans.push(lexA)
-      lexB && ans.push(lexB)
-      return ans
-    }
-    return parse
-  }
-  function parseMidfx_RtLf(parse,toks) {
-    if (!parse) return null
-
-    var p0 = parse[0]
-    var len = parse.length
-
-    if (is_scp[p0] || p0 == 'fun')
-    for (var i = 1; i < len; ++i)
-      parse[i] = parseMidfx_RtLf(parse[i],toks)
-
-    if (is_scp[p0]) {
-
-      var ans = []
-      var lexC = parse[len-1]
-      var lexB = parse[len-2]
-
-      for (var i = len-3; i >= 0; --i) {
-        var lexA = parse[i]
-
-        if (toks[lexB[1]] && lexC && is_val[lexA[0]] && is_val[lexC[0]]) {
-          lexB = ['fun',['midfx',lexB[1]],lexA,lexC]
-          lexC = null
-        }
-        else {
-          lexC && ans.splice(0,0,lexC)
-
-          lexC = lexB;
-          lexB = lexA;
-        }
-      }
-
-      lexC && ans.splice(0,0,lexC)
-      lexB && ans.splice(0,0,lexB)
-      return ans
-    }
-    return parse
-  }
-  function parseConOp_helper(parse,i) {
-    var tokA = parse[i+1]
-
-    if (i > parse.length-2 || tokA[0] != 'tok' || tokA[1] != '?') return
-
-    var err = `unexpected '?' at ${tokA[2]}`
-
-    if (i > parse.length-4) throw err
-
-    var valA = parse[i]
-    if (!is_val[valA[0]]) throw err
-
-    parseConOp_helper(parse,i+2)
-    var valB = parse[i+2]
-    if (!is_val[valB[0]]) throw err
-
-    var tokB = parse[i+3]
-    if (tokB[0] != 'tok' || tokB[1] != ':') throw `expected ':' after ${tokA[2]}`
-
-    parseConOp_helper(parse,i+4)
-    var valC = parse[i+4]
-    if (!is_val[valC[0]]) throw err
-
-    parse.splice(i,5,['fun',['conop','?'],valA,valB,valC])
-  }
-  function parseConOp(parse) {
-    if (!parse) return null
-
-    var p0 = parse[0]
-    var len = parse.length
-
-    if (is_scp[p0] || p0 == 'fun')
-      for (var i = 1; i < len; ++i)
-        parse[i] = parseConOp(parse[i])
-
-    if (is_scp[p0])
-      for (var i = 0; i < parse.length; ++i)
-        parseConOp_helper(parse,i)
-    return parse
-  }
-  function parseRmvStat(parse) {
-    var p0 = parse[0]
-
-    if (p0 == 'stat') {
-      if (parse.length != 2) throw `stat syntax error, unhandled character`
-      else return parse[1]
-    }
-    else if (is_scp[p0] || p0 == 'fun') {
-      for (var i = 1; i < parse.length; ++i)
-        parse[i] = parseRmvStat(parse[i])
-    }
-
-    return parse
-  }
-  function parseFinal(parse,scp,src) {
-    var p0 = parse[0]
-    var p1 = parse[1]
-    var p2 = parse[2]
-    // log(parse)
-    var val = {}
-    val.scp = scp
-    val.src = src
-    val.type = p0
-    val.is_scp = false
-    if (p0 == '{}') {
-      for (var i = 1; i < parse.length; ++i) parse[i]
-    }
-    else if (p0 == 'abs') {
-      val.args = []
-      val.type = 'fun'
-      val.val = 'abs'
-      for (var i = 1; i < parse.length; ++i) val.args.push(parseFinal(parse[i],val,val))
-    }
-    else if (is_scp[p0]) {
-      val.stats = []
-      for (var i = 1; i < parse.length; ++i) val.stats.push(parseFinal(parse[i],scp,val))
-    }
-    else if (p0 == 'fun') {
-      val.args = []
-
-      var p10 = p1[0]
-      var p11 = p1[1]
-      var start = 1
-      val.val = 'act'
-
-      if (p10 == 'midfx' || p10 == 'prefx' || p10 == 'pstfx' || p10 == 'conop') {
-        val.val = p10 + p11
-        start = 2
-      }
-
-      for (var i = start; i < parse.length; ++i) val.args.push(parseFinal(parse[i],scp,val))
-    }
-    else if (p0 == 'num' || p0 == 'str' || p0 == 'wrd') {
-      val.val = p1
-      val.loc = p2
-    }
-    else throw `invalid identifier '${p0}'`
-
-    return val
-  }
-
-  function symbleTable(parse,table) {
-    var p0 = parse[0]
-    if (!is_scp[p0] && p0 != 'fun') return
-
+    var prev = 0
     for (var i = 1; i < parse.length; ++i) {
       var p = parse[i]
-      if (p[0] == 'wrd') {
-        var t = table[p[1]]
-        if (!t) t = table[p[1]] = []
-
-        t.push([parse,i,p])
+      if (typeof p != 'object') continue
+      if (!is_nat[p[0]]) {
+        parseStat(p)
+        continue
       }
-      else symbleTable(p,table)
+      var p1 = p[1]
+      if (p1 != '\n' && p1 != ',' && p1 != ';') continue
+
+      var rep = ['stat'].concat(parse.slice(prev+1,i))
+      if (rep.length>1)parse.splice(prev+1,i-prev,rep)
+      else parse.splice(prev+1,i-prev)
+
+      i = prev+1
+      if (rep.length>1) ++prev
     }
+    var i = parse.length
+    var rep = ['stat'].concat(parse.slice(prev+1,i))
+
+    if (rep.length>1)parse.splice(prev+1,i-prev,rep)
+    else parse.splice(prev+1,i-prev)
+  }
+  function parseComp(parse,i) {
+    i = parseInt(i)
+
+    var p = parse[i]
+    if (typeof p != 'object' || p[0] == 'tok') return
+    for (var j in p) parseComp(p,j)
+    if (p[0] == 'stat') return
+
+    parseComp(parse,i+1)
+    var b = parse[i+1]
+    if (typeof b != 'object' || b[0] == 'tok' || b[0] == 'stat') return
+    parse.splice(i,2,['comp'].concat(parse.slice(i,i+2)))
+  }
+  function parsePrefx(parse,i,toks) {
+    i = parseInt(i)
+    log(i)
+    if (i > parse.length-2) return
+    parsePrefx(parse,i+1,toks)
+
+    var a = parse[i]
+    if (typeof a != 'object') return
+    if (a[0])
+
+    if (a[0] != 'tok' || !toks[a[1]]) return
+    var b = parse[i+1]
+    if (typeof b != 'object' || b[0] == 'tok' || b[0] == 'stat') return
+
+    parse.splice(i,2,['prefx'+a[1]].concat(parse.slice(i,i+2)))
   }
 
   return function(string) {
 
     // syntax pass
     var parse = parseString(string + '\n')
-    {
-      parse = replace(parse, "'","'", 'str')
-      parse = replace(parse, '"','"', 'str')
-      parse = replace(parse, '`','`', 'str')
-      parse = replace(parse, '//', '\n', 'com',false,true)
-      parse = replace(parse, '/*', '*/', 'com',false,true)
-      parse = replace(parse, '(',')', '()', true)
-      parse = replace(parse, '[',']', '[]', true)
-      parse = replace(parse, '{','}', '{}', true)
-      parse = replace(parse, '|', '|', 'abs', true)
-      parse = parseStat(parse)
-      parse = parsePrefx(parse,{'-':2,'+':2,'++':1,'--':1,'!':1,'~':1})
-      parse = parsePstfx(parse,{'++':1,'--':1})
-      parse = parseVal(parse)
-      parse = parseMidfx_RtLf(parse,{'^':1})
-      parse = parseMidfx_LfRt(parse,{'*':1,'/':1,'%':1})
-      parse = parseMidfx_LfRt(parse,{'+':1,'-':1})
-      parse = parseMidfx_LfRt(parse,{'&&':1,'||':1})
-      parse = parseMidfx_LfRt(parse,{'==':1,'>':1,'<':1,'>=':1,'<=':1,'!=':1})
-      parse = parseConOp(parse)
-      parse = parseMidfx_RtLf(parse,{'=':1})
-      parse = parseRmvStat(parse)
+    for (var i in parse) replace(parse,i,'"','"','str',true)
+    for (var i in parse) replace(parse,i,"'","'",'str',true)
+    for (var i in parse) replace(parse,i,'`','`','str',true)
+    for (var i in parse) replace(parse,i,'//','\n',null,true,true)
+    for (var i in parse) replace(parse,i,'/*','*/',null,true)
+    for (var i in parse) replace(parse,i,'(',')','()',true)
+    for (var i in parse) replace(parse,i,'[',']','[]',true)
+    for (var i in parse) replace(parse,i,'{','}','{}',true)
+    for (var i in parse) replace(parse,i,'|','|','abs',true)
+    parseStat(parse)
+    parsePrefx(parse,0,{'-':2,'+':2,'--':1,'++':1,'!':1,'~':1})
+    for (var i in parse) parseComp(parse,i)
 
-      log(parseFinal(parse))
-    }
     log(parse)
-
-    // lexical pass
-    {
-      var table = {}
-      symbleTable(parse,table)
-      log(table)
-    }
-
 
     return function() {
 
@@ -940,14 +689,17 @@ PT.fcc = function() {
   }
 }()
 
-
-var fun = PT.fcc(`
+var temp = `
   vec3 main(vec3 a, vec3 b) {
-    vec3 c = b - a 4 + 3 4
+    str s = 'asdf'
+    vec3 c = b - a 4 + 3 4 // this is a // comment
+    var test = 120 /* my name is khan */
     var t = ++(--3)-- ++(3--) ^ ~3 + !34 ? 3 : 3
     halpab == 13 >= 3 < 10 > 3 <= 1 != 3
 
     return |c|
   }
-`)
+`
+
+var fun = PT.fcc(temp)
 log(fun)
