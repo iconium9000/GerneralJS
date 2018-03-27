@@ -472,9 +472,6 @@ PT.fcc = function() {
     '+': true,
     '-': true,
     '*': true,
-    '"': true,
-    "`": true,
-    "'": true,
     '%': true,
     '!': true,
     '^': true,
@@ -508,22 +505,22 @@ PT.fcc = function() {
     '&&': true,
     '||': true,
     '|': true,
+    '.':true,
   }
   var is_scp = {
-    '{}':true,
-    '()':true,
-    '[]':true,
+    'scp':true,
+    'tup':true,
+    'vec':true,
     'abs':true,
     'stat':true,
   }
   var is_val = {
     'fun': true,
-    'str': true,
     'num': true,
     'wrd': true,
-    '{}': true,
-    '[]': true,
-    '()': true,
+    'scp': true,
+    'vec': true,
+    'tup': true,
     'abs': true
   }
   var is_dlm = {
@@ -532,19 +529,14 @@ PT.fcc = function() {
     ';': true,
   }
   var is_nat = {
-    'str':true,
     'num':true,
     'tok':true,
     'wrd':true
   }
 
-  var tok_ops = {
-
-  }
-
   function parseString(string) {
     var word = ''
-    var ans = ['{}']
+    var ans = ['scp']
 
     var line = 0
     var char = 0
@@ -585,6 +577,7 @@ PT.fcc = function() {
     return (typeof p) == 'object' && p[0] == 'tok' && p[1] == t
   }
   function replace(parse, i, s, e, r, reqe, lar) {
+    lar = lar?1:0
     i = parseInt(i)
 
     var p = parse[i]
@@ -600,9 +593,9 @@ PT.fcc = function() {
       if (matchTok(parse[j],e)) {
         if (r) {
           var rep = [r].concat(parse.slice(i+1,j))
-          parse.splice(i,j-i+1,rep)
+          parse.splice(i,j-i+1-lar,rep)
         }
-        else parse.splice(i,j-i+1)
+        else parse.splice(i,j-i+1-lar)
         return
       }
     }
@@ -610,17 +603,32 @@ PT.fcc = function() {
     if (reqe) throw `expected '${e}' after ${p[2]}`
   }
   function parseStat(parse) {
-    if (typeof parse != 'object') return
-    else if (is_nat[parse[0]]) return
+    if (typeof parse != 'object' || is_nat[parse[0]]) return
 
-    for (var i = 1; i < parse.length; ++i) parseStat(parse[i])
     var prev = 0
     for (var i = 1; i < parse.length; ++i) {
       var p = parse[i]
+      parseStat(p)
+      if (typeof p != 'object' || p[0] != 'tok' || !is_dlm[p[1]]) continue
 
-      if (p[0] != 'tok' || !is_dlm([p[1]])) return
+      var rep = ['stat'].concat(parse.slice(prev+1,i))
+      if (rep.length>1){
+        parse.splice(prev+1,i-prev,rep)
+        i = ++prev
+      }
+      else {
+        parse.splice(prev+1,i-prev)
+        i = prev
+      }
+    }
 
-      var rep = ['stat'].parse()
+    var i = parse.length
+    var rep = ['stat'].concat(parse.slice(prev+1,i))
+    if (rep.length>1) {
+      parse.splice(prev+1,i-prev,rep)
+    }
+    else {
+      parse.splice(prev+1,i-prev)
     }
   }
   function parseComp(parse,i) {
@@ -636,62 +644,361 @@ PT.fcc = function() {
     if (typeof b != 'object' || b[0] == 'tok' || b[0] == 'stat') return
     parse.splice(i,2,['comp'].concat(parse.slice(i,i+2)))
   }
-  function parsePrefx(parse,i,toks) {
-    i = parseInt(i)
+  function parsePrefx(parse,i,toks,chk) {
     if (i > parse.length-1) return
-    parsePrefx(parse,i+1,toks)
+    parsePrefx(parse,i+1,toks,chk)
+    var p = parse[i]
+    if (typeof p != 'object') return
 
-    var a = parse[i]
-    if (typeof a != 'object') return
-    if (!is_nat[a[0]]) parsePrefx(a,0,toks)
+    if (!is_nat[p[0]]) parsePrefx(p,1,toks,chk)
+    var tok = toks[p[1]]
+    if (p[0] != 'tok' || !tok) return
 
-    if (a[0] != 'tok' || !toks[a[1]]) return
-    var b = parse[i+1]
-    if (typeof b != 'object' || b[0] == 'tok' || b[0] == 'stat') return
+    var n = parse[i+1]
+    var m = parse[i-1]
+    if (!n || n[0] == 'tok' || (chk&&typeof m == 'object'&&m[0]!='tok')) return
 
-    parse.splice(i,2,['prefx'+a[1],b])
+    parse.splice(i,2,[tok,n])
   }
   function parsePstfx(parse,i,toks) {
     if (i > parse.length-1) return
 
     try {
-      var b = parse[i]
-      if (typeof b != 'object') return
-      parsePstfx(b,1,toks)
+      var p = parse[i]
+      if (typeof p != 'object') return
 
-      if (b[0] != 'tok' || !toks[b[1]]) return
+      if (!is_nat[p[0]]) parsePstfx(p,1,toks)
+      var tok = toks[p[1]]
+      if (p[0] != 'tok' || !tok) return
 
-      var a = parse[i-1]
-      if (typeof a != 'object' || a[0] == 'tok') return
+      var n = parse[i-1]
+      if (!n || typeof n != 'object' || n[0] == 'tok') return
 
-      parse.splice(--i,2,['pstfx'+b[1],a])
+      parse.splice(--i,2,[tok,n])
     }
     finally {
       parsePstfx(parse,i+1,toks)
     }
+  }
+  function parseMidfx_lfrt(parse,i,toks) {
+    if (i > parse.length-1) return
+    parseMidfx_lfrt(parse,i+1,toks)
+    var p = parse[i]
+    if (typeof p != 'object') return
+
+    if (!is_nat[p[0]]) parseMidfx_lfrt(p,1,toks)
+    var tok = toks[p[1]]
+    if (p[0] != 'tok' || !tok) return
+
+    var a = parse[i-1]
+    if (!a || typeof a != 'object' || a[0] == 'tok') return
+    var b = parse[i+1]
+    if (!b || typeof b != 'object' || b[0] == 'tok') return
+
+    parse.splice(--i,3,[tok,a,b])
+  }
+  function parseMidfx_rtlf(parse,i,toks) {
+    if (i > parse.length-1) return
+
+    try {
+      var p = parse[i]
+      if (typeof p != 'object') return
+
+      if (!is_nat[p[0]]) parseMidfx_rtlf(p,1,toks)
+      var tok = toks[p[1]]
+      if (p[0] != 'tok' || !tok) return
+
+      var a = parse[i-1]
+      if (!a || typeof a != 'object' || a[0] == 'tok') return
+      var b = parse[i+1]
+      if (!b || typeof b != 'object' || b[0] == 'tok') return
+
+      parse.splice(--i,3,[tok,a,b])
+    }
+    finally {
+      parseMidfx_rtlf(parse,i+1,toks)
+    }
+  }
+  function parseConOp(parse,i) {
+    if (i > parse.length-1) return
+    parseConOp(parse,i+1)
+    var p = parse[i]
+    if (typeof p != 'object') return
+
+    if (!is_nat[p[0]]) parseConOp(p,1)
+    if (p[0] != 'tok' || p[1] != '?') return
+
+    var a = parse[i-1]
+    if (!a || typeof a != 'object' || a[0] == 'tok') return
+    var b = parse[i+1]
+    if (!b || typeof b != 'object' || b[0] == 'tok') return
+    var c = parse[i+2]
+    if (!c || typeof c != 'object' || c[0] != 'tok' || c[1] != ':') return
+    var d = parse[i+3]
+    if (!d || typeof d != 'object' || d[0] == 'tok') return
+
+    parse.splice(--i,5,['conop',a,b,d])
+  }
+
+  function listParse(parse,list) {
+    if (typeof parse != 'object') return
+
+    if (is_nat[parse[0]]) {
+      list.push(['g',parse[0],parse[1],parse[2]])
+      return
+    }
+
+    list.push(['s',parse[0]])
+    for (var i = 1; i < parse.length; ++i) listParse(parse[i],list)
+    list.push(['e',parse[0]])
+
+    return list
+  }
+  function tokCheck(list) {
+    for (var i in list) {
+      var l = list[i]
+      if (l[0] == 'g' && l[1] == 'tok') throw `unexpected '${l[2]}' at ${l[3]}`
+    }
+  }
+
+  function newtype(a,b,c,d) {
+    switch (a) {
+    case 'null':
+      if (b == 'val') {
+
+      }
+      else {
+
+      }
+      return
+    case 'num':
+
+      return
+    case 'nat':
+      switch(b) {
+      case 'return':return
+      case 'abs':return
+      case 'bol':return
+      case 'true':return
+      case 'false':return
+      case 'vec':
+        log('newtype','vec',c,d)
+        return
+      }
+
+    break
+    }
+
+    throw `invalid type ${a} ${b} ${c} ${d}`
+  }
+  function isdef(t) {
+
+  }
+
+  var nulltype = newtype('null')
+  var nattypes = {
+    abs: newtype('nat','abs'),
+    return: newtype('nat','return'),
+    bol: newtype('nat','bol'),
+    true: newtype('nat','true'),
+    false: newtype('nat','false'),
+    vec1: newtype('nat','vec','num',[1]),
+    vec2: newtype('nat','vec','num',[2]),
+    vec3: newtype('nat','vec','num',[3]),
+  }
+  function nattype(tok) {
+    if (nattypes[tok]) return nattypes[tok]
+    var pre = tok.slice(0,3)
+    var pst = tok.slice(3)
+    if (pre == 'vec') {
+      var pst = parseInt(pst)
+      if (isNaN(pst) || pst <= 0) throw `${tok} is invalid type`
+      return newtype('nat','vec','num',[pst])
+    }
+    else if (pre == 'mat') {
+      pst = pst.split('_')
+      for (var i in pst) {
+        var tmp = parseInt(pst[i])
+        if (isNaN(tmp) || tmp <= 0) throw `${tok} is invalid type`
+        pst[i] = tmp
+      }
+      return newtype('nat','vec','num',pst)
+    }
+  }
+
+  function lamtype(a,b,state) {
+    log('lamtype',a,b)
+    return ['lamtype',a,b]
+  }
+  // vec, tup, stat, abs
+  function arytype(args,tok) {
+    log('arytype',args,tok)
+    return ['arytype',args,tok]
+  }
+
+  function idxtype(a,b) {
+    log('idxtype',a,b)
+    return ['idxtype',a,b]
+  }
+  function conoptype(a,b,c) {
+    log('conoptype',a,b,c)
+    return ['conoptype',a,b,c]
+  }
+  function assigntype(a,b) {
+    log('assigntype',a,b)
+    return ['assigntype',a,b]
+  }
+  // not, xor
+  function booltype(a,tok) {
+    log('booltype',a,tok)
+    return ['booltype',a,tok]
+  }
+  // pdec, pinc, dec, inc, neg, pos
+  function singtype(a,tok) {
+    log('singtype',a,tok)
+    return ['singtype',a,tok]
+  }
+  // equ, neq, gtr, les, leq, geq
+  function cmprtype(a,b,tok) {
+    log('cmprtype',a,b,tok)
+    return ['cmprtype',a,b,tok]
+  }
+  // pow, mul, div, mod, add, sub
+  function mathtype(a,b,tok) {
+    log('mathtype',a,b,tok)
+    return ['mathtype',a,b,tok]
+  }
+
+  function getWrd(wrd,state) {
+    var type = nattype(wrd)
+    if (type) return type
+    else if (state.scp.tbl[wrd]) return state.scp.tbl[wrd]
+
+    for (var i in state.scpS) {
+      var scp = state.scpS[i]
+      if (scp.tbl[wrd]) return scp.tbl[wrd]
+    }
+    return state.scp.tbl[wrd] = newtype('null','val',wrd)
+  }
+
+  var preType = {
+    'scp': state => {
+      state.scpS.push(state.scp)
+      state.scp = {
+        tbl: {},
+        ret: null
+      }
+    }
+  }
+  var pstType = {
+    scp: state => {
+      var ret = state.scp.ret || nulltype
+      state.scp = state.scpS.pop()
+      return ret
+    },
+    tup: state => arytype(state.args,'tup'),
+    vec: state => arytype(state.args,'vec'),
+    stat: state => arytype(state.args,'stat'),
+    abs: state => arytype(state.args,'abs'),
+    comp: state => lamtype(state.args[0],state.args[1],state),
+    not: state => booltype(state.args[0],'not'),
+    xor: state => booltype(state.args[0],'xor'),
+    pdec: state => singtype(state.args[0],'pdec'),
+    pinc: state => singtype(state.args[0],'pinc'),
+    dec: state => singtype(state.args[0],'dec'),
+    inc: state => singtype(state.args[0],'inc'),
+    neg: state => singtype(state.args[0],'neg'),
+    pos: state => singtype(state.args[0],'pos'),
+    idx: state => idxtype(state.args[0],state.args[1]),
+    pow: state => mathtype(state.args[0],state.args[1],'pow'),
+    mul: state => mathtype(state.args[0],state.args[1],'mul'),
+    div: state => mathtype(state.args[0],state.args[1],'div'),
+    mod: state => mathtype(state.args[0],state.args[1],'mod'),
+    add: state => mathtype(state.args[0],state.args[1],'add'),
+    sub: state => mathtype(state.args[0],state.args[1],'sub'),
+    equ: state => cmprtype(state.args[0],state.args[1],'equ'),
+    neq: state => cmprtype(state.args[0],state.args[1],'neq'),
+    gtr: state => cmprtype(state.args[0],state.args[1],'gtr'),
+    les: state => cmprtype(state.args[0],state.args[1],'les'),
+    leq: state => cmprtype(state.args[0],state.args[1],'leq'),
+    geq: state => cmprtype(state.args[0],state.args[1],'geq'),
+    conop: state => conoptype(state.args[0],state.args[1],state.args[2]),
+    assign: state => assigntype(state.args[0],state.args[1])
+  }
+
+  function checkListTypes(list) {
+    var state = {
+      scpS: [],
+      argS: [],
+      args: [],
+      scp: {
+        tbl:{},
+        ret:null
+      }
+    }
+
+    try {
+      for (var l in list) {
+        l = list[l]
+        var l0 = l[0]
+        var l1 = l[1]
+        if (l0 == 's') {
+          if (preType[l1]) preType[l1](state)
+          state.argS.push(state.args)
+          state.args = []
+        }
+        else if (l0 == 'e') {
+          var ret = pstType[l1](state)
+          state.args = state.argS.pop()
+          state.args.push(ret)
+        }
+        else if (l1 == 'wrd') {
+          state.args.push(getWrd(l[2],state))
+        }
+        else if (l1 == 'num') {
+          state.args.push(newtype('num','val',l[2]))
+        }
+        else throw `unexpected type '${l1}' at ${l[3]}`
+      }
+    }
+    catch (e) {
+      console.error(state)
+      throw e
+    }
+
+    log('main',state)
   }
 
   return function(string) {
 
     // syntax pass
     var parse = parseString(string + '\n')
-    for (var i in parse) replace(parse,i,'"','"','str',true)
-    for (var i in parse) replace(parse,i,"'","'",'str',true)
-    for (var i in parse) replace(parse,i,'`','`','str',true)
     for (var i in parse) replace(parse,i,'//','\n',null,true,true)
     for (var i in parse) replace(parse,i,'/*','*/',null,true)
-    for (var i in parse) replace(parse,i,'(',')','()',true)
-    for (var i in parse) replace(parse,i,'[',']','[]',true)
-    for (var i in parse) replace(parse,i,'{','}','{}',true)
+    for (var i in parse) replace(parse,i,'(',')','tup',true)
+    for (var i in parse) replace(parse,i,'[',']','vec',true)
+    for (var i in parse) replace(parse,i,'{','}','scp',true)
     for (var i in parse) replace(parse,i,'|','|','abs',true)
     parseStat(parse)
-    // prefx-, prefx+, prefx--, prefx++, prefx!, prefx~
-    parsePrefx(parse,0,{'-':2,'+':2,'--':1,'++':1,'!':1,'~':1})
-    // pstfx--, pstfx++
-    // parsePstfx(parse,1,{'--':1,'++':1})
+    parsePrefx(parse,1,{'--':'pdec','++':'pinc','!':'not','~':'xor'})
+    parsePstfx(parse,1,{'--':'dec','++':'inc'})
+    parsePrefx(parse,1,{'-':'neg','+':'pos'},true)
     for (var i in parse) parseComp(parse,i)
+    parseMidfx_rtlf(parse,1,{'.':'idx'})
+    parseMidfx_lfrt(parse,1,{'^':'pow'})
+    parseMidfx_rtlf(parse,1,{'*':'mul','/':'div','%':'mod'})
+    parseMidfx_rtlf(parse,1,{'+':'add','-':'sub'})
+    parseMidfx_rtlf(parse,1,{'==':'equ','!=':'neq','>':'gtr','<':'les','<=':'leq','>=':'geq'})
+    parseConOp(parse,1)
+    parseMidfx_lfrt(parse,1,{'=':'assign'})
 
     log(parse)
+
+    var list = []
+    listParse(parse,list)
+    tokCheck(list)
+    // list.forEach(l => log(l))
+    checkListTypes(list)
 
     return function() {
 
@@ -701,17 +1008,17 @@ PT.fcc = function() {
 
 var temp = `
   vec3 main(vec3 a, vec3 b) {
-    str s = 'asdf'
-    vec3 c = b - a 4 + 3 4 // this is a // comment
-    var test = 120 /* my name is khan */
-    var t = ++(--3)-- ++(3--) ^ ~3 + !34 ? 3 : 3
-    halpab == 13 >= 3 < 10 > 3 <= 1 != 3
+    vec1 c = b - a 4 + 3 4 // this is a // comment
+    vec1 test = 120 /* my name is khan */
+    vec1 t = ++(--3)-- ++(3--) ^ 3 + 34 ? 3 : 3
+    vec4 k = [1,2,3,4]
+    mat1_3 m = [[1],[2],[3]]
+    bol asdf = true
+    asdf == 13 >= 3 < 10 > 3 <= 1 != 3
 
     return |c|
   }
 `
 
-var fun = PT.fcc(`
-  (a)
-`)
+var fun = PT.fcc(temp)
 log(fun)
