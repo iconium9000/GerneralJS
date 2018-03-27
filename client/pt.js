@@ -610,29 +610,18 @@ PT.fcc = function() {
     if (reqe) throw `expected '${e}' after ${p[2]}`
   }
   function parseStat(parse) {
+    if (typeof parse != 'object') return
+    else if (is_nat[parse[0]]) return
+
+    for (var i = 1; i < parse.length; ++i) parseStat(parse[i])
     var prev = 0
     for (var i = 1; i < parse.length; ++i) {
       var p = parse[i]
-      if (typeof p != 'object') continue
-      if (!is_nat[p[0]]) {
-        parseStat(p)
-        continue
-      }
-      var p1 = p[1]
-      if (p1 != '\n' && p1 != ',' && p1 != ';') continue
 
-      var rep = ['stat'].concat(parse.slice(prev+1,i))
-      if (rep.length>1)parse.splice(prev+1,i-prev,rep)
-      else parse.splice(prev+1,i-prev)
+      if (p[0] != 'tok' || !is_dlm([p[1]])) return
 
-      i = prev+1
-      if (rep.length>1) ++prev
+      var rep = ['stat'].parse()
     }
-    var i = parse.length
-    var rep = ['stat'].concat(parse.slice(prev+1,i))
-
-    if (rep.length>1)parse.splice(prev+1,i-prev,rep)
-    else parse.splice(prev+1,i-prev)
   }
   function parseComp(parse,i) {
     i = parseInt(i)
@@ -649,19 +638,37 @@ PT.fcc = function() {
   }
   function parsePrefx(parse,i,toks) {
     i = parseInt(i)
-    log(i)
-    if (i > parse.length-2) return
+    if (i > parse.length-1) return
     parsePrefx(parse,i+1,toks)
 
     var a = parse[i]
     if (typeof a != 'object') return
-    if (a[0])
+    if (!is_nat[a[0]]) parsePrefx(a,0,toks)
 
     if (a[0] != 'tok' || !toks[a[1]]) return
     var b = parse[i+1]
     if (typeof b != 'object' || b[0] == 'tok' || b[0] == 'stat') return
 
-    parse.splice(i,2,['prefx'+a[1]].concat(parse.slice(i,i+2)))
+    parse.splice(i,2,['prefx'+a[1],b])
+  }
+  function parsePstfx(parse,i,toks) {
+    if (i > parse.length-1) return
+
+    try {
+      var b = parse[i]
+      if (typeof b != 'object') return
+      parsePstfx(b,1,toks)
+
+      if (b[0] != 'tok' || !toks[b[1]]) return
+
+      var a = parse[i-1]
+      if (typeof a != 'object' || a[0] == 'tok') return
+
+      parse.splice(--i,2,['pstfx'+b[1],a])
+    }
+    finally {
+      parsePstfx(parse,i+1,toks)
+    }
   }
 
   return function(string) {
@@ -678,7 +685,10 @@ PT.fcc = function() {
     for (var i in parse) replace(parse,i,'{','}','{}',true)
     for (var i in parse) replace(parse,i,'|','|','abs',true)
     parseStat(parse)
+    // prefx-, prefx+, prefx--, prefx++, prefx!, prefx~
     parsePrefx(parse,0,{'-':2,'+':2,'--':1,'++':1,'!':1,'~':1})
+    // pstfx--, pstfx++
+    // parsePstfx(parse,1,{'--':1,'++':1})
     for (var i in parse) parseComp(parse,i)
 
     log(parse)
@@ -701,5 +711,7 @@ var temp = `
   }
 `
 
-var fun = PT.fcc(temp)
+var fun = PT.fcc(`
+  (a)
+`)
 log(fun)
