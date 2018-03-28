@@ -761,134 +761,75 @@ PT.fcc = function() {
     }
   }
 
-  function newtype(a,b,c,d) {
-    switch (a) {
-    case 'null':
-      if (b == 'val') {
+  var nulltype = ['val',['void']]
 
-      }
-      else {
-
-      }
-      return
-    case 'num':
-
-      return
-    case 'nat':
-      switch(b) {
-      case 'return':return
-      case 'abs':return
-      case 'dot':return
-      case 'cross':return
-      case 'bol':return
-      case 'true':return
-      case 'false':return
-      case 'vec':
-        log('newtype','vec',c,d)
-        return
-      }
-
-    break
-    }
-
-    throw `invalid type ${a} ${b} ${c} ${d}`
-  }
-  function istyp(t) {
+  // returns the typ of an obj
+  function gettyp(obj) {
 
   }
-  function isdef(t) {
+  // returns the val of an obj
+  function getval(obj) {
 
   }
-  function islam(t) {
-    
+  // returns the absolution value of an obj
+  function getabs(obj) {
+
+  }
+  // returns true if typ is composed of num
+  function allnum(typ) {
+
+  }
+  // returns true if typ is composed of bol
+  function allbol(typ) {
+
+  }
+  // returns true if all args are void defs
+  function alldef(args) {
+
+  }
+  // returns an ary of type vals iff all have values
+  function allval(args) {
+
+  }
+  // returns the vec type if all args have the same type
+  function vectype(args) {
+
+  }
+  // returns the tup type of the args
+  function tuptype(args) {
+
   }
 
-  var nulltype = newtype('null')
-  var nattypes = {
-    abs: newtype('nat','abs'),
-    dot: newtype('nat','dot'),
-    cross: newtype('nat','cross'),
-    return: newtype('nat','return'),
-    bol: newtype('nat','bol'),
-    true: newtype('nat','true'),
-    false: newtype('nat','false'),
-    vec1: newtype('nat','vec','num',[1]),
-    vec2: newtype('nat','vec','num',[2]),
-    vec3: newtype('nat','vec','num',[3]),
+  function booltype(arg,tok) {
+    var arg = state.args[0]
+    var typ = gettyp(arg)
+    if (!allbol(typ)) throw `${tok} bol err`
+    var val = getval(arg)
+    if (!val) throw `${tok} val err`
+    return ['val',typ,[[tok,typ],val]]
   }
-  function nattype(tok) {
-    if (nattypes[tok]) return nattypes[tok]
-    var pre = tok.slice(0,3)
-    var pst = tok.slice(3)
-    if (pre == 'vec') {
-      var pst = parseInt(pst)
-      if (isNaN(pst) || pst <= 0) throw `${tok} is invalid type`
-      return newtype('nat','vec','num',[pst])
-    }
-    else if (pre == 'mat') {
-      pst = pst.split('_')
-      for (var i in pst) {
-        var tmp = parseInt(pst[i])
-        if (isNaN(tmp) || tmp <= 0) throw `${tok} is invalid type`
-        pst[i] = tmp
-      }
-      return newtype('nat','vec','num',pst)
-    }
+  function singtype(arg,tok) {
+    var arg = state.args[0]
+    var typ = gettyp(arg)
+    if (!allnum(typ)) throw `${tok} num err`
+    var val = getval(arg)
+    if (!val) throw `${tok} val err`
+    return ['val',typ,[[tok,typ],val]]
   }
+  function cmprtype(argA,argB,tok) {
 
-  function lamtype(a,b,state) {
-    log('lamtype',a,b)
-    return ['lamtype',a,b]
   }
-  // vec, tup, stat, abs
-  function arytype(args,tok) {
-    log('arytype',args,tok)
-    return ['arytype',args,tok]
-  }
+  function mathtype(argA,argB,tok) {
 
-  function idxtype(a,b) {
-    log('idxtype',a,b)
-    return ['idxtype',a,b]
   }
-  function conoptype(a,b,c) {
-    log('conoptype',a,b,c)
-    return ['conoptype',a,b,c]
-  }
-  function assigntype(a,b) {
-    log('assigntype',a,b)
-    return ['assigntype',a,b]
-  }
-  // not, xor
-  function booltype(a,tok) {
-    log('booltype',a,tok)
-    return ['booltype',a,tok]
-  }
-  // pdec, pinc, dec, inc, neg, pos
-  function singtype(a,tok) {
-    log('singtype',a,tok)
-    return ['singtype',a,tok]
-  }
-  // equ, neq, gtr, les, leq, geq
-  function cmprtype(a,b,tok) {
-    log('cmprtype',a,b,tok)
-    return ['cmprtype',a,b,tok]
-  }
-  // pow, mul, div, mod, add, sub
-  function mathtype(a,b,tok) {
-    log('mathtype',a,b,tok)
-    return ['mathtype',a,b,tok]
-  }
+  function idxtype(argA,argB) {
 
-  function getWrd(wrd,state) {
-    var type = nattype(wrd)
-    if (type) return type
-    else if (state.scp.tbl[wrd]) return state.scp.tbl[wrd]
+  }
+  function conoptype(argA,argB,argC) {
 
-    for (var i in state.scpS) {
-      var scp = state.scpS[i]
-      if (scp.tbl[wrd]) return scp.tbl[wrd]
-    }
-    return state.scp.tbl[wrd] = newtype('null','val',wrd)
+  }
+  function assigntype(argA,argB,state) {
+
   }
 
   var preType = {
@@ -907,13 +848,53 @@ PT.fcc = function() {
       if (scp) state.scp
       return ret
     },
-    tup: state => arytype(state.args,'tup'),
-    vec: state => arytype(state.args,'vec'),
-    stat: state => arytype(state.args,'stat'),
-    abs: state => arytype(state.args,'abs'),
-    comp: state => lamtype(state.args[0],state.args[1],state),
+    tup: state => {
+      var args = state.args
+      if (args.length == 0) return nulltype
+      else if (args.length == 1) return args[0]
+
+      var def = alldef(args)
+      var val = allval(args)
+      var typ = vectype(args) || tuptype(args)
+      if (!typ) throw `typ mix err`
+      if (def) return ['def',typ,allarg(args)]
+      if (val) return ['val',typ,val]
+      throw `def mix err`
+    },
+    vec: state => {
+      var args = state.args
+      if (args.length == 0) return nulltype
+      else if (args.length == 1) return args[0]
+
+      var def = alldef(args)
+      var val = allval(args)
+      var typ = vectype(args)
+      if (!typ) throw `vec mix err`
+      if (def) return ['def',typ,allarg(args)]
+      if (val) return ['val',typ,val]
+      throw `def mix err`
+    },
+    stat: state => {
+      var args = state.args
+      if (args.length) return args[0]
+      throw `illigal stat size`
+    },
+    abs: state => {
+      var args = state.args
+      if (args.length == 0) throw `abs null err`
+      else if (args.length == 1) return getabs(args[0])
+
+      var val = allval(args)
+      var typ = vectype(args)
+      if (!typ) throw `vec mix err`
+      if (val) return getabs(['val',typ,val])
+      throw `abs def val err`
+    },
+    comp: state => {
+
+    },
     not: state => booltype(state.args[0],'not'),
-    xor: state => booltype(state.args[0],'xor'),
+    xor: state => booltype(state.args[0],'not'),
     pdec: state => singtype(state.args[0],'pdec'),
     pinc: state => singtype(state.args[0],'pinc'),
     dec: state => singtype(state.args[0],'dec'),
@@ -934,7 +915,7 @@ PT.fcc = function() {
     leq: state => cmprtype(state.args[0],state.args[1],'leq'),
     geq: state => cmprtype(state.args[0],state.args[1],'geq'),
     conop: state => conoptype(state.args[0],state.args[1],state.args[2]),
-    assign: state => assigntype(state.args[0],state.args[1])
+    assign: state => assigntype(state.args[0],state.args[1],state)
   }
 
   function checkListTypes(list) {

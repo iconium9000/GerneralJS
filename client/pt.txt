@@ -1,6 +1,7 @@
-newtype('null','val',wrd)
-newtype('num','val',num)
-newtype('null')
+newtype('null','val',wrd) -> [var,[void],[$,wrd]] -> $ = lokvar(scp,wrd)
+newtype('num','val',num) -> [val,[num],[$,num]] -> $ = loknum(num)
+newtype('null') -> [val,[void]]
+
 newtype('nat','abs')
 newtype('nat','bol')
 newtype('nat','true')
