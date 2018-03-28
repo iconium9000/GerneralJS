@@ -778,6 +778,8 @@ PT.fcc = function() {
       switch(b) {
       case 'return':return
       case 'abs':return
+      case 'dot':return
+      case 'cross':return
       case 'bol':return
       case 'true':return
       case 'false':return
@@ -791,13 +793,21 @@ PT.fcc = function() {
 
     throw `invalid type ${a} ${b} ${c} ${d}`
   }
+  function istyp(t) {
+
+  }
   function isdef(t) {
 
+  }
+  function islam(t) {
+    
   }
 
   var nulltype = newtype('null')
   var nattypes = {
     abs: newtype('nat','abs'),
+    dot: newtype('nat','dot'),
+    cross: newtype('nat','cross'),
     return: newtype('nat','return'),
     bol: newtype('nat','bol'),
     true: newtype('nat','true'),
@@ -883,7 +893,7 @@ PT.fcc = function() {
 
   var preType = {
     'scp': state => {
-      state.scpS.push(state.scp)
+      state.scp && state.scpS.push(state.scp)
       state.scp = {
         tbl: {},
         ret: null
@@ -893,7 +903,8 @@ PT.fcc = function() {
   var pstType = {
     scp: state => {
       var ret = state.scp.ret || nulltype
-      state.scp = state.scpS.pop()
+      var scp = state.scpS.pop()
+      if (scp) state.scp
       return ret
     },
     tup: state => arytype(state.args,'tup'),
@@ -930,11 +941,7 @@ PT.fcc = function() {
     var state = {
       scpS: [],
       argS: [],
-      args: [],
-      scp: {
-        tbl:{},
-        ret:null
-      }
+      args: []
     }
 
     try {
