@@ -762,74 +762,220 @@ PT.fcc = function() {
   }
 
   var nulltype = ['val',['void']]
+  var complextyp = ['vec',['num'],2]
 
   // returns the typ of an obj
   function gettyp(obj) {
-
+    return obj[1]
   }
   // returns the val of an obj
   function getval(obj) {
-
+    if (obj[0] == 'val') return obj[2]
+    if (obj[0] == 'var') return obj[3]
+    if (obj[0] == 'typ') return ['void']
+    if (obj[0] == 'lam') return obj[]
   }
-  // returns the absolution value of an obj
-  function getabs(obj) {
-
+  // returns b if a and b are the same type
+  function matchtype(a,b) {
+    if (a == null) return b
+    if (a[0] != b[0]) return null
+    if (a[0] == 'num' || a[0] == 'bol' || a[0] == 'void') return b
+    if (a[0] == 'vec' && a[2] == b[2] && matchtype(a[1],b[1])) return b
+    if (a[0] == 'tup' && a.length == b.length) {
+      for (var i = 1; i < a.length; ++i)
+        if (!matchtype(a[i],b[i])) return null
+      return b
+    }
+    if (a[0] == 'lam' && matchtype(a[1],b[1]) && matchtype(a[2],b[2])) return b
+    if (a[0] == 'typ' && matchtype(a[1],b[1])) return b
+    throw `invalid type ${a[0]}`
   }
   // returns true if typ is composed of num
   function allnum(typ) {
-
+    if (typ[0] == 'num') return true
+    if (type[0] == 'vec') return allnum(type[1])
+    if (type[0] == 'tup') {
+      for (var i=1;i<type.length;++i) if (!allnum(type[i])) return false
+      return true
+    }
+    return false
+  }
+  function iscomplextyp(typ) {
+    return matchtype(typ,['num']) || matchtype(typ,complextyp)
   }
   // returns true if typ is composed of bol
   function allbol(typ) {
-
+    if (typ[0] == 'bol') return true
+    if (type[0] == 'vec') return allbol(type[1])
+    if (type[0] == 'tup') {
+      for (var i=1;i<type.length;++i) if (!allbol(type[i])) return false
+      return true
+    }
+    return false
   }
-  // returns true if all args are void defs
+  // returns true if all args are defs
   function alldef(args) {
-
+    for (var i in args) if (args[i][0] != 'def') return false
+    return true
   }
   // returns an ary of type vals iff all have values
   function allval(args) {
-
+    var ans = []
+    for (var i in args) {
+      var v = getval(args[i])
+      if (!v) return null
+      ans.push(v)
+    }
+    return ans
   }
   // returns the vec type if all args have the same type
   function vectype(args) {
-
+    var t = null
+    for (var i in args) {
+       t = matchtype(t,gettyp(args[i]))
+       if (!t) return null
+    }
+    if (args.length == 0) return ['void']
+    if (args.length == 1) return t
+    return ['vec',t,args.length]
   }
   // returns the tup type of the args
   function tuptype(args) {
-
+    var t = vectype(args)
+    if (t) return t
+    t = ['tup']
+    for (var i in args) t.push(gettyp(args[i]))
+    return t
   }
-
-  function booltype(arg,tok) {
+  // not, xor
+  function booltype(arg,tok,evnt) {
     var arg = state.args[0]
     var typ = gettyp(arg)
     if (!allbol(typ)) throw `${tok} bol err`
     var val = getval(arg)
     if (!val) throw `${tok} val err`
-    return ['val',typ,[[tok,typ],val]]
+    return ['val',typ,evnt([tok,typ,val])]
   }
-  function singtype(arg,tok) {
+  // pdec, pinc, dec, inc, neg, pos
+  function singtype(arg,tok,evnt) {
     var arg = state.args[0]
     var typ = gettyp(arg)
     if (!allnum(typ)) throw `${tok} num err`
     var val = getval(arg)
     if (!val) throw `${tok} val err`
-    return ['val',typ,[[tok,typ],val]]
+    return ['val',typ,evnt([tok,typ,val])]
   }
-  function cmprtype(argA,argB,tok) {
+  // equ, neq, gtr, les, leq, geq
+  function cmprtype(argA,argB,tok,evnt) {
+    var at = gettyp(argA), bt = gettyp(argB)
+    var av = getval(argA), bv = getval(argB)
+    if (!av || !bv) throw `${tok} val err`
+    var t = matchtype(at,bt)
+    if (tok == 'equ' || tok == 'neq') {
+      if (!t) return ['val',['bol'],evnt(['sat',false])]
+      else return ['val',['bol'],evnt([tok,t,av,bv])]
+    }
+    else if (!t || (t[0] != 'num' && t[0] != 'bol')) throw `${tok} typ err`
+    else return ['val',['bol'],evnt([tok,t,av,bv])]
+  }
+  // pow,dot,div,mod,add,sub
+  function mathtype(argA,argB,tok,evnt) {
+    var at = gettyp(argA), bt = gettyp(argB)
+    var av = getval(argA), bv = getval(argB)
+    if (!av || !bv) throw `${tok} val err`
+    var t = matchtype(at,bt)
+    if (!allnum(at) || !allnum(bt)) throw `${tok} num err`
+    if (tok=='add'||tok=='sub') {
+      if (!t) throw `${tok} typ err`
+      return ['val',t,evnt([tok,t,av,bv])]
+    }
+  }
+  function idxtype(argA,argB,evnt) {
+    var at = gettyp(argA), bt = gettyp(argB)
+    var av = getval(argA), bv = getval(argB)
+    if (!av || !bv) throw `idx val err`
+    if (bt[0] != 'num') throw `idx typ err`
+    if (at[0] == 'vec') return ['val',at[1],evnt(['idx',at,av,bv])]
+    throw `idx typ err`
+  }
+  function conoptype(argA,argB,argC,evnt) {
+    var at = gettyp(argA), bt = gettyp(argB), ct = gettyp(argC)
+    var av = getval(argA), bv = getval(argB), cv = getval(argC)
+    if (!av || !bv || !cv) throw `conop val err`
+    if (!at[0] != 'bol' || !matchtype(bt,ct)) throw `conop typ err`
+    return ['val',bt,evnt(['conop',bt,av,bv,cv])]
+  }
+  function trignat(tok) {
+    return (arg,state,evnt) => {
+      var typ = gettyp(arg)
+      if (!iscomplextyp(typ)) throw `${tok} typ err`
+      var val = getval(arg)
+      if (!val) throw `${tok} typ err`
+      return ['val',complextyp,evnt([tok,typ,val])]
+    }
+  }
+  var lamnats = {
+    return: (arg,state,evnt) => {
+      var ret = state.scp.ret
+      if (ret) throw `excess return statements`
+      if (!getval(arg)) throw `return val err`
+      state.scp.ret = arg
+      return nulltype
+    },
+    sin: trignat('sin'),
+    cos: trignat('cos'),
+    tan: trignat('tan'),
+    cot: trignat('cot'),
+    csc: trignat('csc'),
+    sec: trignat('sec'),
+    asin: trignat('asin'),
+    acos: trignat('acos'),
+    atan: trignat('atan'),
+    acot: trignat('acot'),
+    acsc: trignat('acsc'),
+    asec: trignat('asec'),
+  }
+  function getnat(wrd) {
+    if (wrd == 'void') return ['typ',['void']]
+    if (wrd == 'num') return ['typ',['num']]
+    if (wrd == 'bol') return ['typ',['bol']]
+    if (wrd == 'typ') return ['typ',['typ',['void']]]
+    if (wrd == 'lam') return ['lam',['void']]
+    if (wrd == 'vec2') return ['typ',complextyp]
+    if (wrd == 'vec3') return ['typ',['vec',['num'],3]]
+    if (lamnats[wrd]) return ['lam',['nat'],lamnats[wrd]]
+  }
+  function getwrd(wrd,state,evnt) {
+    var nat = getnat(wrd)
+    if (nat) return nat
+
+    if (state.scp.tbl[wrd]) return state.scp.tbl[wrd]
+    for (var i in stat.scpS) {
+      var v = state.scpS[i].tbl[wrd]
+      if (v) return v
+    }
+
+    return state.scp.tbl[wrd] = ['var',['void'],evnt(['var',stat.scp,wrd])]
+  }
+  function getnum(num,evnt) {
+    return ['val',['num'],evnt(['sat',num])]
+  }
+  function comptype(argA,argB,state,evnt) {
+    var at = gettyp(argA), bt = gettyp(argB)
 
   }
-  function mathtype(argA,argB,tok) {
+  function assigntype(argA,argB,state,evnt) {
 
   }
-  function idxtype(argA,argB) {
-
-  }
-  function conoptype(argA,argB,argC) {
-
-  }
-  function assigntype(argA,argB,state) {
-
+  // returns the absolute value of an obj
+  function getabs(obj,evnt) {
+    var t = gettyp(obj)
+    if (!allnum(t)) throw `abs num err`
+    var v = getval(obj)
+    if (!v) throw `abs val err`
+    if (t[0] == 'num') return ['val',t,evnt(['abs',t,v])]
+    if (t[0] == 'vec' && t[1][0] == 'num') return ['val',t,evnt(['abs',t,v])]
+    throw `abs typ err`
   }
 
   var preType = {
@@ -855,10 +1001,10 @@ PT.fcc = function() {
 
       var def = alldef(args)
       var val = allval(args)
-      var typ = vectype(args) || tuptype(args)
+      var typ = tuptype(args)
       if (!typ) throw `typ mix err`
       if (def) return ['def',typ,allarg(args)]
-      if (val) return ['val',typ,val]
+      if (val) return ['val',typ,state.evnt([typ[0],val])]
       throw `def mix err`
     },
     vec: state => {
@@ -871,51 +1017,45 @@ PT.fcc = function() {
       var typ = vectype(args)
       if (!typ) throw `vec mix err`
       if (def) return ['def',typ,allarg(args)]
-      if (val) return ['val',typ,val]
+      if (val) return ['val',typ,state.evnt([typ[0],val])]
       throw `def mix err`
     },
-    stat: state => {
-      var args = state.args
-      if (args.length) return args[0]
-      throw `illigal stat size`
-    },
+    stat: state => state.args[0],
     abs: state => {
       var args = state.args
       if (args.length == 0) throw `abs null err`
-      else if (args.length == 1) return getabs(args[0])
+      else if (args.length == 1) return getabs(args[0],state.evnt)
 
       var val = allval(args)
       var typ = vectype(args)
       if (!typ) throw `vec mix err`
-      if (val) return getabs(['val',typ,val])
+      if (val) return getabs(['val',typ,state.evnt([typ[0],val])])
       throw `abs def val err`
     },
-    comp: state => {
-
-    },
+    comp: state => comptype(state.args[0],state.args[1],state,state.evnt),
     not: state => booltype(state.args[0],'not'),
-    xor: state => booltype(state.args[0],'not'),
-    pdec: state => singtype(state.args[0],'pdec'),
-    pinc: state => singtype(state.args[0],'pinc'),
-    dec: state => singtype(state.args[0],'dec'),
-    inc: state => singtype(state.args[0],'inc'),
-    neg: state => singtype(state.args[0],'neg'),
-    pos: state => singtype(state.args[0],'pos'),
-    idx: state => idxtype(state.args[0],state.args[1]),
-    pow: state => mathtype(state.args[0],state.args[1],'pow'),
-    mul: state => mathtype(state.args[0],state.args[1],'mul'),
-    div: state => mathtype(state.args[0],state.args[1],'div'),
-    mod: state => mathtype(state.args[0],state.args[1],'mod'),
-    add: state => mathtype(state.args[0],state.args[1],'add'),
-    sub: state => mathtype(state.args[0],state.args[1],'sub'),
-    equ: state => cmprtype(state.args[0],state.args[1],'equ'),
-    neq: state => cmprtype(state.args[0],state.args[1],'neq'),
-    gtr: state => cmprtype(state.args[0],state.args[1],'gtr'),
-    les: state => cmprtype(state.args[0],state.args[1],'les'),
-    leq: state => cmprtype(state.args[0],state.args[1],'leq'),
-    geq: state => cmprtype(state.args[0],state.args[1],'geq'),
-    conop: state => conoptype(state.args[0],state.args[1],state.args[2]),
-    assign: state => assigntype(state.args[0],state.args[1],state)
+    xor: state => booltype(state.args[0],'xor',state.evnt),
+    pdec: state => singtype(state.args[0],'pdec',state.evnt),
+    pinc: state => singtype(state.args[0],'pinc',state.evnt),
+    dec: state => singtype(state.args[0],'dec',state.evnt),
+    inc: state => singtype(state.args[0],'inc',state.evnt),
+    neg: state => singtype(state.args[0],'neg',state.evnt),
+    pos: state => singtype(state.args[0],'pos',state.evnt),
+    idx: state => idxtype(state.args[0],state.args[1],state.evnt),
+    pow: state => mathtype(state.args[0],state.args[1],'pow',state.evnt),
+    mul: state => mathtype(state.args[0],state.args[1],'mul',state.evnt),
+    div: state => mathtype(state.args[0],state.args[1],'div',state.evnt),
+    mod: state => mathtype(state.args[0],state.args[1],'mod',state.evnt),
+    add: state => mathtype(state.args[0],state.args[1],'add',state.evnt),
+    sub: state => mathtype(state.args[0],state.args[1],'sub',state.evnt),
+    equ: state => cmprtype(state.args[0],state.args[1],'equ',state.evnt),
+    neq: state => cmprtype(state.args[0],state.args[1],'neq',state.evnt),
+    gtr: state => cmprtype(state.args[0],state.args[1],'gtr',state.evnt),
+    les: state => cmprtype(state.args[0],state.args[1],'les',state.evnt),
+    leq: state => cmprtype(state.args[0],state.args[1],'leq',state.evnt),
+    geq: state => cmprtype(state.args[0],state.args[1],'geq',state.evnt),
+    conop: state => conoptype(state.args[0],state.args[1],state.args[2],state.evnt),
+    assign: state => assigntype(state.args[0],state.args[1],state,state.evnt)
   }
 
   function checkListTypes(list) {
@@ -923,6 +1063,10 @@ PT.fcc = function() {
       scpS: [],
       argS: [],
       args: []
+    }
+    state.evnt = val => {
+      log('evnt',val)
+      return val
     }
 
     try {
@@ -940,12 +1084,8 @@ PT.fcc = function() {
           state.args = state.argS.pop()
           state.args.push(ret)
         }
-        else if (l1 == 'wrd') {
-          state.args.push(getWrd(l[2],state))
-        }
-        else if (l1 == 'num') {
-          state.args.push(newtype('num','val',l[2]))
-        }
+        else if (l1 == 'wrd') state.args.push(getwrd(l[2],state,state.evnt))
+        else if (l1 == 'num') state.args.push(getnum(l[2],state.evnt))
         else throw `unexpected type '${l1}' at ${l[3]}`
       }
     }

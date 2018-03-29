@@ -1,45 +1,59 @@
-newtype('null','val',wrd) -> [var,[void],[$,wrd]] -> $ = lokvar(scp,wrd)
-newtype('num','val',num) -> [val,[num],[$,num]] -> $ = loknum(num)
-newtype('null') -> [val,[void]]
+funs
+  newtype('null','val',wrd) -> [var,[void],[$,wrd]] -> $ = lokvar(scp,wrd)
+  newtype('num','val',num) -> [val,[num],[$,num]] -> $ = loknum(num)
+  newtype('null') -> [val,[void]]
 
-newtype('nat','abs')
-newtype('nat','bol')
-newtype('nat','true')
-newtype('nat','false')
-newtype('nat','vec','num',[1])
-newtype('nat','vec','num',[2])
-newtype('nat','vec','num',[3])
+  newtype('nat','abs')
+  newtype('nat','bol')
+  newtype('nat','true')
+  newtype('nat','false')
+  newtype('nat','vec','num',[1])
+  newtype('nat','vec','num',[2])
+  newtype('nat','vec','num',[3])
 
-lamtype(a,b,state)
+  lamtype(a,b,state)
 
-booltype(arg,'not')
-booltype(arg,'xor')
+  booltype(arg,'not')
+  booltype(arg,'xor')
 
-arytype(args,'vec')
-arytype(args,'tup')
-arytype(args,'stat')
+  arytype(args,'vec')
+  arytype(args,'tup')
+  arytype(args,'stat')
 
-singtype(arg,'pdec')
-singtype(arg,'pinc')
-singtype(arg,'dec')
-singtype(arg,'inc')
-singtype(arg,'neg')
-singtype(arg,'pos')
+  singtype(arg,'pdec')
+  singtype(arg,'pinc')
+  singtype(arg,'dec')
+  singtype(arg,'inc')
+  singtype(arg,'neg')
+  singtype(arg,'pos')
 
-cmprtype(argA,argB,'equ')
-cmprtype(argA,argB,'neq')
-cmprtype(argA,argB,'gtr')
-cmprtype(argA,argB,'les')
-cmprtype(argA,argB,'leq')
-cmprtype(argA,argB,'geq')
+  cmprtype(argA,argB,'equ')
+  cmprtype(argA,argB,'neq')
+  cmprtype(argA,argB,'gtr')
+  cmprtype(argA,argB,'les')
+  cmprtype(argA,argB,'leq')
+  cmprtype(argA,argB,'geq')
 
-mathtype(argA,argB,'pow')
-mathtype(argA,argB,'mul')
-mathtype(argA,argB,'div')
-mathtype(argA,argB,'mod')
-mathtype(argA,argB,'add')
-mathtype(argA,argB,'sub')
+  mathtype(argA,argB,'pow')
+  mathtype(argA,argB,'dot')
+  mathtype(argA,argB,'div')
+  mathtype(argA,argB,'mod')
+  mathtype(argA,argB,'add')
+  mathtype(argA,argB,'sub')
 
-idxtype(argA,argB)
-conoptype(argA,argB,argC)
-assigntype(argA,argB)
+  idxtype(argA,argB)
+  conoptype(argA,argB,argC)
+  assigntype(argA,argB)
+
+typ
+  ['num']
+  ['bol']
+  ['typ',<typ>]
+  ['vec',<typ>,<num>]
+  ['tup',<typ>,<typ>+]
+  ['lam',<typ>,<typ>]
+val
+  ['void']
+  [<boltok>,<boltyp>,<val>]
+  [<singtok>,<numtyp>,<val>]
+  [<cmprtok>,<numtyp>,<valA>,<valB>]
