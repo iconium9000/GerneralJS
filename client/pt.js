@@ -534,177 +534,161 @@ PT.fcc = function() {
     'wrd':true
   }
 
-  function parseString(string) {
-    var word = ''
-    var ans = ['scp']
+  // parseing
+  {
+    function parseString(string) {
+      var word = ''
+      var ans = ['scp']
 
-    var line = 0
-    var char = 0
+      var line = 0
+      var char = 0
 
-    var push = () => {
-      var line_char = `${line}:${char}`
-      if (word.length == 0) return
-      else if (del_tok[word]) return
-      else if (tokens[word]) ans.push(['tok',word,line_char])
-      else if (isNaN(parseFloat(word))) ans.push(['wrd',word,line_char])
-      else ans.push(['num',parseFloat(word),line_char])
-      if (word == '\n') {
-        ++line
-        char = 0
-      }
-      word = ''
-    }
-
-    for (var c in string) {
-      c = string[c]
-      if (tokens[word+c]) {
-        word += c
-      }
-      else if (tokens[word] || tokens[c]) {
-        push()
-        word = c
-      }
-      else word += c
-
-      ++char
-    }
-
-    push()
-    return ans
-  }
-
-  function matchTok(p,t) {
-    return (typeof p) == 'object' && p[0] == 'tok' && p[1] == t
-  }
-  function replace(parse, i, s, e, r, reqe, lar) {
-    lar = lar?1:0
-    i = parseInt(i)
-
-    var p = parse[i]
-    if (typeof p != 'object') return
-    if (p[0] != 'tok'){
-      for (var j in p) replace(p,j,s,e,r,reqe,lar)
-      return
-    }
-    if (p[1] != s) return
-
-    for (var j = i+1; j < parse.length; ++j) {
-      if (s != e && !lar) replace(parse,j,s,e,r,reqe)
-      if (matchTok(parse[j],e)) {
-        if (r) {
-          var rep = [r].concat(parse.slice(i+1,j))
-          parse.splice(i,j-i+1-lar,rep)
+      var push = () => {
+        var line_char = `${line}:${char}`
+        if (word.length == 0) return
+        else if (del_tok[word]) return
+        else if (tokens[word]) ans.push(['tok',word,line_char])
+        else if (isNaN(parseFloat(word))) ans.push(['wrd',word,line_char])
+        else ans.push(['num',parseFloat(word),line_char])
+        if (word == '\n') {
+          ++line
+          char = 0
         }
-        else parse.splice(i,j-i+1-lar)
+        word = ''
+      }
+
+      for (var c in string) {
+        c = string[c]
+        if (tokens[word+c]) {
+          word += c
+        }
+        else if (tokens[word] || tokens[c]) {
+          push()
+          word = c
+        }
+        else word += c
+
+        ++char
+      }
+
+      push()
+      return ans
+    }
+
+    function matchTok(p,t) {
+      return (typeof p) == 'object' && p[0] == 'tok' && p[1] == t
+    }
+    function replace(parse, i, s, e, r, reqe, lar) {
+      lar = lar?1:0
+      i = parseInt(i)
+
+      var p = parse[i]
+      if (typeof p != 'object') return
+      if (p[0] != 'tok'){
+        for (var j in p) replace(p,j,s,e,r,reqe,lar)
         return
       }
+      if (p[1] != s) return
+
+      for (var j = i+1; j < parse.length; ++j) {
+        if (s != e && !lar) replace(parse,j,s,e,r,reqe)
+        if (matchTok(parse[j],e)) {
+          if (r) {
+            var rep = [r].concat(parse.slice(i+1,j))
+            parse.splice(i,j-i+1-lar,rep)
+          }
+          else parse.splice(i,j-i+1-lar)
+          return
+        }
+      }
+
+      if (reqe) throw `expected '${e}' after ${p[2]}`
     }
+    function parseStat(parse) {
+      if (typeof parse != 'object' || is_nat[parse[0]]) return
 
-    if (reqe) throw `expected '${e}' after ${p[2]}`
-  }
-  function parseStat(parse) {
-    if (typeof parse != 'object' || is_nat[parse[0]]) return
+      var prev = 0
+      for (var i = 1; i < parse.length; ++i) {
+        var p = parse[i]
+        parseStat(p)
+        if (typeof p != 'object' || p[0] != 'tok' || !is_dlm[p[1]]) continue
 
-    var prev = 0
-    for (var i = 1; i < parse.length; ++i) {
-      var p = parse[i]
-      parseStat(p)
-      if (typeof p != 'object' || p[0] != 'tok' || !is_dlm[p[1]]) continue
+        var rep = ['stat'].concat(parse.slice(prev+1,i))
+        if (rep.length>1){
+          parse.splice(prev+1,i-prev,rep)
+          i = ++prev
+        }
+        else {
+          parse.splice(prev+1,i-prev)
+          i = prev
+        }
+      }
 
+      var i = parse.length
       var rep = ['stat'].concat(parse.slice(prev+1,i))
-      if (rep.length>1){
+      if (rep.length>1) {
         parse.splice(prev+1,i-prev,rep)
-        i = ++prev
       }
       else {
         parse.splice(prev+1,i-prev)
-        i = prev
       }
     }
+    function parseComp(parse,i) {
+      i = parseInt(i)
 
-    var i = parse.length
-    var rep = ['stat'].concat(parse.slice(prev+1,i))
-    if (rep.length>1) {
-      parse.splice(prev+1,i-prev,rep)
+      var p = parse[i]
+      if (typeof p != 'object' || p[0] == 'tok') return
+      for (var j in p) parseComp(p,j)
+      if (p[0] == 'stat') return
+
+      parseComp(parse,i+1)
+      var b = parse[i+1]
+      if (typeof b != 'object' || b[0] == 'tok' || b[0] == 'stat') return
+      parse.splice(i,2,['comp'].concat(parse.slice(i,i+2)))
     }
-    else {
-      parse.splice(prev+1,i-prev)
-    }
-  }
-  function parseComp(parse,i) {
-    i = parseInt(i)
-
-    var p = parse[i]
-    if (typeof p != 'object' || p[0] == 'tok') return
-    for (var j in p) parseComp(p,j)
-    if (p[0] == 'stat') return
-
-    parseComp(parse,i+1)
-    var b = parse[i+1]
-    if (typeof b != 'object' || b[0] == 'tok' || b[0] == 'stat') return
-    parse.splice(i,2,['comp'].concat(parse.slice(i,i+2)))
-  }
-  function parsePrefx(parse,i,toks,chk) {
-    if (i > parse.length-1) return
-    parsePrefx(parse,i+1,toks,chk)
-    var p = parse[i]
-    if (typeof p != 'object') return
-
-    if (!is_nat[p[0]]) parsePrefx(p,1,toks,chk)
-    var tok = toks[p[1]]
-    if (p[0] != 'tok' || !tok) return
-
-    var n = parse[i+1]
-    var m = parse[i-1]
-    if (!n || n[0] == 'tok' || (chk&&typeof m == 'object'&&m[0]!='tok')) return
-
-    parse.splice(i,2,[tok,n])
-  }
-  function parsePstfx(parse,i,toks) {
-    if (i > parse.length-1) return
-
-    try {
+    function parsePrefx(parse,i,toks,chk) {
+      if (i > parse.length-1) return
+      parsePrefx(parse,i+1,toks,chk)
       var p = parse[i]
       if (typeof p != 'object') return
 
-      if (!is_nat[p[0]]) parsePstfx(p,1,toks)
+      if (!is_nat[p[0]]) parsePrefx(p,1,toks,chk)
       var tok = toks[p[1]]
       if (p[0] != 'tok' || !tok) return
 
-      var n = parse[i-1]
-      if (!n || typeof n != 'object' || n[0] == 'tok') return
+      var n = parse[i+1]
+      var m = parse[i-1]
+      if (!n || n[0] == 'tok' || (chk&&typeof m == 'object'&&m[0]!='tok')) return
 
-      parse.splice(--i,2,[tok,n])
+      parse.splice(i,2,[tok,n])
     }
-    finally {
-      parsePstfx(parse,i+1,toks)
+    function parsePstfx(parse,i,toks) {
+      if (i > parse.length-1) return
+
+      try {
+        var p = parse[i]
+        if (typeof p != 'object') return
+
+        if (!is_nat[p[0]]) parsePstfx(p,1,toks)
+        var tok = toks[p[1]]
+        if (p[0] != 'tok' || !tok) return
+
+        var n = parse[i-1]
+        if (!n || typeof n != 'object' || n[0] == 'tok') return
+
+        parse.splice(--i,2,[tok,n])
+      }
+      finally {
+        parsePstfx(parse,i+1,toks)
+      }
     }
-  }
-  function parseMidfx_lfrt(parse,i,toks) {
-    if (i > parse.length-1) return
-    parseMidfx_lfrt(parse,i+1,toks)
-    var p = parse[i]
-    if (typeof p != 'object') return
-
-    if (!is_nat[p[0]]) parseMidfx_lfrt(p,1,toks)
-    var tok = toks[p[1]]
-    if (p[0] != 'tok' || !tok) return
-
-    var a = parse[i-1]
-    if (!a || typeof a != 'object' || a[0] == 'tok') return
-    var b = parse[i+1]
-    if (!b || typeof b != 'object' || b[0] == 'tok') return
-
-    parse.splice(--i,3,[tok,a,b])
-  }
-  function parseMidfx_rtlf(parse,i,toks) {
-    if (i > parse.length-1) return
-
-    try {
+    function parseMidfx_lfrt(parse,i,toks) {
+      if (i > parse.length-1) return
+      parseMidfx_lfrt(parse,i+1,toks)
       var p = parse[i]
       if (typeof p != 'object') return
 
-      if (!is_nat[p[0]]) parseMidfx_rtlf(p,1,toks)
+      if (!is_nat[p[0]]) parseMidfx_lfrt(p,1,toks)
       var tok = toks[p[1]]
       if (p[0] != 'tok' || !tok) return
 
@@ -715,387 +699,155 @@ PT.fcc = function() {
 
       parse.splice(--i,3,[tok,a,b])
     }
-    finally {
-      parseMidfx_rtlf(parse,i+1,toks)
-    }
-  }
-  function parseConOp(parse,i) {
-    if (i > parse.length-1) return
-    parseConOp(parse,i+1)
-    var p = parse[i]
-    if (typeof p != 'object') return
+    function parseMidfx_rtlf(parse,i,toks) {
+      if (i > parse.length-1) return
 
-    if (!is_nat[p[0]]) parseConOp(p,1)
-    if (p[0] != 'tok' || p[1] != '?') return
+      try {
+        var p = parse[i]
+        if (typeof p != 'object') return
 
-    var a = parse[i-1]
-    if (!a || typeof a != 'object' || a[0] == 'tok') return
-    var b = parse[i+1]
-    if (!b || typeof b != 'object' || b[0] == 'tok') return
-    var c = parse[i+2]
-    if (!c || typeof c != 'object' || c[0] != 'tok' || c[1] != ':') return
-    var d = parse[i+3]
-    if (!d || typeof d != 'object' || d[0] == 'tok') return
+        if (!is_nat[p[0]]) parseMidfx_rtlf(p,1,toks)
+        var tok = toks[p[1]]
+        if (p[0] != 'tok' || !tok) return
 
-    parse.splice(--i,5,['conop',a,b,d])
-  }
+        var a = parse[i-1]
+        if (!a || typeof a != 'object' || a[0] == 'tok') return
+        var b = parse[i+1]
+        if (!b || typeof b != 'object' || b[0] == 'tok') return
 
-  function listParse(parse,list) {
-    if (typeof parse != 'object') return
-
-    if (is_nat[parse[0]]) {
-      list.push(['g',parse[0],parse[1],parse[2]])
-      return
-    }
-
-    list.push(['s',parse[0]])
-    for (var i = 1; i < parse.length; ++i) listParse(parse[i],list)
-    list.push(['e',parse[0]])
-
-    return list
-  }
-  function tokCheck(list) {
-    for (var i in list) {
-      var l = list[i]
-      if (l[0] == 'g' && l[1] == 'tok') throw `unexpected '${l[2]}' at ${l[3]}`
-    }
-  }
-
-  var nulltype = ['val',['void']]
-  var complextyp = ['vec',['num'],2]
-
-  // returns the typ of an obj
-  function gettyp(obj) {
-    return obj[1]
-  }
-  // returns the val of an obj
-  function getval(obj) {
-    if (obj[0] == 'val') return obj[2]
-    if (obj[0] == 'var') return obj[3]
-    if (obj[0] == 'typ') return ['void']
-    if (obj[0] == 'lam') return obj[]
-  }
-  // returns b if a and b are the same type
-  function matchtype(a,b) {
-    if (a == null) return b
-    if (a[0] != b[0]) return null
-    if (a[0] == 'num' || a[0] == 'bol' || a[0] == 'void') return b
-    if (a[0] == 'vec' && a[2] == b[2] && matchtype(a[1],b[1])) return b
-    if (a[0] == 'tup' && a.length == b.length) {
-      for (var i = 1; i < a.length; ++i)
-        if (!matchtype(a[i],b[i])) return null
-      return b
-    }
-    if (a[0] == 'lam' && matchtype(a[1],b[1]) && matchtype(a[2],b[2])) return b
-    if (a[0] == 'typ' && matchtype(a[1],b[1])) return b
-    throw `invalid type ${a[0]}`
-  }
-  // returns true if typ is composed of num
-  function allnum(typ) {
-    if (typ[0] == 'num') return true
-    if (type[0] == 'vec') return allnum(type[1])
-    if (type[0] == 'tup') {
-      for (var i=1;i<type.length;++i) if (!allnum(type[i])) return false
-      return true
-    }
-    return false
-  }
-  function iscomplextyp(typ) {
-    return matchtype(typ,['num']) || matchtype(typ,complextyp)
-  }
-  // returns true if typ is composed of bol
-  function allbol(typ) {
-    if (typ[0] == 'bol') return true
-    if (type[0] == 'vec') return allbol(type[1])
-    if (type[0] == 'tup') {
-      for (var i=1;i<type.length;++i) if (!allbol(type[i])) return false
-      return true
-    }
-    return false
-  }
-  // returns true if all args are defs
-  function alldef(args) {
-    for (var i in args) if (args[i][0] != 'def') return false
-    return true
-  }
-  // returns an ary of type vals iff all have values
-  function allval(args) {
-    var ans = []
-    for (var i in args) {
-      var v = getval(args[i])
-      if (!v) return null
-      ans.push(v)
-    }
-    return ans
-  }
-  // returns the vec type if all args have the same type
-  function vectype(args) {
-    var t = null
-    for (var i in args) {
-       t = matchtype(t,gettyp(args[i]))
-       if (!t) return null
-    }
-    if (args.length == 0) return ['void']
-    if (args.length == 1) return t
-    return ['vec',t,args.length]
-  }
-  // returns the tup type of the args
-  function tuptype(args) {
-    var t = vectype(args)
-    if (t) return t
-    t = ['tup']
-    for (var i in args) t.push(gettyp(args[i]))
-    return t
-  }
-  // not, xor
-  function booltype(arg,tok,evnt) {
-    var arg = state.args[0]
-    var typ = gettyp(arg)
-    if (!allbol(typ)) throw `${tok} bol err`
-    var val = getval(arg)
-    if (!val) throw `${tok} val err`
-    return ['val',typ,evnt([tok,typ,val])]
-  }
-  // pdec, pinc, dec, inc, neg, pos
-  function singtype(arg,tok,evnt) {
-    var arg = state.args[0]
-    var typ = gettyp(arg)
-    if (!allnum(typ)) throw `${tok} num err`
-    var val = getval(arg)
-    if (!val) throw `${tok} val err`
-    return ['val',typ,evnt([tok,typ,val])]
-  }
-  // equ, neq, gtr, les, leq, geq
-  function cmprtype(argA,argB,tok,evnt) {
-    var at = gettyp(argA), bt = gettyp(argB)
-    var av = getval(argA), bv = getval(argB)
-    if (!av || !bv) throw `${tok} val err`
-    var t = matchtype(at,bt)
-    if (tok == 'equ' || tok == 'neq') {
-      if (!t) return ['val',['bol'],evnt(['sat',false])]
-      else return ['val',['bol'],evnt([tok,t,av,bv])]
-    }
-    else if (!t || (t[0] != 'num' && t[0] != 'bol')) throw `${tok} typ err`
-    else return ['val',['bol'],evnt([tok,t,av,bv])]
-  }
-  // pow,dot,div,mod,add,sub
-  function mathtype(argA,argB,tok,evnt) {
-    var at = gettyp(argA), bt = gettyp(argB)
-    var av = getval(argA), bv = getval(argB)
-    if (!av || !bv) throw `${tok} val err`
-    var t = matchtype(at,bt)
-    if (!allnum(at) || !allnum(bt)) throw `${tok} num err`
-    if (tok=='add'||tok=='sub') {
-      if (!t) throw `${tok} typ err`
-      return ['val',t,evnt([tok,t,av,bv])]
-    }
-  }
-  function idxtype(argA,argB,evnt) {
-    var at = gettyp(argA), bt = gettyp(argB)
-    var av = getval(argA), bv = getval(argB)
-    if (!av || !bv) throw `idx val err`
-    if (bt[0] != 'num') throw `idx typ err`
-    if (at[0] == 'vec') return ['val',at[1],evnt(['idx',at,av,bv])]
-    throw `idx typ err`
-  }
-  function conoptype(argA,argB,argC,evnt) {
-    var at = gettyp(argA), bt = gettyp(argB), ct = gettyp(argC)
-    var av = getval(argA), bv = getval(argB), cv = getval(argC)
-    if (!av || !bv || !cv) throw `conop val err`
-    if (!at[0] != 'bol' || !matchtype(bt,ct)) throw `conop typ err`
-    return ['val',bt,evnt(['conop',bt,av,bv,cv])]
-  }
-  function trignat(tok) {
-    return (arg,state,evnt) => {
-      var typ = gettyp(arg)
-      if (!iscomplextyp(typ)) throw `${tok} typ err`
-      var val = getval(arg)
-      if (!val) throw `${tok} typ err`
-      return ['val',complextyp,evnt([tok,typ,val])]
-    }
-  }
-  var lamnats = {
-    return: (arg,state,evnt) => {
-      var ret = state.scp.ret
-      if (ret) throw `excess return statements`
-      if (!getval(arg)) throw `return val err`
-      state.scp.ret = arg
-      return nulltype
-    },
-    sin: trignat('sin'),
-    cos: trignat('cos'),
-    tan: trignat('tan'),
-    cot: trignat('cot'),
-    csc: trignat('csc'),
-    sec: trignat('sec'),
-    asin: trignat('asin'),
-    acos: trignat('acos'),
-    atan: trignat('atan'),
-    acot: trignat('acot'),
-    acsc: trignat('acsc'),
-    asec: trignat('asec'),
-  }
-  function getnat(wrd) {
-    if (wrd == 'void') return ['typ',['void']]
-    if (wrd == 'num') return ['typ',['num']]
-    if (wrd == 'bol') return ['typ',['bol']]
-    if (wrd == 'typ') return ['typ',['typ',['void']]]
-    if (wrd == 'lam') return ['lam',['void']]
-    if (wrd == 'vec2') return ['typ',complextyp]
-    if (wrd == 'vec3') return ['typ',['vec',['num'],3]]
-    if (lamnats[wrd]) return ['lam',['nat'],lamnats[wrd]]
-  }
-  function getwrd(wrd,state,evnt) {
-    var nat = getnat(wrd)
-    if (nat) return nat
-
-    if (state.scp.tbl[wrd]) return state.scp.tbl[wrd]
-    for (var i in stat.scpS) {
-      var v = state.scpS[i].tbl[wrd]
-      if (v) return v
-    }
-
-    return state.scp.tbl[wrd] = ['var',['void'],evnt(['var',stat.scp,wrd])]
-  }
-  function getnum(num,evnt) {
-    return ['val',['num'],evnt(['sat',num])]
-  }
-  function comptype(argA,argB,state,evnt) {
-    var at = gettyp(argA), bt = gettyp(argB)
-
-  }
-  function assigntype(argA,argB,state,evnt) {
-
-  }
-  // returns the absolute value of an obj
-  function getabs(obj,evnt) {
-    var t = gettyp(obj)
-    if (!allnum(t)) throw `abs num err`
-    var v = getval(obj)
-    if (!v) throw `abs val err`
-    if (t[0] == 'num') return ['val',t,evnt(['abs',t,v])]
-    if (t[0] == 'vec' && t[1][0] == 'num') return ['val',t,evnt(['abs',t,v])]
-    throw `abs typ err`
-  }
-
-  var preType = {
-    'scp': state => {
-      state.scp && state.scpS.push(state.scp)
-      state.scp = {
-        tbl: {},
-        ret: null
+        parse.splice(--i,3,[tok,a,b])
+      }
+      finally {
+        parseMidfx_rtlf(parse,i+1,toks)
       }
     }
-  }
-  var pstType = {
-    scp: state => {
-      var ret = state.scp.ret || nulltype
-      var scp = state.scpS.pop()
-      if (scp) state.scp
-      return ret
-    },
-    tup: state => {
-      var args = state.args
-      if (args.length == 0) return nulltype
-      else if (args.length == 1) return args[0]
+    function parseConOp(parse,i) {
+      if (i > parse.length-1) return
+      parseConOp(parse,i+1)
+      var p = parse[i]
+      if (typeof p != 'object') return
 
-      var def = alldef(args)
-      var val = allval(args)
-      var typ = tuptype(args)
-      if (!typ) throw `typ mix err`
-      if (def) return ['def',typ,allarg(args)]
-      if (val) return ['val',typ,state.evnt([typ[0],val])]
-      throw `def mix err`
-    },
-    vec: state => {
-      var args = state.args
-      if (args.length == 0) return nulltype
-      else if (args.length == 1) return args[0]
+      if (!is_nat[p[0]]) parseConOp(p,1)
+      if (p[0] != 'tok' || p[1] != '?') return
 
-      var def = alldef(args)
-      var val = allval(args)
-      var typ = vectype(args)
-      if (!typ) throw `vec mix err`
-      if (def) return ['def',typ,allarg(args)]
-      if (val) return ['val',typ,state.evnt([typ[0],val])]
-      throw `def mix err`
-    },
-    stat: state => state.args[0],
-    abs: state => {
-      var args = state.args
-      if (args.length == 0) throw `abs null err`
-      else if (args.length == 1) return getabs(args[0],state.evnt)
+      var a = parse[i-1]
+      if (!a || typeof a != 'object' || a[0] == 'tok') return
+      var b = parse[i+1]
+      if (!b || typeof b != 'object' || b[0] == 'tok') return
+      var c = parse[i+2]
+      if (!c || typeof c != 'object' || c[0] != 'tok' || c[1] != ':') return
+      var d = parse[i+3]
+      if (!d || typeof d != 'object' || d[0] == 'tok') return
 
-      var val = allval(args)
-      var typ = vectype(args)
-      if (!typ) throw `vec mix err`
-      if (val) return getabs(['val',typ,state.evnt([typ[0],val])])
-      throw `abs def val err`
-    },
-    comp: state => comptype(state.args[0],state.args[1],state,state.evnt),
-    not: state => booltype(state.args[0],'not'),
-    xor: state => booltype(state.args[0],'xor',state.evnt),
-    pdec: state => singtype(state.args[0],'pdec',state.evnt),
-    pinc: state => singtype(state.args[0],'pinc',state.evnt),
-    dec: state => singtype(state.args[0],'dec',state.evnt),
-    inc: state => singtype(state.args[0],'inc',state.evnt),
-    neg: state => singtype(state.args[0],'neg',state.evnt),
-    pos: state => singtype(state.args[0],'pos',state.evnt),
-    idx: state => idxtype(state.args[0],state.args[1],state.evnt),
-    pow: state => mathtype(state.args[0],state.args[1],'pow',state.evnt),
-    mul: state => mathtype(state.args[0],state.args[1],'mul',state.evnt),
-    div: state => mathtype(state.args[0],state.args[1],'div',state.evnt),
-    mod: state => mathtype(state.args[0],state.args[1],'mod',state.evnt),
-    add: state => mathtype(state.args[0],state.args[1],'add',state.evnt),
-    sub: state => mathtype(state.args[0],state.args[1],'sub',state.evnt),
-    equ: state => cmprtype(state.args[0],state.args[1],'equ',state.evnt),
-    neq: state => cmprtype(state.args[0],state.args[1],'neq',state.evnt),
-    gtr: state => cmprtype(state.args[0],state.args[1],'gtr',state.evnt),
-    les: state => cmprtype(state.args[0],state.args[1],'les',state.evnt),
-    leq: state => cmprtype(state.args[0],state.args[1],'leq',state.evnt),
-    geq: state => cmprtype(state.args[0],state.args[1],'geq',state.evnt),
-    conop: state => conoptype(state.args[0],state.args[1],state.args[2],state.evnt),
-    assign: state => assigntype(state.args[0],state.args[1],state,state.evnt)
-  }
-
-  function checkListTypes(list) {
-    var state = {
-      scpS: [],
-      argS: [],
-      args: []
-    }
-    state.evnt = val => {
-      log('evnt',val)
-      return val
+      parse.splice(--i,5,['conop',a,b,d])
     }
 
-    try {
-      for (var l in list) {
-        l = list[l]
-        var l0 = l[0]
-        var l1 = l[1]
+    function listParse(parse,list) {
+      if (typeof parse != 'object') return
+      var p0 = parse[0]
+
+      if (is_nat[p0]) {
+        if (p0 == 'tok') throw `unexpected '${parse[1]}' at ${parse[2]}`
+        list.push(['g',p0,parse[1],parse[2]])
+        return
+      }
+
+      if (p0=='scp'||p0 == 'tup'||p0=='comp'||p0=='conop'||p0=='assign') {
+        list.push(['s',p0])
+        for (var i = 1; i < parse.length; ++i) listParse(parse[i],list)
+        list.push(['e',p0])
+      }
+      else {
+        list.push(['s','comp'])
+        list.push(['g','wrd',p0])
+        list.push(['s','tup'])
+        for (var i = 1; i < parse.length; ++i) listParse(parse[i],list)
+        list.push(['e','tup'])
+        list.push(['e','comp'])
+      }
+
+      return list
+    }
+  }
+  // list check
+  {
+    function gettyp(ret) {
+      return ret[1]
+    }
+    function equtyp(typA,typB) {
+      if (!typA) return typB
+      if (typA[0] != typB[0]) return false
+      var t0 = typA[0]
+      if (t0=='num'||t0=='bol') return true
+      if (t0=='vec') return typA[2]==typB[2]&&equtyp(typA[1],typB[1])
+      if (t0=='typ') return equtyp(typA[1],typB[1])
+      if (t0=='lam') return equtyp(typA[1],typB[1]) && equtyp(typA[2],typB[2])
+      if (t0=='nat') return false // TODO
+      if (t0=='tup') {
+        if (typA.length!=typB.length) return false
+        for (var i = 1; i < typA.length; ++i) if (!equtyp(typA[i],typB[i])) return false
+        return true
+      }
+      return false
+    }
+
+    function starcal(tok,state) {
+      if (tok != 'scp') return
+      state.scpS.push(state.scp)
+      state.scp = {tbl:{},ret:null}
+    }
+    function wrdcal(tok,state) {
+      return ['var',['void'],state.evnt(['var',tok])]
+    }
+    function numcal(tok,state) {
+      return ['val',['num'],state.evnt(['num',tok])]
+    }
+    function endcal(tok,state) {
+      if (tok=='scp') {
+        var ret = state.scp.ret || state.args
+        state.scp = state.scpS.pop()
+        return ret
+      }
+      return [tok,state.args]
+    }
+
+    function checkListTypes(list) {
+      var state = {
+        scpS: [],
+        argS: [],
+        scp: {tbl:{},ret:null},
+        args: [],
+        evnt: val => {
+          log(val)
+          return val
+        }
+      }
+
+      log(list)
+
+      for (var i in list) {
+        var l = list[i]
+        var l0 = l[0], l1 = l[1], l2 = l[2]
         if (l0 == 's') {
-          if (preType[l1]) preType[l1](state)
-          state.argS.push(state.args)
+          state.args && state.argS.push(state.args)
           state.args = []
+          starcal(l1,state)
         }
         else if (l0 == 'e') {
-          var ret = pstType[l1](state)
+          var ret = endcal(l1,state)
           state.args = state.argS.pop()
           state.args.push(ret)
         }
-        else if (l1 == 'wrd') state.args.push(getwrd(l[2],state,state.evnt))
-        else if (l1 == 'num') state.args.push(getnum(l[2],state.evnt))
-        else throw `unexpected type '${l1}' at ${l[3]}`
+        else if (l0 == 'g') {
+          if (l1 == 'num') state.args.push(numcal(l2,state))
+          if (l1 == 'wrd') state.args.push(wrdcal(l2,state))
+        }
       }
-    }
-    catch (e) {
-      console.error(state)
-      throw e
-    }
 
-    log('main',state)
+      log(state)
+    }
   }
+
 
   return function(string) {
 
@@ -1124,7 +876,6 @@ PT.fcc = function() {
 
     var list = []
     listParse(parse,list)
-    tokCheck(list)
     // list.forEach(l => log(l))
     checkListTypes(list)
 
@@ -1135,7 +886,7 @@ PT.fcc = function() {
 }()
 
 var temp = `
-  vec3 main(vec3 a, vec3 b) {
+  (vec3 main)(vec3 a, vec3 b) {
     vec1 c = b - a 4 + 3 4 // this is a // comment
     vec1 test = 120 /* my name is khan */
     vec1 t = ++(--3)-- ++(3--) ^ 3 + 34 ? 3 : 3

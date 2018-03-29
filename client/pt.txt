@@ -1,59 +1,93 @@
-funs
-  newtype('null','val',wrd) -> [var,[void],[$,wrd]] -> $ = lokvar(scp,wrd)
-  newtype('num','val',num) -> [val,[num],[$,num]] -> $ = loknum(num)
-  newtype('null') -> [val,[void]]
+toks: var, val, def, par
 
-  newtype('nat','abs')
-  newtype('nat','bol')
-  newtype('nat','true')
-  newtype('nat','false')
-  newtype('nat','vec','num',[1])
-  newtype('nat','vec','num',[2])
-  newtype('nat','vec','num',[3])
+<typ>
+  [void]
+  [num]
+  [bol]
+  [nat <sigA> ...]
+  [typ <typ>]
+  [lam <typA> <typB>]
+  [tup <typA> <typB> ...]
+  [vec <typ> <num>]
 
-  lamtype(a,b,state)
+<any>
+(<any>,...)
+nat <any>
+val <typ> <val>
+def <typ> <var>
+par <typ> <var>
+var <typ> <var> <val>
+typ <typ>
+<typ> <val>
+<allnum> <val>
+<allbol> <val>
+<int> <val> <final>
 
-  booltype(arg,'not')
-  booltype(arg,'xor')
 
-  arytype(args,'vec')
-  arytype(args,'tup')
-  arytype(args,'stat')
+comp
+  (nat <anyA>, <anyB>) -> <anyC>
+  (val [lam <typA> <typB>] <val>, val <typA> <valA>) -> val <typB> <valB>
+  (typ <typ>, var <var>) -> def <typ> <var>
+  (typ <typA>, typ <typB>) -> typ [lam <typA> <typB>]
+  (<typA> <valA>, typ <typB>) -> val <typB> <valB>
+  (def <typA> <var>, <typB> <valA>) -> val [lam <typA> <typB>] <val>
+  (par <typA> <vars>, <typB> <valA>) -> val [lam <typA> <typB>] <val>
+  (def <typA> <var>, lam <typB> <typA> <vars> <val>) -> val [void]
+  ([num] <valA>, [num] <valB>) -> [num] <valC>
+  (<allnum> <valA>, [num] <valB>) -> <allnum> <valC>
+  ([num] <valA>, <allnum> <valB>) -> <allnum> <valC>
+  //
+  ([vec [vec [num] <numC>] <numA>] <valA>, [vec [vec [num] <numB>] <numD>] <valB>)
+    ->
+tup
+  () -> [void] <val>
+  (<any>) -> <any>
+  (typ <typ>,typ <typ>,...) -> typ [vec <typ> <num>]
+  (typ <typA>,typ <typB>,...) -> typ [tup <typA> <typB> ...]
+  (def <typ> <varA>, def <typ> <varB>,...) -> par [vec <typ> <num>] [<varA> <varB> ...]
+  (def <typA> <varB>, def <typB> <varB>, ...) -> par [tup <typA> <typB> ...] [<varA> <varB> ...]
+  (<typ> <valA>, <typ> <valB>, ...) -> val [vec <typ> <num>] [<valA> <valB> ...]
+  (<typA> <valA>, <typB> <valB>, ...) -> val [tup <typA> <typB> ...] [<valA> <valB> ...]
+conop
+  ([bol] <valA>, <typ> <valB>, <typ> <valC>) -> val <typ> <val>
+scp
+  () -> val [void] <val>
+  (<any>,...) -> val <typ> <val>
+assign
+  (var <typ> <var>, <typ> <val>) -> val <typ> <val>
+  (def <typ> <var>, <typ> <val>) -> val [void] <val>
 
-  singtype(arg,'pdec')
-  singtype(arg,'pinc')
-  singtype(arg,'dec')
-  singtype(arg,'inc')
-  singtype(arg,'neg')
-  singtype(arg,'pos')
-
-  cmprtype(argA,argB,'equ')
-  cmprtype(argA,argB,'neq')
-  cmprtype(argA,argB,'gtr')
-  cmprtype(argA,argB,'les')
-  cmprtype(argA,argB,'leq')
-  cmprtype(argA,argB,'geq')
-
-  mathtype(argA,argB,'pow')
-  mathtype(argA,argB,'dot')
-  mathtype(argA,argB,'div')
-  mathtype(argA,argB,'mod')
-  mathtype(argA,argB,'add')
-  mathtype(argA,argB,'sub')
-
-  idxtype(argA,argB)
-  conoptype(argA,argB,argC)
-  assigntype(argA,argB)
-
-typ
-  ['num']
-  ['bol']
-  ['typ',<typ>]
-  ['vec',<typ>,<num>]
-  ['tup',<typ>,<typ>+]
-  ['lam',<typ>,<typ>]
-val
-  ['void']
-  [<boltok>,<boltyp>,<val>]
-  [<singtok>,<numtyp>,<val>]
-  [<cmprtok>,<numtyp>,<valA>,<valB>]
+nat
+  return
+    <val> -> val [void] <val>
+  stat
+    <any> -> <any>
+  vec
+    [vec <typ> <num>] -> [vec <typ> <num>]
+  abs
+    [num] <valA> -> val [num] <valB>
+    [vec [num] <num>] <valA> -> val [vec [num] <num>] <valB>
+  not xor
+    <allbol> <valA> -> val <allbol> <valB>
+  pdec pinc dec inc
+    [num] <var> <valA> -> val [num] <valB>
+  neg pos
+    <allnum> <valA> -> val <allnum> <valB>
+  idx
+    [tup [vec <typ> <num>] [num]] [[<var> <valA>] [<int> <valB> <final>]] -> var <typ> <valC>
+    [tup [vec <typ> <num>] [num]] [<valA> [<int> <valB> <final>]] -> val <typ> <valC>
+  pow mul div
+    [vec [num] 2] <valA> -> val [num] <valB>
+    [vec [vec [num] 2] 2] <valA> -> val [vec [num 2] 2] <valB>
+    [tup [num] [vec [num] 2]] <valA> -> val [vec [num] 2] <valB>
+    [tup [vec [num] 2] [num]] <valA> -> val [vec [num] 2] <valB>
+  mod
+    [vec [num] 2] <valA> -> val [num] <valB>
+  add sub
+    [vec <allnum> 2] <valA> -> val <allnum> <valB>
+  equ neq
+    [vec <any> 2] <valA> -> val [bol] <valB>
+  gtr les leq geq
+    [num] <valA> -> val [bol] <valB>
+  typ
+    typ <typ> -> [typ <typ>]
