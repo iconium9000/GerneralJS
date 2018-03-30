@@ -1,8 +1,9 @@
 toks: nat, var, val, sat, def, par
 
 def -> par
+svar -> var
 var -> val
-sat -> val
+sval -> val
 
 <typ>
   [void]
@@ -41,7 +42,7 @@ comp
     [[nat [$ any A]], [$ any B]] -> [$ any C]
   (val [lam <typA> <typB>] <valA>, val <typA> <valB>) -> val <typB> <valC>
     [[val [lam [$ typ A] [$ typ B]]],]
-  (typ <typ>, sat [num] <val>) -> [vec <typ> <val>]
+  (typ <typ>, sval [num] <val>) -> [vec <typ> <val>]
   (typ <typ>, var <var>) -> def <typ> <var>
   (typ <typA>, typ <typB>) -> typ [lam <typA> <typB>]
   (<typA> <valA>, typ <typB>) -> val <typB> <valB>
@@ -72,6 +73,11 @@ assign
   (var <typ> <var>, <typ> <valA>) -> val <typ> <valB>
   (def [void] <var>, <any>) -> val [void] <val>
   (def <typ> <var>, <typ> <valA>) -> val [void] <valB>
+idx
+  (<tokA> [vec <typ> <num>] <var> <valA>, sat [num] <valB>)
+    -> <tokA> <typ> <valC>
+  (<tokA> [vec <typ> <num>] <valA>, sat [num] <valB>)
+    -> <tokA> <typ> <valC>
 
 nat
   void -> [typ [void]]
@@ -80,7 +86,6 @@ nat
   vec1 -> [typ [num]]
   vec2 -> [typ [vec [num] 2]]
   vec3 -> [typ [vec [num] 3]]
-  void -> [typ [void]]
 
   return
     <valA> -> val [void] <valB>
@@ -98,11 +103,6 @@ nat
   neg pos
     <allnum> <valA> -> val <allnum> <valB>
     <allbol> <valA> -> val <allbol> <valB>
-  idx
-    [tup [vec <typ> <num>] [num]] [[<var> <valA>] [sat [num] <val>]]
-      -> var <typ> <valC>
-    [tup [vec <typ> <num>] [num]] [<valA> [sat [num] <val>]]
-      -> val <typ> <valC>
   pow mul div
     [vec [num] 2] <valA> -> val [num] <valB>
     [vec [vec [num] 2] 2] <valA> -> val [vec [num 2] 2] <valB>

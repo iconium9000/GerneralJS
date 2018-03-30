@@ -22,6 +22,10 @@ FU.trueif = (l,f) => {
   for (var i = 0; i < l; ++i) if (f(i,l)) return true
   return false
 }
+FU.findif = (a,o) => {
+  for (var i in a) if (a[i] == o) return true
+  return false
+}
 FU.etochar = e => String.fromCharCode(e.which | 0x20)
 FU.first = o => {
   for (var i in o) return o[i]

@@ -752,7 +752,7 @@ PT.fcc = function() {
         return
       }
 
-      if (p0=='scp'||p0 == 'tup'||p0=='comp'||p0=='conop'||p0=='assign') {
+      if (p0=='scp'||p0 == 'tup'||p0=='comp'||p0=='conop'||p0=='assign'||p0=='idx') {
         list.push(['s',p0])
         for (var i = 1; i < parse.length; ++i) listParse(parse[i],list)
         list.push(['e',p0])
@@ -791,6 +791,128 @@ PT.fcc = function() {
       return false
     }
 
+    var defnat = (state,args,s0,s1,__) => {
+      // TODO
+      log(args,s)
+    }
+
+    var voi = ['void']
+    var num = ['num']
+    var bol = ['bol']
+    var vec2 = ['vec', ['num'], 2]
+    var vec3 = ['vec', ['num'], 3]
+
+    function matchnat(state,nat,args) {
+      return args
+    }
+    var allnats = {
+      void: ['typ',voi],
+      typ: ['typ',voi],
+      num: ['typ',num],
+      bol: ['typ',num],
+      vec1: ['typ',num],
+      vec2: ['typ', vec2],
+      vec2: ['typ', vec3],
+      return: ['nat',
+        [defnat, ['$','$typ','$val']]],
+      stat: ['nat',
+        [defnat, ['$']]
+      ],
+      vec: ['nat',
+        [defnat, ['$',['vec','$typ','$num']]]
+      ],
+      abs: ['nat',
+        [defnat, ['$',num,'$val']],
+        [defnat, ['$',['vec',num,'$num'],'$val']],
+      ],
+      not: ['nat',
+        [defnat, ['$','$allbol','$val']]
+      ],
+      mod: ['nat',
+        [defnat, ['$',vec2,'$val']]
+      ],
+      xor: ['nat',
+        [defnat, ['$',['vec','$allbol',2],'$val']]
+      ],
+      cross: ['nat',
+        [defnat, ['$',['vec','$allnum',2],'$val']]
+      ],
+      comp: ['nat',
+        [(state,args)  => matchnat(state,args[0],[args[1]]), ['nat'], ['$']],
+        [defnat, ['$', ['lam','$typA','$typB'],'$val'], ['$','$typA','$val']],
+        [defnat, ['$',['typ','$typ']], ['$sval',num,'$val']],
+        [defnat, ['$',['typ','$typ']], ['$','$','$var']],
+        [defnat, ['$',['typ','$typA']], ['$',['typ','$typB']]],
+        [defnat, ['$','$typA','$val'], ['$',['typ','$typB']]],
+        [defnat, ['$par', '$typA', '$varA'], ['$', '$typB', '$val']],
+        [defnat, ['def', '$typA', '$var'], ['$',['lam','$typB','$typA'],'$val']],
+        [defnat, ['$', '$allnumsA', '$val'], ['$', '$allnumsB', '$val']],
+        [defnat, ['$', '$allbolsA', '$val'], ['$', '$allbolsB', '$val']]
+      ],
+      tup: ['nat',
+        [() => ['sval',voi]],
+        [(state,args) => args[0], ['$']],
+        [defnat,['$',['typ','$typ']],['$',['typ','$typ']],['...']],
+        [defnat,['$',['typ','$typA']],['$',['typ','$typB']],['...']],
+        [defnat,['$',['def','$typ']],['$',['def','$typ']],['...']],
+        [defnat,['$',['def','$typA']],['$',['def','$typB']],['...']],
+        [defnat,['$','$typ','$val'],['$','$typ','$val'],['...']],
+        [defnat,['$','$typA','$val'],['$','$typB','$val'],['...']],
+      ],
+      conop: ['nat',
+        [(state,args,typs,vals) => {
+
+        }, ['$',bol,'$val'],['$','$typ','$val'],['$','$typ','$val']]
+      ],
+      scp: ['nat',
+        [state => {
+          state.scp = state.scpS.pop()
+          return ['sval',voi]
+        }],
+        [(state,args) => {
+          var ret = state.scp.ret || ['sval',voi]
+          state.scp = state.scpS.pop()
+          return ret
+        },['$'],['...']]
+      ],
+      assign: ['nat',
+        [defnat,['$','$typ','$var'],['$','$typ','$val']],
+        [defnat,['$',voi,'$var'],['$']],
+        [defnat,['$','$typ','$var'],['$','$typ','$val']]
+      ],
+      idx: ['nat',
+        [defnat,['$','$typ','$var','$val'],['sval',num,'$val']],
+        [defnat,['$','$typ','$val'],['sval',num,'$val']],
+      ]
+    }
+    {
+      FU.forEach(['pdec','pinc','dec','inc'], tok => allnats[tok] = ['nat',
+        [defnat, ['$',num,'$var']]
+      ])
+      FU.forEach(['neg','pos'], tok => allnats[tok] = ['nat',
+        [defnat, ['$','$allnum','$val']],
+        [defnat, ['$','$allbol','$val']]
+      ])
+      FU.forEach(['pow','mul','div'], tok => allnats[tok] = ['nat',
+        [defnat, ['$',num,'$val']],
+        [defnat, ['$',['vec',vec2,2],'$val']],
+        [defnat, ['$',['tup',num,vec2],'$val']],
+        [defnat, ['$',['tup',vec2,num],'$val']]
+      ])
+      FU.forEach(['add','sub','dot'], tok => allnats[tok] = ['nat'
+        [defnat, ['$',['vec','$allnum',2],'$val']],
+        [defnat, ['$',['vec','$allbol',2],'$val']]
+      ])
+      FU.forEach(['equ','neq'], tok => allnats[tok] = ['nat'
+        [defnat, ['$',['vec','$typ',2],'$val']],
+        [defnat, ['$',['vec','$typ',2],'$val']]
+      ])
+      FU.forEach(['gtr','les','leq','geq'], tok => allnats[tok] = ['nat',
+        [defnat, ['$',['vec',num,2],'$val']]
+      ])
+    }
+
+
     function starcal(tok,state) {
       if (tok != 'scp') return
       state.scpS.push(state.scp)
@@ -803,12 +925,7 @@ PT.fcc = function() {
       return ['val',['num'],state.evnt(['num',tok])]
     }
     function endcal(tok,state) {
-      if (tok=='scp') {
-        var ret = state.scp.ret || state.args
-        state.scp = state.scpS.pop()
-        return ret
-      }
-      return [tok,state.args]
+      return matchnat(state,allnats[tok],state.args)
     }
 
     function checkListTypes(list) {
@@ -885,9 +1002,10 @@ PT.fcc = function() {
 }()
 
 var temp = `
-  (vec3 main)(vec3 a, vec3 b) {
+  (vec3 main)(vec3 a, (num 3) b) {
     vec1 c = b - a 4 + 3 4 // this is a // comment
     vec1 test = 120 /* my name is khan */
+    asdf.asdf.asdf
     vec1 t = ++(--3)-- ++(3--) ^ 3 + 34 ? 3 : 3
     vec4 k = [1,2,3,4]
     mat1_3 m = [[1],[2],[3]]
