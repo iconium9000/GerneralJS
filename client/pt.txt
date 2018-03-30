@@ -1,4 +1,8 @@
-toks: var, val, def, par
+toks: nat, var, val, sat, def, par
+
+def -> par
+var -> val
+sat -> val
 
 <typ>
   [void]
@@ -23,43 +27,63 @@ typ <typ>
 <allbol> <val>
 <int> <val> <final>
 
+<allnumsA> -> [$ allnums A]
+<allbolsA> -> [$ allbols A]
+<typA> -> [$ typ A]
+<any> -> [$ any A]
+<varA> -> [$ var A]
+<...> -> [$ ...]
+
+match(args,test,ret)
 
 comp
   (nat <anyA>, <anyB>) -> <anyC>
-  (val [lam <typA> <typB>] <val>, val <typA> <valA>) -> val <typB> <valB>
+    [[nat [$ any A]], [$ any B]] -> [$ any C]
+  (val [lam <typA> <typB>] <valA>, val <typA> <valB>) -> val <typB> <valC>
+    [[val [lam [$ typ A] [$ typ B]]],]
+  (typ <typ>, sat [num] <val>) -> [vec <typ> <val>]
   (typ <typ>, var <var>) -> def <typ> <var>
   (typ <typA>, typ <typB>) -> typ [lam <typA> <typB>]
   (<typA> <valA>, typ <typB>) -> val <typB> <valB>
-  (def <typA> <var>, <typB> <valA>) -> val [lam <typA> <typB>] <val>
-  (par <typA> <vars>, <typB> <valA>) -> val [lam <typA> <typB>] <val>
-  (def <typA> <var>, lam <typB> <typA> <vars> <val>) -> val [void]
-  ([num] <valA>, [num] <valB>) -> [num] <valC>
-  (<allnum> <valA>, [num] <valB>) -> <allnum> <valC>
-  ([num] <valA>, <allnum> <valB>) -> <allnum> <valC>
-  //
-  ([vec [vec [num] <numC>] <numA>] <valA>, [vec [vec [num] <numB>] <numD>] <valB>)
-    ->
+  (def <typA> <var>, <typB> <valA>) -> val [lam <typA> <typB>] <valB>
+  (par <typA> <vars>, <typB> <valA>) -> val [lam <typA> <typB>] <valB>
+  (def <typA> <var>, lam <typB> <typA> <valA>) -> val [void] <valB>
+  (<allnumsA> <valA>, <allnumsB> <valB>) -> <allnumsC> <valC>
+  (<allbolsA> <valA>, <allbolsB> <valB>) -> <allbolsC> <valC>
 tup
   () -> [void] <val>
   (<any>) -> <any>
   (typ <typ>,typ <typ>,...) -> typ [vec <typ> <num>]
   (typ <typA>,typ <typB>,...) -> typ [tup <typA> <typB> ...]
-  (def <typ> <varA>, def <typ> <varB>,...) -> par [vec <typ> <num>] [<varA> <varB> ...]
-  (def <typA> <varB>, def <typB> <varB>, ...) -> par [tup <typA> <typB> ...] [<varA> <varB> ...]
-  (<typ> <valA>, <typ> <valB>, ...) -> val [vec <typ> <num>] [<valA> <valB> ...]
-  (<typA> <valA>, <typB> <valB>, ...) -> val [tup <typA> <typB> ...] [<valA> <valB> ...]
+  (def <typ> <varA>, def <typ> <varB>,...)
+    -> par [vec <typ> <num>] [<varA> <varB> ...]
+  (def <typA> <varB>, def <typB> <varB>, ...)
+    -> par [tup <typA> <typB> ...] [<varA> <varB> ...]
+  (<typ> <valA>, <typ> <valB>, ...)
+    -> val [vec <typ> <num>] [<valA> <valB> ...]
+  (<typA> <valA>, <typB> <valB>, ...)
+    -> val [tup <typA> <typB> ...] [<valA> <valB> ...]
 conop
-  ([bol] <valA>, <typ> <valB>, <typ> <valC>) -> val <typ> <val>
+  ([bol] <valA>, <typ> <valB>, <typ> <valC>) -> val <typ> <valD>
 scp
   () -> val [void] <val>
   (<any>,...) -> val <typ> <val>
 assign
-  (var <typ> <var>, <typ> <val>) -> val <typ> <val>
-  (def <typ> <var>, <typ> <val>) -> val [void] <val>
+  (var <typ> <var>, <typ> <valA>) -> val <typ> <valB>
+  (def [void] <var>, <any>) -> val [void] <val>
+  (def <typ> <var>, <typ> <valA>) -> val [void] <valB>
 
 nat
+  void -> [typ [void]]
+  num -> [typ [num]]
+  bol -> [typ [bol]]
+  vec1 -> [typ [num]]
+  vec2 -> [typ [vec [num] 2]]
+  vec3 -> [typ [vec [num] 3]]
+  void -> [typ [void]]
+
   return
-    <val> -> val [void] <val>
+    <valA> -> val [void] <valB>
   stat
     <any> -> <any>
   vec
@@ -67,15 +91,18 @@ nat
   abs
     [num] <valA> -> val [num] <valB>
     [vec [num] <num>] <valA> -> val [vec [num] <num>] <valB>
-  not xor
-    <allbol> <valA> -> val <allbol> <valB>
   pdec pinc dec inc
     [num] <var> <valA> -> val [num] <valB>
+  not
+    <allbol> <valA> -> val <allbol> <valB>
   neg pos
     <allnum> <valA> -> val <allnum> <valB>
+    <allbol> <valA> -> val <allbol> <valB>
   idx
-    [tup [vec <typ> <num>] [num]] [[<var> <valA>] [<int> <valB> <final>]] -> var <typ> <valC>
-    [tup [vec <typ> <num>] [num]] [<valA> [<int> <valB> <final>]] -> val <typ> <valC>
+    [tup [vec <typ> <num>] [num]] [[<var> <valA>] [sat [num] <val>]]
+      -> var <typ> <valC>
+    [tup [vec <typ> <num>] [num]] [<valA> [sat [num] <val>]]
+      -> val <typ> <valC>
   pow mul div
     [vec [num] 2] <valA> -> val [num] <valB>
     [vec [vec [num] 2] 2] <valA> -> val [vec [num 2] 2] <valB>
@@ -83,7 +110,12 @@ nat
     [tup [vec [num] 2] [num]] <valA> -> val [vec [num] 2] <valB>
   mod
     [vec [num] 2] <valA> -> val [num] <valB>
-  add sub
+  xor
+    [vec <allbol> 2] <valA> -> val <allbol> <valB>
+  add sub dot
+    [vec <allnum> 2] <valA> -> val <allnum> <valB>
+    [vec <allbol> 2] <valA> -> val <allbol> <valB>
+  cross
     [vec <allnum> 2] <valA> -> val <allnum> <valB>
   equ neq
     [vec <any> 2] <valA> -> val [bol] <valB>

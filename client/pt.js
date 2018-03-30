@@ -843,7 +843,6 @@ PT.fcc = function() {
           if (l1 == 'wrd') state.args.push(wrdcal(l2,state))
         }
       }
-
       log(state)
     }
   }
@@ -860,14 +859,14 @@ PT.fcc = function() {
     for (var i in parse) replace(parse,i,'{','}','scp',true)
     for (var i in parse) replace(parse,i,'|','|','abs',true)
     parseStat(parse)
-    parsePrefx(parse,1,{'--':'pdec','++':'pinc','!':'not','~':'xor'})
+    parsePrefx(parse,1,{'--':'pdec','++':'pinc','!':'not'})
     parsePstfx(parse,1,{'--':'dec','++':'inc'})
     parsePrefx(parse,1,{'-':'neg','+':'pos'},true)
     for (var i in parse) parseComp(parse,i)
     parseMidfx_rtlf(parse,1,{'.':'idx'})
     parseMidfx_lfrt(parse,1,{'^':'pow'})
     parseMidfx_rtlf(parse,1,{'*':'mul','/':'div','%':'mod'})
-    parseMidfx_rtlf(parse,1,{'+':'add','-':'sub'})
+    parseMidfx_rtlf(parse,1,{'+':'add','-':'sub','~':'xor'})
     parseMidfx_rtlf(parse,1,{'==':'equ','!=':'neq','>':'gtr','<':'les','<=':'leq','>=':'geq'})
     parseConOp(parse,1)
     parseMidfx_lfrt(parse,1,{'=':'assign'})
