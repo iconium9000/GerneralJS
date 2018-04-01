@@ -13,8 +13,8 @@
 </script>
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.js"></script>
-<script src="client/pt.js"></script>
 <script src="client/fu.js"></script>
+<script src="client/pt.js"></script>
 <script src="client/usr_io.js">
 	// USR_IO_KYS()
 	// USR_IO_MWS
@@ -24,7 +24,34 @@
 </script>
 
 <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
-<script src="skt/skt.js"></script>
+<script>
+CLNT_SKT = io()
+
+var reqFrame = FU.reqFrame()
+
+CLNT = {}
+CLNT_ID = null
+CLNT_KEY = null
+CLNT_NAME = document.cookie.length ?
+  document.cookie.split('=')[1] :
+  'Johnny Appleseed'
+CLNT_NAME = prompt('What is your name?', CLNT_NAME)
+FU.setCookie('NAME', CLNT_NAME, 2)
+
+function HOST_MSG(key, rcvr, msg) {
+  CLNT_SKT.emit('msg', key, rcvr, msg)
+}
+
+CLNT_SKT.on('info', info => {
+  if (CLNT_KEY == info.key) return
+
+  CLNT_SKT.emit('info', {name: CLNT_NAME})
+  CLNT_KEY = info.key
+  CLNT_ID = info.id
+  log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)
+})
+
+</script>
 
 <script src="game/game.js">
 	// PROJECT_NAME : name of project
@@ -35,7 +62,7 @@
 <script>
   document.getElementById('title').innerHTML = PROJECT_NAME
 	CLNT_SKT && CLNT_SKT.on('msg', GAME_MSG)
-	
+
 	GAME_HIDE_CURSER && $(canvas).css('cursor', 'none')
 	USR_IO_KYS()
   USR_IO_EVNTS()

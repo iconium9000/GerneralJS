@@ -572,6 +572,7 @@ PT.fcc = function() {
       }
 
       push()
+      log(ans)
       return ans
     }
 
@@ -791,12 +792,13 @@ PT.fcc = function() {
       return false
     }
 
-    var defnat = (state,args,s0,s1,__) => {
+    var defnat = (state,args,typs,vals,vars) => {
       // TODO
       log(args,s)
     }
 
     var voi = ['void']
+    var voidtype = ['typ',voi]
     var num = ['num']
     var bol = ['bol']
     var vec2 = ['vec', ['num'], 2]
@@ -805,59 +807,50 @@ PT.fcc = function() {
     function matchnat(state,nat,args) {
       return args
     }
+    function toval(state,tok,arg) {
+
+    }
+    function vectoval(state,tok,arg) {
+
+    }
+    function nattoval(tok) {
+      return (state,args) => toval(state,tok,args[0])
+    }
+    function natvectoval(tok) {
+      if (tok == 'cross') {
+
+
+        return
+      }
+      return (state,args) => vectoval(state,tok,args[0])
+    }
     var allnats = {
       void: ['typ',voi],
       typ: ['typ',voi],
       num: ['typ',num],
-      bol: ['typ',num],
+      bol: ['typ',bol],
       vec1: ['typ',num],
       vec2: ['typ', vec2],
       vec2: ['typ', vec3],
       return: ['nat',
-        [defnat, ['$','$typ','$val']]],
+      ],
       stat: ['nat',
-        [defnat, ['$']]
       ],
       vec: ['nat',
-        [defnat, ['$',['vec','$typ','$num']]]
       ],
       abs: ['nat',
-        [defnat, ['$',num,'$val']],
-        [defnat, ['$',['vec',num,'$num'],'$val']],
       ],
       not: ['nat',
-        [defnat, ['$','$allbol','$val']]
       ],
       mod: ['nat',
-        [defnat, ['$',vec2,'$val']]
       ],
       xor: ['nat',
-        [defnat, ['$',['vec','$allbol',2],'$val']]
       ],
       cross: ['nat',
-        [defnat, ['$',['vec','$allnum',2],'$val']]
       ],
       comp: ['nat',
-        [(state,args)  => matchnat(state,args[0],[args[1]]), ['nat'], ['$']],
-        [defnat, ['$', ['lam','$typA','$typB'],'$val'], ['$','$typA','$val']],
-        [defnat, ['$',['typ','$typ']], ['$sval',num,'$val']],
-        [defnat, ['$',['typ','$typ']], ['$','$','$var']],
-        [defnat, ['$',['typ','$typA']], ['$',['typ','$typB']]],
-        [defnat, ['$','$typA','$val'], ['$',['typ','$typB']]],
-        [defnat, ['$par', '$typA', '$varA'], ['$', '$typB', '$val']],
-        [defnat, ['def', '$typA', '$var'], ['$',['lam','$typB','$typA'],'$val']],
-        [defnat, ['$', '$allnumsA', '$val'], ['$', '$allnumsB', '$val']],
-        [defnat, ['$', '$allbolsA', '$val'], ['$', '$allbolsB', '$val']]
       ],
       tup: ['nat',
-        [() => ['sval',voi]],
-        [(state,args) => args[0], ['$']],
-        [defnat,['$',['typ','$typ']],['$',['typ','$typ']],['...']],
-        [defnat,['$',['typ','$typA']],['$',['typ','$typB']],['...']],
-        [defnat,['$',['def','$typ']],['$',['def','$typ']],['...']],
-        [defnat,['$',['def','$typA']],['$',['def','$typB']],['...']],
-        [defnat,['$','$typ','$val'],['$','$typ','$val'],['...']],
-        [defnat,['$','$typA','$val'],['$','$typB','$val'],['...']],
       ],
       conop: ['nat',
         [(state,args,typs,vals) => {
@@ -873,7 +866,7 @@ PT.fcc = function() {
           var ret = state.scp.ret || ['sval',voi]
           state.scp = state.scpS.pop()
           return ret
-        },['$'],['...']]
+        },['$'],'...']
       ],
       assign: ['nat',
         [defnat,['$','$typ','$var'],['$','$typ','$val']],
@@ -887,28 +880,28 @@ PT.fcc = function() {
     }
     {
       FU.forEach(['pdec','pinc','dec','inc'], tok => allnats[tok] = ['nat',
-        [defnat, ['$',num,'$var']]
+        [nattoval(tok), ['$',num,'$var']]
       ])
       FU.forEach(['neg','pos'], tok => allnats[tok] = ['nat',
-        [defnat, ['$','$allnum','$val']],
-        [defnat, ['$','$allbol','$val']]
+        [nattoval(tok), ['$','$allnum','$val']],
+        [nattoval(tok), ['$','$allbol','$val']]
       ])
       FU.forEach(['pow','mul','div'], tok => allnats[tok] = ['nat',
-        [defnat, ['$',num,'$val']],
-        [defnat, ['$',['vec',vec2,2],'$val']],
-        [defnat, ['$',['tup',num,vec2],'$val']],
-        [defnat, ['$',['tup',vec2,num],'$val']]
+        [natvectoval(tok), ['$',num,'$val']],
+        [natvectoval(tok), ['$',['vec',vec2,2],'$val']],
+        [natvectoval(tok), ['$',['tup',num,vec2],'$val']],
+        [natvectoval(tok), ['$',['tup',vec2,num],'$val']]
       ])
       FU.forEach(['add','sub','dot'], tok => allnats[tok] = ['nat'
-        [defnat, ['$',['vec','$allnum',2],'$val']],
-        [defnat, ['$',['vec','$allbol',2],'$val']]
+        [natvectoval(tok), ['$',['vec','$allnum',2],'$val']],
+        [natvectoval(tok), ['$',['vec','$allbol',2],'$val']]
       ])
       FU.forEach(['equ','neq'], tok => allnats[tok] = ['nat'
-        [defnat, ['$',['vec','$typ',2],'$val']],
-        [defnat, ['$',['vec','$typ',2],'$val']]
+        [natvectoval(tok), ['$',['vec','$typ',2],'$val']],
+        [natvectoval(tok), ['$',['vec','$typ',2],'$val']]
       ])
       FU.forEach(['gtr','les','leq','geq'], tok => allnats[tok] = ['nat',
-        [defnat, ['$',['vec',num,2],'$val']]
+        [natvectoval(tok), ['$',['vec',num,2],'$val']]
       ])
     }
 

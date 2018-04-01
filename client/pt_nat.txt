@@ -1,0 +1,103 @@
+$int = integer > 0
+$void = [void]
+$num = [num]
+$bol = [bol]
+$vec1 = $num
+$vec2 = [vec $num 2]
+$vec3 = [vec $num 3]
+
+$typ
+$var
+$vars
+$val
+
+typs
+  [vec $typ $int]
+  [tup $typA $typB ...]
+toks
+  [typ $typ]
+  [val $typ $val]
+  [var $typ $var $val]
+  [def $typ $var]
+  [par $typ $vars]
+
+nats
+  void: typ $void
+  typ: typ $void
+  num: typ $num
+  bol: typ $bol
+  vec1: typ $num
+  vec2: typ $vec2
+  vec3: typ $vec3
+  return: nat
+    [$ $typ $val]
+      [typ $void]
+  stat: nat
+    [$]
+  vec: nat
+    [$ [vec $typ $int]]
+  abs: nat
+    [$ $num $val]
+    [$ [vec $num $int] $val]
+  not: nat
+    [$ $allbol $val]
+  mod: nat
+    [$ $vec2 $val]
+  xor: nat
+    [$ [vec $allbol 2] $val]
+      [$ $allbol $val]
+  cross: nat
+    [$ [tup $allnumA $allnumB] $val]
+      [$ $allnumC $val]
+  comp: nat
+    [$ $nat] [$]
+    [$ [lam $typA $typB] $val] [$ $typA $val]
+    [typ $typ] [$ $num $int]
+      [typ [vec $typ $int]]
+    [typ $typA] [$ $typB $var]
+      [$ $typA $var]
+    [typ $typA] [typ $typB]
+      [typ [lam $typA $typB]]
+    [$ $typA $val] [typ $typB]
+      [$ $typB $val]
+    [typ $void] [$ $typA $val]
+      [val [lam $void $typA] $val]
+    [def $typA $var] [$ $typB $val]
+      [val [lam $typA $typB] $val]
+    [par $typA $vars] [$ $typB $val]
+      [val [lam $typA $typB] $val]
+    [def $typA $var] [$ [lam $typB $typA] $val]
+      [typ $void]
+    [$ $allnumsA $val] [$ $allnumsB $val]
+      [$ $allnumsC $val]
+    [$ $allbolsA $val] [$ $allbolsB $val]
+      [$ $allnumsC $val]
+  tup: nat
+    []
+      [typ $void]
+    [$]
+      [$]
+    [typ $typ] [typ $typ] ..
+      [typ [vec $typ $int]]
+    [typ $typA] [typ $typB] ..
+      [typ [tup $typA $typB ..]]
+    [def $typ $var] [def $typ $var] ..
+      [par [vec $typ $int] $vars]
+    [def $typA $var] [def $typB $var] ..
+      [par [tup $typA $typB ..] $vars]
+    [$ $typ $val] [$ typ $val] ..
+      [val [vec $typ $int] $val]
+    [$ $typA $val] [$ typB $val] ..
+      [val [tup $typA $typB ..] $val]
+  conop: nat
+    [$ $bol $val] [$ $typ $val] [$ $typ $val]
+      [val $typ $val]
+  scp: nat
+    []
+      [val $typ $val]
+    [$] ..
+      [val $typ $val]
+  assign: nat
+    [$ $typ $var] [$ $typ $val]
+      [$ $typ $val]
+    [$ [typ $typA] $var] [typ $typB]

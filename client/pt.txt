@@ -22,7 +22,6 @@ val <typ> <val>
 def <typ> <var>
 par <typ> <var>
 var <typ> <var> <val>
-typ <typ>
 <typ> <val>
 <allnum> <val>
 <allbol> <val>
