@@ -1,25 +1,77 @@
-$int = integer > 0
-$void = [void]
-$num = [num]
-$bol = [bol]
-$vec1 = $num
-$vec2 = [vec $num 2]
-$vec3 = [vec $num 3]
-
-$typ
-$var
-$vars
-$val
+typ specifers
+  [num]
+  [bol]
+  [void]
+  [typ $typ]
+  [lam $typA $typB]
+  [vec $typ $int]
+  [tup $typA $typB ..]
 
 typs
-  [vec $typ $int]
-  [tup $typA $typB ...]
+  $int = integer > 0
+  $void = [void]
+  $num = [num]
+  $bol = [bol]
+  $vec1 = $num
+  $vec2 = [vec $num 2]
+  $vec3 = [vec $num 3]
+
+
 toks
   [typ $typ]
+  [nat ..]
   [val $typ $val]
+  [var $typ $var]
   [var $typ $var $val]
   [def $typ $var]
   [par $typ $vars]
+combos
+  [..]
+  [nat ..]
+  [@]
+  [@ $typ]
+    [typ $typ]
+    [val $typ $val]
+    [var $typ $var]
+    [var $typ $var $val]
+    [def $typ $var]
+    [par $typ $vars]
+  [@ $typ $var]
+    [var $typ $var]
+    [var $typ $var $val]
+    [def $typ $var]
+  [@ $typ $val]
+    [val $typ $val]
+    [var $typ $var $val]
+  [val $typ $val]
+  [var $typ $var]
+    [var $typ $var]
+    [var $typ $var $val]
+  [var $typ $var $val]
+
+$shortcuts
+  $typ
+  $typA
+  $typB
+
+  $allnum
+  $allnumA
+  $allnumB
+
+  $allbol
+  $allbolA
+  $allbolB
+
+  $cmplx
+  $cmplxA
+  $cmplxB
+
+  $var
+  $vars
+  $val
+
+functions
+  
 
 nats
   void: typ $void
@@ -30,53 +82,55 @@ nats
   vec2: typ $vec2
   vec3: typ $vec3
   return: nat
-    [$ $typ $val]
+    [@ $typ $val]
       [typ $void]
   stat: nat
-    [$]
+    [@]
   vec: nat
-    [$ [vec $typ $int]]
+    [@ [vec $typ $int]]
   abs: nat
-    [$ $num $val]
-    [$ [vec $num $int] $val]
+    [@ $num $val]
+    [@ [vec $num $int] $val]
   not: nat
-    [$ $allbol $val]
+    [@ $allbol $val]
   mod: nat
-    [$ $vec2 $val]
+    [@ $vec2 $val]
   xor: nat
-    [$ [vec $allbol 2] $val]
-      [$ $allbol $val]
+    [@ [vec $allbol 2] $val]
+      [@ $allbol $val]
   cross: nat
-    [$ [tup $allnumA $allnumB] $val]
-      [$ $allnumC $val]
+    [@ [vec $allnum 2] $val]
+      [@ $allnum $val]
+    [@ [tup $allnumA $allnumB] $val]
+      [@ $allnum $val]
   comp: nat
-    [$ $nat] [$]
-    [$ [lam $typA $typB] $val] [$ $typA $val]
-    [typ $typ] [$ $num $int]
+    [nat ..] [@]
+    [@ [lam $typA $typB] $val] [@ $typA $val]
+    [typ $typ] [@ $num $int]
       [typ [vec $typ $int]]
-    [typ $typA] [$ $typB $var]
-      [$ $typA $var]
+    [typ $typA] [@ $typB $var]
+      [@ $typA $var]
     [typ $typA] [typ $typB]
       [typ [lam $typA $typB]]
-    [$ $typA $val] [typ $typB]
-      [$ $typB $val]
-    [typ $void] [$ $typA $val]
+    [@ $typA $val] [typ $typB]
+      [@ $typB $val]
+    [typ $void] [@ $typA $val]
       [val [lam $void $typA] $val]
-    [def $typA $var] [$ $typB $val]
+    [def $typA $var] [@ $typB $val]
       [val [lam $typA $typB] $val]
-    [par $typA $vars] [$ $typB $val]
+    [par $typA $vars] [@ $typB $val]
       [val [lam $typA $typB] $val]
-    [def $typA $var] [$ [lam $typB $typA] $val]
+    [def $typA $var] [@ [lam $typB $typA] $val]
       [typ $void]
-    [$ $allnumsA $val] [$ $allnumsB $val]
-      [$ $allnumsC $val]
-    [$ $allbolsA $val] [$ $allbolsB $val]
-      [$ $allnumsC $val]
+    [@ $allnumA $val] [@ $allnumB $val]
+      [@ $allnum $val]
+    [@ $allbolA $val] [@ $allbolB $val]
+      [@ $allnum $val]
   tup: nat
     []
       [typ $void]
-    [$]
-      [$]
+    [@]
+      [@]
     [typ $typ] [typ $typ] ..
       [typ [vec $typ $int]]
     [typ $typA] [typ $typB] ..
@@ -85,19 +139,57 @@ nats
       [par [vec $typ $int] $vars]
     [def $typA $var] [def $typB $var] ..
       [par [tup $typA $typB ..] $vars]
-    [$ $typ $val] [$ typ $val] ..
+    [@ $typ $val] [@ typ $val] ..
       [val [vec $typ $int] $val]
-    [$ $typA $val] [$ typB $val] ..
+    [@ $typA $val] [@ typB $val] ..
       [val [tup $typA $typB ..] $val]
   conop: nat
-    [$ $bol $val] [$ $typ $val] [$ $typ $val]
+    [@ $bol $val] [@ $typ $val] [@ $typ $val]
       [val $typ $val]
   scp: nat
-    []
-      [val $typ $val]
-    [$] ..
+    ..
       [val $typ $val]
   assign: nat
-    [$ $typ $var] [$ $typ $val]
-      [$ $typ $val]
-    [$ [typ $typA] $var] [typ $typB]
+    [var [typ $typA] $var] [typ $typB]
+      [typ $typB]
+    [var $typ $var] [@ $typ $val]
+      [@ $typ $val]
+    [def $typ $var] [@ $typ $val]
+      [typ $void]
+  idx: nat
+    [typ [vec $typ $int]] [val $num $int]
+      [typ $typ]
+    [typ [tup $typA $typB ..]] [val $num $int]
+      [typ $typ]
+    [var [vec $typ $int] $var $val] [val $num $int]
+      [var $typ $var $val]
+    [var [tup $typA $typB ..] $var $val] [val $num $int]
+      [var $typ $var $val]
+    [val [vec $typ $int] $val] [val $num $int]
+      [val $typ $val]
+    [val [tup $typA $typB ..] $val] [val $num $int]
+      [val $typ $val]
+  pdec pinc dec inc: nat
+    [var $num $var $val]
+      [val $num $val]
+  neg pos: nat
+    [@ $allnum $val]
+      [@ $allnum $val]
+    [@ $allbol $val]
+      [@ $allbol $val]
+  pow mul div: nat
+    [@ [vec $cmplx 2] $val]
+      [val $vec2 $val]
+    [@ [tup $cmplxA $cmplxB] $val]
+      [val $vec2 $val]
+  add sub: nat
+    [@ [vec $allnum 2] $val]
+  dot: nat
+    [@ [vec $allnum 2] $val]
+    [@ [tup $allnumA $allnumB] $val]
+    [@ [vec $allbol 2] $val]
+    [@ [tup $allbolA $allbolB] $val]
+  equ neq: nat
+    [@ [vec $typ 2] $val]
+  gtr les leq geq: nat
+    [@ $vec2 $val]
