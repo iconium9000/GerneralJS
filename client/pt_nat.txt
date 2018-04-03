@@ -16,7 +16,6 @@ typs
   $vec2 = [vec $num 2]
   $vec3 = [vec $num 3]
 
-
 toks
   [typ $typ]
   [nat ..]
@@ -70,8 +69,55 @@ $shortcuts
   $vars
   $val
 
-functions
-  
+eval
+  abs [@ $num $val]
+  abs [@ [vec $num $int] $val]
+  not [@ $allbol $val]
+  mod [@ $vec2 $val]
+  xor [@ [$vec $allbol 2] $val]
+  dot [@ [vec $allnum 2] $val]
+  dot [@ [tup $allnumA $allnumB] $val]
+  dot [@ [vec $allbol 2] $val]
+  dot [@ [tup $allbolA $allbolB] $val]
+  cross [@ [vec $allnum 2] $val]
+  cross [@ [tup $allnumA $allnumB] $val]
+  lam [lam $typA $typB] [@ $typA $val]
+  def [typ $typA] [var $typB $var]
+  typ [@ $typA $val] [typ $typB]
+  newlam [typ $void] [@ $typ $val]
+  newlam [def $typA $var] [@ $typB $val]
+  newlam [par $typA $vars] [@ $typB $val]
+  deflam [def $typA $var] [@ [lam $typB $typA] $val]
+  vars $varA $varB ..
+  vals $valA $valB ..
+  conop $val $valA $valB
+  settyp [var [typ $typA] $var] [typ $typB]
+  setval [var $typ $var] [@ $typ $val] -> $var
+  setval [def $typ $var] [@ $typ $val] -> $var
+  idx $var $int
+  idx $val $int
+  pdec [var $num $var $val]
+  pinc [var $num $var $val]
+  dec [var $num $var $val]
+  inc [var $num $var $val]
+  neg [@ $allnum $val]
+  neg [@ $allbol $val]
+  pos [@ $allnum $val]
+  pos [@ $allbol $val]
+  pow [@ [vec $cmplx 2] $val]
+  pow [@ [tup $cmplxA $cmplxB] $val]
+  mul [@ [vec $cmplx 2] $val]
+  mul [@ [tup $cmplxA $cmplxB] $val]
+  div [@ [vec $cmplx 2] $val]
+  div [@ [tup $cmplxA $cmplxB] $val]
+  add [@ [vec $allnum 2] $val]
+  sub [@ [vec $allnum 2] $val]
+  equ [@ [vec $typ 2] $val]
+  neq [@ [vec $typ 2] $val]
+  gtr [@ $vec2 $val]
+  les [@ $vec2 $val]
+  leq [@ $vec2 $val]
+  geq [@ $vec2 $val]
 
 nats
   void: typ $void
@@ -108,8 +154,8 @@ nats
     [@ [lam $typA $typB] $val] [@ $typA $val]
     [typ $typ] [@ $num $int]
       [typ [vec $typ $int]]
-    [typ $typA] [@ $typB $var]
-      [@ $typA $var]
+    [typ $typA] [var $typB $var]
+      [def $typA $var]
     [typ $typA] [typ $typB]
       [typ [lam $typA $typB]]
     [@ $typA $val] [typ $typB]
@@ -193,3 +239,7 @@ nats
     [@ [vec $typ 2] $val]
   gtr les leq geq: nat
     [@ $vec2 $val]
+  sin cos tan csc sec cot asin acos atan acsc asec acot: nat
+    [@ $cmplx $val]
+  atan2
+    [@ [vec $cmplx 2] $val]

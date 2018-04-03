@@ -796,6 +796,15 @@ PT.fcc = function() {
       // TODO
       log(args,s)
     }
+    function pass1(state,args) {
+      return args[0]
+    }
+    function pass1tok(tok) {
+      return (state,args)=>state.eval(tok,args)
+    }
+    function vecmul(state,args,tok) {
+      return ['val',] // TODO
+    }
 
     var allnats = {
       void: '#typ $void',
@@ -804,136 +813,308 @@ PT.fcc = function() {
       bol: '#typ $bol',
       vec1: '#typ $num',
       vec2: '#typ $vec2',
-      vec2: '#typ $vec3',
+      vec3: '#typ $vec3',
       return: ['nat',
-        ['#return pass','#@ $typ $val']
+        [(state,args)=>{
+          if (state.scp.ret) throw `dup ret err`
+          state.scp.ret = args[0]
+          return '#typ $void'
+        },'#@ $typ $val']
       ],
       stat: ['nat',
-        ['#stat pass','#@']
+        [pass1,'#@']
       ],
       vec: ['nat',
-        ['#vec pass',['@','#vec $typ $int']]
+        [pass1,['@','#vec $typ $int']]
       ],
       abs: ['nat',
-        ['#abs pass','#@ $num $val'],
-        ['#abs pass',['@','#vec $num $int','$val']]
+        [pass1tok('abs'),'#@ $num $val'],
+        [pass1tok('abs'),['@','#vec $num $int','$val']]
       ],
       not: ['nat',
-        ['','#@ $allbol $val']
+        [pass1tok('not'),'#@ $allbol $val']
       ],
       mod: ['nat',
-        [defnat,'#@ $vec2 $val']
+        [pass1tok('mod'),'#@ $vec2 $val']
       ],
       xor: ['nat',
-        [defnat,['@','#vec $allbol 2','$val']]
+        [pass1tok('xor'),['@','#vec $allbol 2','$val']]
       ],
       dot: ['nat',
-        [defnat, ['@', '#vec $allnum 2', '$val']],
-        [defnat, ['@', '#tup $allnumA $allnumB', '$val']],
-        [defnat, ['@', '#vec $allbol 2', '$val']],
-        [defnat, ['@', '#tup $allbolA $allbolB', '$val']]
+        [pass1tok('dot'), ['@', '#vec $allnum 2', '$val']],
+        [pass1tok('dot'), ['@', '#tup $allnumA $allnumB', '$val']],
+        [pass1tok('dot'), ['@', '#vec $allbol 2', '$val']],
+        [pass1tok('dot'), ['@', '#tup $allbolA $allbolB', '$val']]
       ],
       cross: ['nat',
-        [defnat,['@','#vec $allnum 2','$val']],
-        [defnat,['@','#tup $allnumA $allnumB','$val']]
+        [pass1tok('cross'),['@','#vec $allnum 2','$val']],
+        [pass1tok('cross'),['@','#tup $allnumA $allnumB','$val']]
+      ],
+      atan2: ['nat',
+        [pass1tok('tan2'),['@','#vec $cmplx 2','val']]
       ],
       comp: ['nat',
-        [defnat,'#nat ..','#@'],
-        [defnat,['@','#lam $typA $typB','$val'],'#@ $typA $val'],
-        [defnat,'#typ $typ','#@ $num $int'],
-        [defnat,'#typ $typA','#@ $typB $var'],
-        [defnat,'#typ $typA','#typ $typB'],
-        [defnat,'#@ $typA $val','#typ $typB'],
-        [defnat,'#typ $void','#@ $typ $val'],
-        [defnat,'#def $typA $var', '#@ $typB $val'],
-        [defnat,'#par $typA $vars', '#@ $typB $val'],
-        [defnat,'#def $typA $var', ['@', '#lam $typB $typA','$val']],
-        [defnat,'#@ $allnumA $val', '#@ $allnumB $val'],
-        [defnat,'#@ $allbolA $val', '#@ $allbolB $val']
+        [(state,args)=>matchnat(state,args[0],[args[1]]),'#nat ..','#@'],
+
+        [(state,args,typs)=>['val',typs[1],state.eval('lam',args)],
+          ['@','#lam $typA $typB','$val'],'#@ $typA $val'],
+
+        [(state,args,typs,vals)=>['typ',['vec',typs[0],vals[0]]],
+          '#typ $typ','#@ $num $int'],
+
+        [(state,args,typs)=>['def',typs[0],state.eval('def',args)],
+          '#typ $typA','#var $typB $var'],
+
+        [(state,args,typs)=>['typ',['lam',typs[0],typs[1]]],
+          '#typ $typA','#typ $typB'],
+
+        [(state,args,typs)=>['val',typs[1],state.eval('typ',args)],
+          '#@ $typA $val','#typ $typB'],
+
+        [(state,args,typs)=>['val',['lam','$void',typs[0]],state.eval('newlam',args)],
+          '#typ $void','#@ $typ $val'],
+
+        [(state,args,typs)=>['val',['lam',typs[0],typs[1]],state.eval('newlam',args)],
+          '#def $typA $var', '#@ $typB $val'],
+
+        [(state,args,typs)=>['val',['lam',typs[0],typs[1]],state.eval('newlam',args)],
+          '#par $typA $vars', '#@ $typB $val'],
+
+        [(state,args,typs)=>{
+          state.eval('deflam',args)
+          return '#typ $void'
+        },'#def $typA $var', ['@', '#lam $typB $typA', '$val']],
+
+        [(state,args,typs)=>vecmul(state,args,'$num'),
+          '#@ $allnumA $val', '#@ $allnumB $val'],
+
+        [(state,args,typs)=>vecmul(state,args,'$bol'),
+          '#@ $allbolA $val', '#@ $allbolB $val']
       ],
       tup: ['nat',
-        [defnat],
-        [defnat,'#@'],
-        [defnat,'#typ $typ', '#typ $typ', '..'],
-        [defnat,'#typ $typA', '#typ $typB', '..'],
-        [defnat,'#def $typ $var', '#def $typ $var', '..'],
-        [defnat,'#def $typA $var', '#def $typB $var', '..'],
-        [defnat,'#@ $typ $val', '#@ typ $val', '..'],
-        [defnat,'#@ $typA $val', '#@ typB $val', '..']
+        [()=>'#typ $void'],
+        [pass1,'#@'],
+
+        [(state,args,typs)=>['typ',['vec',typs[0],args.length]],
+          '#typ $typ', '#typ $typ', '..'],
+
+        [(state,args,typs)=>['typ',['tup'].concat(typs)],
+          '#typ $typA', '#typ $typB', '..'],
+
+        [(state,args,typs,vals,vars)=>
+          ['par',['vec',typs[0],args.length],state.eval('vars',vars)],
+          '#def $typ $var', '#def $typ $var', '..'],
+
+        [(state,args,typs,vals,vars)=>
+          ['par',['tup'].concat(typs),state.eval('vars',vars)],
+          '#def $typA $var', '#def $typB $var', '..'],
+
+        [(state,args,typs,vals)=>
+          ['val',['vec',typs[0],args.length],state.eval('vals',vals)],
+          '#@ $typ $val', '#@ typ $val', '..'],
+
+        [(state,args,typs,vals)=>
+          ['val',['tup'].concat(typs),state.eval('vals',vals)],
+          '#@ $typA $val', '#@ typB $val', '..']
       ],
       conop: ['nat',
-        [defnat,'#@ $bol $val','#@ $typ $val','#@ $typ $val']
+        [(state,args,typs,vals)=>['val',typs[0],state.eval('conop',vals)],
+        '#@ $bol $val','#@ $typ $val','#@ $typ $val']
       ],
       scp: ['nat',
-        [defnat,'..']
+        [state => state.scp.ret || '#typ $void', '..']
       ],
       assign: ['nat',
-        [defnat, ['var', '#typ $typA', '$var'], '#typ $typB'],
-        [defnat, '#var $typ $var', '#@ $typ $val'],
-        [defnat, '#def $typ $var', '#@ $typ $val']
+        [(state,args)=>['var',args[1],state.eval('settyp',args)],
+          ['var', '#typ $typA', '$var'], '#typ $typB'],
+
+        [(state,args,typs,vals)=> ['var',typs[0],state.eval('setval',args),vals[0]],
+          '#var $typ $var', '#@ $typ $val'],
+
+        [(state,args,typs,vals)=> {
+          state.eval('setval',args)
+          return '#typ $void'
+        }, '#def $typ $var', '#@ $typ $val']
       ],
       idx: ['nat',
-        [defnat, ['typ', '#vec $typ $int'], '#val $num $int'],
-        [defnat, ['typ', '#tup $typA $typB ..'], '#val $num $int'],
-        [defnat, ['var', '#vec $typ $int', '$var', '$val'], '#val $num $int'],
-        [defnat, ['var', '#tup $typA $typB ..', '$var', '$val'], '#val $num $int'],
-        [defnat, ['val', '#vec $typ $int', '$val'], '#val $num $int'],
-        [defnat, ['val', '#tup $typA $typB ..', '$val'], '#val $num $int'],
+        [(state,args,typs,vals)=> {
+          var len = vals[0]
+          var idx = vals[1]
+          if (0 > idx || idx >= len) throw `vec out of bounds err`
+
+          return ['typ',typs[0]]
+        }, ['typ', '#vec $typ $int'], '#val $num $int'],
+        [(state,args,typs,vals,vars)=> {
+          var len = vals[0]
+          var idx = vals[1]
+          if (0 > idx || idx >= len) throw `vec out of bounds err`
+
+          var varidx = state.eval('idx',[vars[0],idx])
+          var validx = state.eval('idx',[vals[0],idx])
+          return ['var',typs[0],varidx,validx]
+        }, ['var', '#vec $typ $int', '$var', '$val'], '#val $num $int'],
+        [(state,args,typs,vals)=> {
+          var len = vals[0]
+          var idx = vals[1]
+          if (0 > idx || idx >= len) throw `vec out of bounds err`
+
+          var validx = state.eval('idx',[vals[0],idx])
+          return ['val',typs[0],validx]
+        }, ['val', '#vec $typ $int', '$val'], '#val $num $int'],
+
+        [(state,args,typs,vals)=> {
+          var idx = vals[0]
+          var len = typs.length
+          if (0 > idx || idx >= len) throw `tup out of bounds err`
+
+          return ['typ',typs[idx]]
+        }, ['typ', '#tup $typA $typB ..'], '#val $num $int'],
+        [(state,args,typs,vals,vars)=> {
+          var idx = vals[1]
+          var len = typs.length
+          if (0 > idx || idx >= len) throw `tup out of bounds err`
+
+          var varidx = state.eval('idx',[vars[0],idx])
+          var validx = state.eval('idx',[vals[0],idx])
+          return ['var',typs[idx], varidx, validx]
+        }, ['var', '#tup $typA $typB ..', '$var', '$val'], '#val $num $int'],
+        [(state,args,typs,vals)=> {
+          var idx = vals[1]
+          var len = typs.length
+          if (0 > idx || idx >= len) throw `tup out of bounds err`
+
+          var validx = state.eval('idx',[vals[0],idx])
+          return ['val',typs[idx], validx]
+        }, ['val', '#tup $typA $typB ..', '$val'], '#val $num $int']
       ]
     }
     {
       FU.forEach(['pdec','pinc','dec','inc'], tok => allnats[tok] = ['nat',
-        [defnat, '#var $num $var $val']
+        [pass1tok(tok), '#var $num $var $val']
       ])
       FU.forEach(['neg','pos'], tok => allnats[tok] = ['nat',
-        [defnat, '#@ $allnum $val'],
-        [defnat, '#@ $allbol $val']
+        [pass1tok(tok), '#@ $allnum $val'],
+        [pass1tok(tok), '#@ $allbol $val']
       ])
       FU.forEach(['pow','mul','div'], tok => allnats[tok] = ['nat',
-        [defnat, ['@',['vec','$cmplx',2],'$val']],
-        [defnat, ['@',['tup','$cmplxA','$cmplxB'],'$val']],
+        [pass1tok(tok), ['@',['vec','$cmplx',2],'$val']],
+        [pass1tok(tok), ['@',['tup','$cmplxA','$cmplxB'],'$val']],
       ])
       FU.forEach(['add','sub'], tok => allnats[tok] = ['nat',
+        [pass1tok(tok), ['@', '#vec $allnum 2', '$val']]
       ])
       FU.forEach(['equ','neq'], tok => allnats[tok] = ['nat',
+        [pass1tok(tok), ['@', '#vec $typ 2','$val']]
       ])
       FU.forEach(['gtr','les','leq','geq'], tok => allnats[tok] = ['nat',
+        [pass1tok(tok), '#@ $vec2 $val']
+      ])
+      FU.forEach(['sin','cos','tan','csc','sec','cot',
+        'asin','acos','atan','acsc','asec','acot'],
+        tok => allnats[tok] = ['nat',
+          [pass1tok(tok), '#@ $cmplx $val']
       ])
     }
 
+    function hashcnvrt(arg) {
+      if (!arg) return ['typ',['void']]
+      if (arg.forEach) arg.forEach((a,i)=>arg[i] = hashcnvrt(a))
+      else if (arg[0] == '#') return arg.slice(1).split(' ')
+      return arg
+    }
+    function matchtype(map,typ1,typ2,ntyp) {
+      
+    }
+    function matcharg(map,arg1,arg2,ntyp) {
+      arg1 = hashcnvrt(arg1)
+      arg2 = hashcnvrt(arg2)
+      if (arg1[0] == '@') {
+        if (arg1.length == 1) return true
+      }
+      else if (arg1[0] != arg2[0]) return false
+
+      var tok = arg2[0]
+      if (tok == 'var')
+
+      return false
+    }
+    function matchsubnat(state,sub,args) {
+      var aln = args.length
+      var len = sub.length-1
+      var lst = sub[len]
+      if (aln == 0 && len == 0) return sub[0](state)
+
+      var map = {
+        tbl: {},
+        typs: [],
+        vals: [],
+        vars: []
+      }
+      if (lst != '..') {
+        if (aln != len) return false
+        for (var i = 0; i < len; ++i) if (!matcharg(map,sub[i+1],args[i])) return false
+        // log('pass')
+        return sub[0](state,args,map.typs,map.vals,map.vars)
+      }
+      else if (len == 1) return sub[0](state,args)
+      else if (len != 3 || aln < 2) return false
+
+      for (var i = 0; i < 2; ++i) if (!matcharg(map,sub[i+1],args[i])) return false
+      if (aln == 2) return sub[0](state,args,map.typs,map.vals,map.vars)
+
+      var ntyp = matcharg(map,sub[1],sub[2])
+      for (var i = 2; i < aln; ++i) if (!matcharg(map,sub[1],args[i],ntyp)) return false
+      return sub[0](state,args,map.typs,map.vals,map.vars)
+    }
     function matchnat(state,nat,args) {
-      log(nat)
+      for (var n = 1; n < nat.length; ++n) {
+        var sub = nat[n]
+        var ret = matchsubnat(state,sub,args)
+        if (ret) return ret
+      }
+      // throw `match err`
     }
 
 
     function starcal(tok,state) {
-      if (tok != 'scp') return
-      state.scpS.push(state.scp)
-      state.scp = {tbl:{},ret:null}
+      if (tok == 'scp') {
+        state.scp && state.scpS.push(state.scp)
+        state.scp = {tbl:{},ret:null}
+      }
+      else if (tok == 'conop') {
+        state.conS.push(state.con)
+        state.con = state.args
+      }
     }
     function wrdcal(tok,state) {
+      if (allnats[tok]) return allnats[tok]
       return ['var',['void'],state.evnt(['var',tok])]
     }
     function numcal(tok,state) {
       return ['val',['num'],state.evnt(['num',tok])]
     }
     function endcal(tok,state) {
-      return matchnat(state,allnats[tok],state.args)
+      var ret = matchnat(state,allnats[tok],state.args)
+      if (tok == 'scp') state.scpS.length && (state.scp = state.scpS.pop())
+      else if (tok == 'conop') state.con = state.conS.pop()
+      return ret
     }
 
     function checkListTypes(list) {
       var state = {
         scpS: [],
         argS: [],
-        scp: {tbl:{},ret:null},
+        conS: [],
+        scp: null,
         args: [],
+        con: null,
         evnt: val => {
-          log(val)
+          // log(val)
           return val
         }
       }
 
-      log(list)
+      // log(list)
 
       for (var i in list) {
         var l = list[i]
@@ -954,6 +1135,7 @@ PT.fcc = function() {
         }
       }
       log(state)
+      log(allnats)
     }
   }
 
