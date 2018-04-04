@@ -772,30 +772,7 @@ PT.fcc = function() {
   }
   // list check
   {
-    function gettyp(ret) {
-      return ret[1]
-    }
-    function equtyp(typA,typB) {
-      if (!typA) return typB
-      if (typA[0] != typB[0]) return false
-      var t0 = typA[0]
-      if (t0=='num'||t0=='bol') return true
-      if (t0=='vec') return typA[2]==typB[2]&&equtyp(typA[1],typB[1])
-      if (t0=='typ') return equtyp(typA[1],typB[1])
-      if (t0=='lam') return equtyp(typA[1],typB[1]) && equtyp(typA[2],typB[2])
-      if (t0=='nat') return false // TODO
-      if (t0=='tup') {
-        if (typA.length!=typB.length) return false
-        for (var i = 1; i < typA.length; ++i) if (!equtyp(typA[i],typB[i])) return false
-        return true
-      }
-      return false
-    }
 
-    var defnat = (state,args,typs,vals,vars) => {
-      // TODO
-      log(args,s)
-    }
     function pass1(state,args) {
       return args[0]
     }
@@ -806,6 +783,57 @@ PT.fcc = function() {
       return ['val',] // TODO
     }
 
+    var alltyps = {
+      '$void': ['void'],
+      '$num': ['num'],
+      '$bol': ['bol'],
+      '$vec1': ['num'],
+      '$vec2': ['vec',['num'],2],
+      '$vec3': ['vec',['num'],3]
+    }
+    function isallnum(typ) {
+      if (typ[0] == 'num') return true
+      if (typ[0] == 'vec')
+        return isallnum(typ[1])
+      if (typ[0] == 'tup') {
+        for (var i = 1; i < typ.length; ++i)
+          if (!isallnum(typ[i])) return false
+        return true
+      }
+      return false
+    }
+    function isallbol(typ) {
+      if (typ[0] == 'num') return true
+      if (typ[0] == 'vec')
+        return isallbol(typ[1])
+      if (typ[0] == 'tup') {
+        for (var i = 1; i < typ.length; ++i)
+          if (!isallbol(typ[i])) return false
+        return true
+      }
+      return false
+    }
+    function iscmplx(typ) {
+      log('iscmplx',typ)
+      return true
+    }
+    var toktyps = {
+      '$typ': typ => true,
+      '$typA': typ => true,
+      '$typB': typ => true,
+
+      '$allnum': isallnum,
+      '$allnumA': isallnum,
+      '$allnumB': isallnum,
+
+      '$allbol': isallbol,
+      '$allbolA': isallbol,
+      '$allbolB': isallbol,
+
+      '$cmplx': iscmplx,
+      '$cmplxA': iscmplx,
+      '$cmplxB': iscmplx,
+    }
     var allnats = {
       void: '#typ $void',
       typ: '#typ $void',
@@ -1016,25 +1044,77 @@ PT.fcc = function() {
       ])
     }
 
+    hashcnvrt.count = 0
     function hashcnvrt(arg) {
+      hashcnvrt.count++
       if (!arg) return ['typ',['void']]
+      if (arg['#']) return arg
+      if (alltyps[arg]) return alltyps[arg]
       if (arg.forEach) arg.forEach((a,i)=>arg[i] = hashcnvrt(a))
-      else if (arg[0] == '#') return arg.slice(1).split(' ')
+      else if (arg[0] == '#') return hashcnvrt(arg.slice(1).split(' '))
       return arg
     }
     function matchtype(map,typ1,typ2,ntyp) {
-      
+      var t1 = typ1[0], t2 = typ2[0]
+      if (t1 == '$' && t2 == '$')
+        return typ1 == typ2
+      if (t2 == '$') return matchtype(map,typ2,typ1,ntyp)
+      if (t1 == '$') {
+        var tbltyp = map.tbl[typ1]
+        if (tbltyp) {
+          var mt = matchtype(map,tbltyp,typ2,ntyp)
+          if (!ntyp) return mt
+          map.typs.push(typ2)
+          return true
+        }
+        var toktyp = toktyps[typ1]
+        if (!toktyp) throw `invalid toktyp '${typ1}'`
+        if (!toktyp(typ2)) return false
+        map.tbl[typ1] = typ2
+        return true
+      }
+
+      if (t1 != t2) return false
+
+      if (t1 == 'num' || t1 == 'bol' || t1 == 'void') return true
+      if (t1 == 'vec') {
+        if (typ1[2] == '$int') {
+          if (!matchtype(typ1[1],typ2[1])) return false
+          map.vals.push(typ2[2])
+          return true
+        }
+        return typ1[2] == typ2[2] && matchtype(typ1[1],typ2[1])
+      }
+      if (t1 == 'tup') {
+        if (typ1.length != typ2.length) return false
+        for (var i = 1; i < typ1.length; ++i)
+          if (!equtyp(typ1[i],typ2[i])) return false
+        return true
+      }
+      throw `invalid toktyp '${t1}'`
     }
     function matcharg(map,arg1,arg2,ntyp) {
       arg1 = hashcnvrt(arg1)
       arg2 = hashcnvrt(arg2)
-      if (arg1[0] == '@') {
+      arg1['#'] = arg2['#'] = true
+
+      var tok1 = arg1[0]
+      var tok2 = arg2[0]
+
+      if (tok1 == '@') {
         if (arg1.length == 1) return true
       }
-      else if (arg1[0] != arg2[0]) return false
+      else if (tok1 != tok2) return false
+      if (tok1 == 'nat') return true
+      if (tok2 == 'nat') return false
 
-      var tok = arg2[0]
-      if (tok == 'var')
+      var typ1 = arg1[1]
+      var typ2 = arg2[1]
+      if (!matchtype(map,typ1,typ2,ntyp)) return false
+
+      var a1 = arg1
+
+      if (typ1 == '@' && arg)
 
       return false
     }
@@ -1067,12 +1147,16 @@ PT.fcc = function() {
       return sub[0](state,args,map.typs,map.vals,map.vars)
     }
     function matchnat(state,nat,args) {
+      // log(nat,args)
       for (var n = 1; n < nat.length; ++n) {
         var sub = nat[n]
+        // log(sub,args)
         var ret = matchsubnat(state,sub,args)
+        // log(ret)
         if (ret) return ret
       }
-      // throw `match err`
+      // console.error('match err')
+      throw `match err`
     }
 
 
@@ -1094,6 +1178,7 @@ PT.fcc = function() {
       return ['val',['num'],state.evnt(['num',tok])]
     }
     function endcal(tok,state) {
+      log(tok)
       var ret = matchnat(state,allnats[tok],state.args)
       if (tok == 'scp') state.scpS.length && (state.scp = state.scpS.pop())
       else if (tok == 'conop') state.con = state.conS.pop()
@@ -1136,6 +1221,7 @@ PT.fcc = function() {
       }
       log(state)
       log(allnats)
+      log(hashcnvrt.count)
     }
   }
 
@@ -1180,10 +1266,9 @@ var temp = `
   (vec3 main)(vec3 a, (num 3) b) {
     vec1 c = b - a 4 + 3 4 // this is a // comment
     vec1 test = 120 /* my name is khan */
-    asdf.asdf.asdf
     vec1 t = ++(--3)-- ++(3--) ^ 3 + 34 ? 3 : 3
-    vec4 k = [1,2,3,4]
-    mat1_3 m = [[1],[2],[3]]
+    vec3 k = [1,2,3]
+    (vec2 3) m = [[1,2],[2,2],[3,2]]
     bol asdf = true
     asdf == 13 >= 3 < 10 > 3 <= 1 != 3
 
