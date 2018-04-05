@@ -93,6 +93,14 @@ $
   ['$val' [varidx $refidxA $refidxB ..] ['$srcidxA' '$srcidxB' ..]  $val]
   ['$vals' [$valA $valB ..]]
 
+funs
+  abs $num
+  sum $num+
+  sqr $num
+  sqrt $num
+  not $bol
+  mod $num $num
+
 allevals
   var $wrd
     -> [var $void $var]
@@ -100,7 +108,7 @@ allevals
     -> [val $num $val]
   ret [@ $typ $val]
     -> [typ $void]
-  state [@]
+  stat [@]
     vec [@ [vec $typ $int]]
   absnum [@ $num $val]
   absvec [@ [vec $num $int] $val]
@@ -238,7 +246,7 @@ nats
     ret [@ $typ $val]
       -> [typ $void]
   stat: nat
-    state [@]
+    stat [@]
   vec: nat
     vec [@ [vec $typ $int]]
   abs: nat

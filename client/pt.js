@@ -774,50 +774,6 @@ PT.fcc = function() {
     function isint(i) {
       return !isNaN(parseInt(i))
     }
-    function hashcnvrt(arg) {
-      if (alltyps[arg]) return alltyps[arg]
-      if (arg.forEach) arg.forEach((a,i)=>arg[i] = hashcnvrt(a))
-      else if (arg[0] == '#') return hashcnvrt(arg.slice(1).split(' '))
-      return arg
-    }
-    function gettok(tok,arg) {
-      switch(tok){
-      case '$val':
-        if (arg[0] == 'val') return arg[2]
-        if (arg[0] == 'var') return arg[3]
-        return
-      case '$var':
-        if (arg[0] == 'var'|| arg[0] == 'def') return arg[2]
-        return
-      case '$int':
-        arg = arg[0] == 'val' ? arg[2] : arg[0] == 'var' ? arg[3] : null
-        if (!arg) return
-        if (arg[0] == '$int') return arg
-        return
-      case '$typ':
-        if (arg[0] != 'nat') return arg[1]
-        return
-      }
-    }
-    function newtok(state,tok,arg,valA,valB) {
-      switch(tok) {
-      case '$var':// arg:$wrd
-        var v = ['$var',[state.vars.length],arg,state.scp]
-        state.vars.push(v)
-        return v
-      case '$int': // arg:$int
-        return ['$int',arg]
-      case '$val': // arg:$evaltok valA:$val
-        var v = valB ?
-          ['$val',[state.vars.length],[valA,valB],[arg,valA[3],valB[3]]] :
-          ['$val',[state.vars.length],[valA],[arg,valA[3]]]
-        valA[1].push(v)
-        valB && valB[1].push(v)
-        state.vars.push(v)
-        return v
-      }
-    }
-
     var alltyps = {
       '$void': ['void'],
       '$num': ['num'],
@@ -870,6 +826,41 @@ PT.fcc = function() {
       '$cmplxA': iscmplx,
       '$cmplxB': iscmplx,
     }
+    var gettoks = {
+      typ: arg => arg[0] == 'nat' || arg[1],
+      var: arg => (arg[0] == 'var' || arg[0] == 'def') && arg[2],
+      val: arg => arg[0] == 'val' ?
+        arg[2] : arg[0] == 'var' ? arg[3] || arg[2] : null,
+    }
+    function veccnvt(str,tok,val) {
+      var ans = [str]
+      for (var i = 1; i < val.length; ++i) ans.push([tok,val[i]])
+      return ans
+    }
+    function veccnvtequ(str,tok,val,valA) {
+      var ans = [str]
+      for (var i = 1; i < val.length; ++i) ans.push([tok,val[i],valA[i]])
+      return ans
+    }
+    function forall(tok,val) {
+      if (val[0] != 'vec') return [tok,val]
+      var ans = [tok]
+      for (var i = 1; i < val.length) ans.push(forall(tok,val[i]))
+      return ans
+    }
+    function forallequ(tok,val,valA) {
+      if (val[0] != 'vec') return [tok,val,valB]
+      var ans = [tok]
+      for (var i = 1; i < val.length) ans.push(forall(tok,val[i],valA[i]))
+      return ans
+    }
+
+    function hashcnvrt(arg) {
+      if (alltyps[arg]) return alltyps[arg]
+      if (arg.forEach) arg.forEach((a,i)=>arg[i] = hashcnvrt(a))
+      else if (arg[0] == '#') return hashcnvrt(arg.slice(1).split(' '))
+      return arg
+    }
 
     var allnats = {
       void: '#typ $void',
@@ -879,6 +870,8 @@ PT.fcc = function() {
       vec1: '#typ $num',
       vec2: '#typ $vec2',
       vec3: '#typ $vec3',
+      true: ['val','$bol',['bol',true]],
+      false: ['val','$bol',['bol',false]],
       return: ['nat',['ret','#@ $typ $val']],
       stat: ['nat',['stat','#@']],
       vec: ['nat',['vec',['@','#vec $typ $int']]],
@@ -956,53 +949,84 @@ PT.fcc = function() {
         tok => allnats[tok] = ['nat', [tok, '#@ $cmplx $val']])
       for (var n in allnats) allnats[n] = hashcnvrt(allnats[n])
     }
+
     var allevals = {
       // var $wrd
       //   -> [var $void $var]
-      'var': (state,arg) => ['var',['void'],newtok(state,'$var',arg)],
+      'var': (state,arg) => ['var',['void'],['var',state.scp,arg]],
       // num $wrd
       //   -> [val $num $val]
-      'num': (state,arg) => ['val',['num'],newtok(state,'$int',arg)],
+      'num': (state,arg) => ['val',['num'],['num',arg]],
       // ret [@ $typ $val]
       //   -> [typ $void]
       'ret': (state,args) => {
-        if (state.scp.ret) throw `ret err`
+        if (state.scp.ret) throw 'dup ret err'
         state.scp.ret = args[0]
         return ['typ',['void']]
       },
-      // state [@]
+      // stat [@]
       //   vec [@ [vec $typ $int]]
-      'state': (state,args) => args[0],
+      'stat': (state,args) => args[0],
       // absnum [@ $num $val]
       'absnum': (state,args) => {
-        var val = gettok('$val',args[0])
-        var newval = val[0] == '$int' ?
-          newtok(state,'$int',Math.abs(val[1])) :
-          newtok(state,'$val','abs',val)
-        return ['val',['num'],newval]
+        var val = gettoks.val(args[0])
+        return ['val',['num'],val[0] == 'num' ?
+          ['num',Math.abs(val[1])] : ['abs',val]]
       },
       // absvec [@ [vec $num $int] $val]
-      'absint': (state,args) => {
-        var val = gettok('$val',args[0])
-        var newval = null
-        if (val[0] == '$ints') {
+      'absvec': (state,args) => {
+        var val = gettoks.val(args[0])
+        if (val[0] == 'nums') {
           var sum = 0
-          for (var i in val[1]) sum += val[1][i]*val[1][i]
-          newval = newtok(state,'$int',Math.sqrt(sum))
+          for (var i = 1; i < val.length; ++i) sum += val[i]*val[i]
+          return ['val',['num'],['num']]
         }
-        else newval = newtok(state,'$val')
+        // val[0] == 'vec'
+        var ans = ['sum']
+        for (var i = 1; i < val.length; ++i) ans.push(['sqr',val[i]])
+        return ['val',['num'],['sqrt',ans]]
       },
       // not [@ $allbol $val]
+      'not': (state,args) => ['val',['bol'],forall('not',args[0])],
       // mod [@ $vec2 $val]
+      'mod': (state,args) => {
+        var val = gettoks.val(args[0])
+        var valA = val[1]
+        var valB = val[2]
+        if (valA[0] == 'num' && valB[0] == 'num')
+          return ['val',['num'],['num',FU.mod(valA[1],valB[1])]]
+        return ['val',['num'],['mod',valA,valB]]
+      },
       // xor [@ [vec $allbol 2] $val]
       //   -> [@ $allbol $val]
+      'xor': (state,args) => {
+        var val = gettoks.val(args[0])
+        var valA = val[1]
+        var valB = val[2]
+        var typ = gettoks.typ(args[0])[1] // $allbol
+        if (valA[0] == 'bol' && valB[0] == 'bol')
+
+      },
       // crossvec [@ [vec $allnum 2] $val]
       //   -> [@ $allnum $val]
+      'crossvec': (state,args) => {
+        // TODO
+        throw 'TODO'
+      },
       // crosstup [@ [tup $allnumA $allnumB] $val]
       //   [@ $allnum $val]
+      'crosstup': (state,args) => {
+        // TODO
+        throw 'TODO'
+      },
       // donat [nat ..] [@]
+      'donat': (state,args) => matchnat(state,args[0],[args[1]]),
       // dolam [@ [lam $typA $typB] $val] [@ $typA $val]
       //   -> [val $typB $val]
+      'dolam': (state,args) => {
+
+
+      }
       // newvec [typ $typ] [@ $num $int]
       //   -> [typ [vec $typ $int]]
       // newdef [typ $typA] [var $typB $var]
@@ -1171,7 +1195,7 @@ PT.fcc = function() {
         scp: null,
         args: [],
         con: null,
-        vars: []
+        vals: []
       }
 
       // log(list)
