@@ -95,11 +95,26 @@ $
 
 funs
   abs $num
+  abs $nums
   sum $num+
   sqr $num
   sqrt $num
-  not $bol
+  not $allbol
   mod $num $num
+  xor $allbol $allbol
+  vec $val+
+  lam $vars $val
+  var $scp $wrd $vidx
+  num $num
+  bol $bol
+  conop $bol $val $val
+  neg $allnum
+  pow ['vec' $num $num] ['vec' $num $num]
+  mul ['vec' $num $num] ['vec' $num $num]
+  div ['vec' $num $num] ['vec' $num $num]
+  scal $allnum $num
+  addnum $allnum $allnum
+  subnum $allnum $allnum
 
 allevals
   var $wrd
@@ -131,8 +146,6 @@ allevals
     -> [typ [lam $typA $typB]]
   typcoerce [@ $typA $val] [typ $typB]
     -> [@ $typB $val]
-  voidlam [typ $void] [@ $typA $val]
-    -> [val [lam $void $typA] $val]
   deflam [def $typA $var] [@ $typB $val]
     -> [val [lam $typA $typB] $val]
   parlam [par $typA $vars] [@ $typB $val]
@@ -209,8 +222,10 @@ allevals
     -> [val $vec2 $val]
   divtup [@ [tup $cmplxA $cmplxB] $val]
     -> [val $vec2 $val]
-  add [@ [vec $allnum 2] $val]
-  sub [@ [vec $allnum 2] $val]
+  addnum [@ [vec $allnum 2] $val]
+  addbol [@ [vec $allbol 2] $val]
+  subnum [@ [vec $allnum 2] $val]
+  subbol [@ [vec $allbol 2] $val]
   dotvecnum [@ [vec $allnum 2] $val]
   dottupnum [@ [tup $allnumA $allnumB] $val]
   dotvecbol [@ [vec $allbol 2] $val]
@@ -275,8 +290,6 @@ nats
       -> [typ [lam $typA $typB]]
     typcoerce [@ $typA $val] [typ $typB]
       -> [@ $typB $val]
-    voidlam [typ $void] [@ $typA $val]
-      -> [val [lam $void $typA] $val]
     deflam [def $typA $var] [@ $typB $val]
       -> [val [lam $typA $typB] $val]
     parlam [par $typA $vars] [@ $typB $val]
@@ -345,6 +358,7 @@ nats
       -> [val $vec2 $val]
   add sub: nat
     $tok [@ [vec $allnum 2] $val]
+    $tok [@ [vec $allbol 2] $val]
   dot: nat
     dotvecnum [@ [vec $allnum 2] $val]
     dottupnum [@ [tup $allnumA $allnumB] $val]
