@@ -2,6 +2,7 @@
 
 // π = Math.PI
 log = console.log
+err = console.error
 srfy = JSON.stringify
 log('init pt.js')
 
@@ -484,6 +485,7 @@ PT.fcc = function() {
     ']': true,
     '++': true,
     '--': true,
+    '/': true,
     '//': true,
     '/*': true,
     '*/': true,
@@ -846,11 +848,28 @@ PT.fcc = function() {
     function dofun(val) {
       if (dofun.all[val[0]])
         return dofun.all[val[0]](val)
-      else throw `invalid dofun ${val[0]}`
+      else throw [`invalid dofun ${val[0]}`, val]
     }
     dofun.all = {
-      abs: val => val,
-      sum: val => val,
+      abs: val => {
+        var tval = val[1]
+        if (tval[0] == 'num') return dofun(['num',Math.abs(tval)])
+        if (tval[0] != 'vec') return val
+        var nval = ['sum']
+        for (var i = 1; i < tval.length; ++i)
+          nval.push(dofun(['sqr',tval[i]]))
+        return dofun(['sqrt',dofun(nval)])
+      },
+      sum: val => {
+        // var sum =
+
+        return val
+      },
+      sqr: val => {
+        // if (val[1][0] == '')
+        err('$sum',val)
+        return val
+      },
       sqrt: val => val,
       not: val => val,
       mod: val => val,
@@ -863,6 +882,10 @@ PT.fcc = function() {
       conop: val => val,
       neg: val => val,
       scal: val => val,
+      pow: val => val,
+      mul: val => val,
+      div: val => val,
+      divS: val => val,
       addnum: val => val,
       subnum: val => val,
     }
@@ -909,7 +932,7 @@ PT.fcc = function() {
         ['newvec','#typ $typ','#@ $num $int'],
         ['lamtyp','#typ $typA','#typ $typB'],
         ['typcoerce','#@ $typA $val','#typ $typB'],
-        ['setlam','#def $typA $var', ['@', '#lam $typB $typA', '$val']],
+        ['setlam','#def $typ $var', ['@', '#lam $typB $typA', '$val']],
         ['deflam','#def $typA $var', '#@ $typB $val'],
         ['parlam','#par $typA $vars', '#@ $typB $val'],
         ['cmpnum','#@ $allnumA $val', '#@ $allnumB $val'],
@@ -948,8 +971,10 @@ PT.fcc = function() {
         [tok+'num', '#@ $allnum $val'],
         [tok+'bol', '#@ $allbol $val']])
       FU.forEach(['pow','mul','div'], tok => allnats[tok] = ['nat',
-        [tok+'vec', ['@',['vec','$cmplx',2],'$val']],
-        [tok+'tup', ['@',['tup','$cmplxA','$cmplxB'],'$val']]])
+        [tok+'num', ['@',['vec','$num',2],'$val']],
+        [tok+'num', ['@',['tup','$allnum','$num'],'$val']],
+        [tok+'vec', ['@',['vec','$vec2',2],'$val']],
+        [tok+'tup', ['@','#tup $cmplxA $cmplxB','$val']]])
       FU.forEach(['add','sub'], tok => allnats[tok] = ['nat',
         [tok+'num', ['@', '#vec $allnum 2', '$val']],
         [tok+'bol', ['@', '#vec $allbol 2', '$val']]])
@@ -968,7 +993,7 @@ PT.fcc = function() {
         var valB = val[2]
         if (valA[0] != 'vec') valA = ['vec',valA,['num',0]]
         if (valB[0] != 'vec') valB = ['vec',valB,['num',0]]
-        return ['val',['vec',['num'],2],dofun(tok,valA,valB)]
+        return ['val',['vec',['num'],2],dofun([tok,valA,valB])]
       }
     }
 
@@ -991,8 +1016,9 @@ PT.fcc = function() {
         return ['typ',['void']]
       },
       // stat [@]
-      //   vec [@ [vec $typ $int]]
       'stat': (state,args) => args[0],
+      // vec [@ [vec $typ $int]]
+      'vec': (state,args) => args[0],
       // absnum [@ $num $val]
       'absnum': (state,args) => ['val',['num'],dofun(['abs',gettoks.val(args[0])])],
       // absvec [@ [vec $num $int] $val]
@@ -1086,14 +1112,15 @@ PT.fcc = function() {
         var val = gettoks.val(args[1])
         return ['val',['lam',typA,typB],dofun(['lam',vars,val])]
       },
-      // setlam [def $typA $var] [@ [lam $typB $typA] $val]
+      // setlam [def $typ $var] [@ [lam $typB $typA] $val]
       //   -> [typ $void]
       'setlam': (state,args) => {
         var ovar = gettoks.var(args[0])
-        var typ = gettoks.typ(args[1])
+        var deftyp = gettoks.typ(args[0])
+        var lamtyp = gettoks.typ(args[1])
         var val = gettoks.val(args[1])
-        log('setnam',ovar,typ,val)
-        ovar[1].tbl[ovar[2]] = ['var',typ,ovar,val]
+        if (!matchtyp({},deftyp,lamtyp[2],false)) throw `lam typ err`
+        ovar[1].tbl[ovar[2]] = ['var',lamtyp,ovar,val]
         return ['typ',['void']]
       },
       // cmpnum [@ $allnumA $val] [@ $allnumB $val]
@@ -1172,7 +1199,7 @@ PT.fcc = function() {
           typ.push(gettoks.typ(args[i]))
           val.push(gettoks.val(args[i]))
         }
-        return ['val',typ,dofun(vals)]
+        return ['val',typ,dofun(val)]
       },
       // conop [@ $bol $val] [@ $typ $val] [@ $typ $val]
       //   -> [val $typ $val]
@@ -1283,6 +1310,17 @@ PT.fcc = function() {
       // multup [@ [tup $cmplxA $cmplxB] $val]
       //   -> [val $vec2 $val]
       'multup': cmplxmath('mul'),
+      // divnum [@ [vec $num 2] $val]
+      //   -> [val $num $val]
+      // divnum [@ [tup $allnum $num] $val]
+      //   -> [val $allnum $val]
+      'divnum': (state,args) => {
+        var val = gettoks.val(args[0])
+        var valA = val[1]
+        var valB = val[2]
+        var typ = gettoks.typ(args[0])[1]
+        return ['val',typ,dofun(['divS',valA,valB])]
+      },
       // divvec [@ [vec $cmplx 2] $val]
       //   -> [val $vec2 $val]
       'divvec': cmplxmath('div'),
@@ -1392,14 +1430,15 @@ PT.fcc = function() {
         var lst = sub[len]
         var map = {}
 
-
-        // log(sub,args)
         if (lst == '..') {
           if (len == 1) return true
           else if (len != 3) throw `illigal len err '${len}'`
 
-          var ntok = match(sub[1],sub[2])
-          for (var i = 1; i < args.length; ++i) if (!matcharg(map,sub[1],args[i],ntok)) return false
+          var ntok = !match(sub[1],sub[2])
+          for (var i = 0; i < args.length; ++i)
+            if (!matcharg(map,sub[1],args[i],ntok)) {
+              return false
+            }
           return true
         }
         if (len != args.length) return false
@@ -1416,7 +1455,7 @@ PT.fcc = function() {
     function matchnat(state,nat,args) {
       for (var i = 1; i < nat.length; ++i) {
         if (matchnatsub(state,nat[i],args)) {
-          if (!allevals[nat[i][0]]) throw `missing eval ${nat[i][0]}`
+          if (!allevals[nat[i][0]]) throw [`missing eval`,nat[i]]
           var ret = allevals[nat[i][0]](state,args)
           log('ret',ret,JSON.stringify(nat[i]),args)
           return ret
@@ -1490,6 +1529,7 @@ PT.fcc = function() {
         }
       }
       log('state',state)
+      log('main',state.scp.tbl.main)
       log('allnats',allnats)
     }
   }
@@ -1532,9 +1572,12 @@ PT.fcc = function() {
 }()
 
 var temp = `
-  (vec3 main)(vec3 a, (num 3) b) {
-    vec3 c = b - a
-    return c
+  (vec3 main)(vec3 a, vec3 b) {
+    vec3 c = -(b - a)
+    vec3 d = [1,2,3]
+    vec3 k = [4,3,2]
+    vec3 e = (d - c) / |k|
+    return (e + c / |c|)
   }
 `
 

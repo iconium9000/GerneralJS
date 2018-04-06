@@ -112,6 +112,7 @@ funs
   pow ['vec' $num $num] ['vec' $num $num]
   mul ['vec' $num $num] ['vec' $num $num]
   div ['vec' $num $num] ['vec' $num $num]
+  divS $allnum $num
   scal $allnum $num
   addnum $allnum $allnum
   subnum $allnum $allnum
