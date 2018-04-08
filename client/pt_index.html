@@ -1,3 +1,19 @@
 <body style="background-color:#202024;">
 <script src="fu.js"></script>
 <script src="pt.js"></script>
+<script>
+
+  var temp = `
+    (vec3 main)(vec3 a, vec3 b) {
+      vec3 c = -(b - a)
+      vec3 d = [1,2,3]
+      vec3 k = [4,3,2]
+      k = 3 k
+      num r = -7 % 10
+      vec3 e = (d - k) / |k|
+      return (e + c / |c|)
+    }
+  `
+
+  log(PT.fcc(temp))
+</script>
