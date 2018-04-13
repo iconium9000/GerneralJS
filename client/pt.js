@@ -854,104 +854,186 @@ PT.fcc = function() {
     }
     dofun.all = {
       abs: val => {
-        var tval = val[1]
-        if (tval[0] == 'num') return dofun(['num',Math.abs(tval)])
-        if (tval[0] != 'vec') return val
+        val = dofun(val[1])
+        if (val[0] == 'num') return ['num',Math.abs(val)]
+        if (val[0] != 'vec') return ['abs',val]
         var nval = ['sum']
         for (var i = 1; i < tval.length; ++i)
-          nval.push(dofun(['sqr',tval[i]]))
-        return dofun(['sqrt',dofun(nval)])
+          nval.push(['sqr',val[i]])
+        return dofun(['sqrt',nval])
       },
       sum: val => {
         var sum = 0
         var nval = ['sum']
         for (var i = 1; i < val.length; ++i) {
-          if (val[i][0] == 'num') sum += val[i][1]
-          else nval.push(val[i])
+          var sub = dofun(val[i])
+          if (sub[0] == 'num') sum += sub[1]
+          else nval.push(sub)
         }
         if (nval.length == 1) return ['num',sum]
         if (sum) nval.push(['num',sum])
         return nval
       },
       sqr: val => {
-        val = val[1]
+        val = dofun(val[1])
         if (val[0] == 'num') return ['num',val[1]*val[1]]
         return ['sqr',val]
       },
       sqrt: val => {
-        val = val[1]
+        val = dofun(val[1])
         if (val[0] == 'num') return ['num',Math.sqrt(val[1])]
-        return ['sqr',val]
+        return ['sqrt',val]
       },
       not: val => {
-        if (val[1][0] == 'bol') return ['bol',!val[1][1]]
-        return val
+        val = dofun(val[1])
+        if (val[0] == 'bol') return ['bol',!val[1]]
+        return ['not',val]
       },
       mod: val => {
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = dofun(val[2])
         if (valA[0]=='num'&&valB[0]=='num') return['num',FU.mod(valA[1],valB[1])]
-        return val
+        return ['mod',valA,valB]
       },
       xor: val => {
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = dofun(val[2])
         if (valA[0]=='bol'&&valB[0]=='bol') return['bol',valA[1]^valB[1]]
-        return val
+        return ['xor',valA,valB]
       },
-      vec: val => val,
+      vec: val => {
+        var ret = ['vec']
+        for (var i=1;i<val.length;++i)
+          ret.push(dofun(val[i]))
+        return ret
+      },
       lam: val => val,
       var: val => val,
       num: val => val,
       bol: val => val,
       conop: val => {
-        if (val[1][0]=='bol') return val[1][1]?val[2]:val[3]
-        return val
+        var valA = dofun(val[1])
+        var valB = dofun(val[2])
+        var valC = dofun(val[3])
+        if (valA[0]=='bol') return valA[1]?valB:valC
+        return ['conop',valA,valB,valC]
       },
       neg: val => {
-        val = val[1]
+        val = dofun(val[1])
         if (val[0]=='num')return['num',-val[1]]
         if (val[0]!='vec')return['neg',val]
         var nval = ['vec']
         for (var i = 1; i < val.length; ++i)
-          nval.push(dofun(['neg',val[i]]))
-        return nval
+          nval.push(['neg',val[i]])
+        return dofun(nval)
       },
       mulS: val => {
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = dofun(val[2])
         if (valA[0]=='num'&&valB[0]=='num')return['num',valA[1]*valB[1]]
-        if (valA[0]!='vec')return val
+        if (valA[0]!='vec')return ['mulS',valA,valB]
         var nval = ['vec']
         for (var i=1;i<valA.length;++i)
-          nval.push(dofun(['mulS',valA[i],valB]))
-        return nval
+          nval.push(['mulS',valA[i],valB])
+        return dofun(nval)
       },
       pow: val => val,
       mul: val => val,
       div: val => val,
       divS: val => {
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = dofun(val[2])
         if (valA[0]=='num'&&valB[0]=='num')return['num',valA[1]/valB[1]]
-        if (valA[0]!='vec')return val
+        if (valA[0]!='vec')return ['divS',valA,valB]
         var nval = ['vec']
         for (var i = 1; i < valA.length; ++i)
-          nval.push(dofun(['divS',valA[i],valB]))
-        return nval
+          nval.push(['divS',valA[i],valB])
+        return dofun(nval)
       },
-      addnum: val => {
+      invrt: val => {
+        val = dofun(val[1])
+        if (val[0]!='vec') return ['invrt',val]
         var valA = val[1]
         var valB = val[2]
-        if (valA[0]!=valB[0])return val
-        if (valA[0]=='num')return['num',valA[1]+valB[1]]
-        if (valA[0]!='vec')return val
+        return dofun(['vec',['neg',valB],valA])
+      },
+
+      addnum: val => {
+        var valA = dofun(val[1])
+        var valB = dofun(val[2])
+        if (valA[0]!=valB[0])return ['addnum',valA,valB]
+        if (valA[0]=='num')return ['num',valA[1]+valB[1]]
+        if (valA[0]!='vec')return ['addnum',valA,valB]
         var nval = ['vec']
         for (var i = 1; i < valA.length; ++i)
-          nval.push(dofun(['addnum',valA[i],valB[i]]))
-        return nval
+          nval.push(['addnum',valA[i],valB[i]])
+        return dofun(nval)
       },
-      subnum: val => dofun(['addnum',val[1],dofun(['neg',val[2]])]),
+      subnum: val => dofun(['addnum',val[1],['neg',val[2]]]),
+
+      cross: val => {
+        val = dofun(val[1])
+        if (val[0]!='vec') return val
+        for (var i=1;i<val.length;++i)
+          if (val[i][0]!='vec') return val
+
+        var retZ = ['vec',['num',1],['num',0],['num',0]]
+
+        var ret = ['vec']
+        var len = val.length
+
+        for (var i=1;i<=len;++i) {
+          var retS = ['vec']
+          for (var h=1;h<len;++h) {
+            var retH = ['vec']
+            for (var j=1;j<len;++j){
+              var k = (i+j)%(len+1)
+              k = k < i ? k+1:k
+              retH.push(val[h][k])
+            }
+            retS.push(retH)
+          }
+          ret.push(['det',retS])
+          // err(dofun(retS))
+        }
+
+        ret = dofun(ret)
+        err(ret)
+        return ret
+      },
+
+      // NxN $num matrix
+      det: val => {
+        val = dofun(val[1])
+        if (val[0]!='vec') return val
+        for (var i=1;i<val.length;++i)
+          if (val[i][0]!='vec') return val
+
+        if (val.length==3) {
+          var valA = val[1]
+          var valB = val[2]
+          var retA = ['mulS',valA[1],valB[2]]
+          var retB = ['mulS',valB[1],valA[2]]
+          return dofun(['subnum',retA,retB])
+        }
+
+        var ret = ['sum']
+        for (var i=1;i<val.length;++i) {
+          var valS = val[1][i]
+          var retS = ['vec']
+          for (var h=2;h<val.length;++h){
+            var retH = ['vec']
+            for (var j=1;j<val.length-1;++j) {
+              var k = (i+j)%val.length
+              k = k < i ? k+1:k
+              retH.push(val[h][k])
+            }
+            retS.push(retH)
+          }
+          ret.push(['mulS',['det',retS],valS])
+        }
+        return dofun(ret)
+      },
     }
 
     function hashcnvrt(arg) {
@@ -972,8 +1054,8 @@ PT.fcc = function() {
       true: ['val','$bol',['bol',true]],
       false: ['val','$bol',['bol',false]],
       return: ['nat',['ret','#@ $typ $val']],
-      stat: ['nat',['stat','#@']],
-      vec: ['nat',['vec',['@','#vec $typ $int']]],
+      stat: ['nat',['pass','#@']],
+      vec: ['nat',['pass',['@','#vec $typ $int']]],
       abs: ['nat',['abs','#@ $allnum $val']],
       not: ['nat',['not','#@ $allbol $val']],
       mod: ['nat',['mod','#@ $vec2 $val']],
@@ -984,7 +1066,10 @@ PT.fcc = function() {
         ['dotvecbol', ['@', '#vec $allbol 2', '$val']],
         ['dottupbol', ['@', '#tup $allbolA $allbolB', '$val']]
       ],
-      cross: ['nat',['cross',['@',['vec',['vec','$num','$int'],'$int'],'$val']]],
+      cross: ['nat',
+        ['invrt',['@','$cmplx','$val']],
+        ['cross',['@',['vec',['vec','$num','$int'],'$int'],'$val']],
+      ],
       atan2: ['nat',['atan2',['@','#vec $cmplx 2','val']]],
       comp: ['nat',
         ['donat','#nat ..','#@'],
@@ -1001,7 +1086,7 @@ PT.fcc = function() {
       ],
       tup: ['nat',
         ['tupvoid'],
-        ['tuppass','#@'],
+        ['pass','#@'],
         ['vectyp','#typ $typ', '#typ $typ', '..'],
         ['tuptyp','#typ $typA', '#typ $typB', '..'],
         ['vecdef','#def $typ $var', '#def $typ $var', '..'],
@@ -1052,6 +1137,8 @@ PT.fcc = function() {
     function cmplxmath(tok) {
       return (state,args) => {
         var val = gettoks.val(args[0])
+        if (val[0]!='vec') return ['val',['vec',['num'],2],dofun([tok,val])]
+
         var valA = val[1]
         var valB = val[2]
         if (valA[0] != 'vec') valA = ['vec',valA,['num',0]]
@@ -1068,9 +1155,11 @@ PT.fcc = function() {
         state.vars.push(nvar)
         return ['var',['void'],nvar]
       },
+
       // num $wrd
       //   -> [val $num $val]
       'num': (state,arg) => ['val',['num'],dofun(['num',arg])],
+
       // ret [@ $typ $val]
       //   -> [typ $void]
       'ret': (state,args) => {
@@ -1078,10 +1167,12 @@ PT.fcc = function() {
         state.scp.ret = args[0]
         return ['typ',['void']]
       },
+
       // stat [@]
-      'stat': (state,args) => args[0],
       // vec [@ [vec $typ $int]]
-      'vec': (state,args) => args[0],
+      // tuppass [@]
+      'pass': (state,args) => args[0],
+
       // abs [@ $allnum $val]
       'abs': (state,args) => {
         var val = gettoks.val(args[0])
@@ -1089,21 +1180,21 @@ PT.fcc = function() {
         if (typ[0]=='num'||typ[0]=='vec'&&typ[1][0]=='num')
           return ['val',['num'],dofun(['abs',val])]
 
-        // if (typ[0]=='vec') {
-        //   if (typ[1][0]=='vec') {
-        //     if (typ[2]!=typ[1][2]) throw `illegal det lens ${typ[2]} & ${typ[1][2]}`
-        //
-        //   }
-        // }
-        throw `no det support yet`
+        if (typ[0]!='vec'||typ[1][0]!='vec'||typ[1][1][0]!='num')
+          throw ['illegal abs of typ', typ]
+        if (typ[2]!=typ[1][2]) throw `can only find the det of a sqr mtrx`
+        return ['val',['num'],dofun(['det',typ[2],val])]
       },
+
       // not [@ $allbol $val]
       'not': (state,args) => ['val',gettoks.typ(args[0]),dofun(['not',args[0]])],
+
       // mod [@ $vec2 $val]
       'mod': (state,args) => {
         var val = gettoks.val(args[0])
         return ['val',['num'],dofun(['mod',val[1],val[2]])]
       },
+
       // xor [@ [vec $allbol 2] $val]
       //   -> [@ $allbol $val]
       'xor': (state,args) => {
@@ -1111,17 +1202,32 @@ PT.fcc = function() {
         var typ = gettoks.typ(args[0])[1] // $allbol
         return ['val',typ,dofun(['xor',val[1],val[2]])]
       },
+
+      // invrt [@ $cmplx $val]]
+      'invrt': (state,args) => {
+        var typ = gettoks.typ(args[0])
+        var val = gettoks.val(args[0])
+        if (typ[0]=='num') return allevals.negnum(state,args)
+        if (typ[0]=='vec') return ['val',typ,dofun(['invrt',val])]
+        throw [`illegal invrt typ`,srfy(typ)]
+      },
+
       // cross [@ [vec [vec $num $int] $int] $val]
       //   -> [@ $allnum $val]
       'cross': (state,args) => {
         var typ = gettoks.typ(args[0])
-        var len = typ
+        var len = typ[2]
         var vtyp = typ[1]
-
+        var vlen = vtyp[2]
         var val = gettoks.val(args[0])
+        if (len==vlen) return ['val',['num'],dofun(['det',val])]
+        if (len==vlen-1) return ['val',vtyp,dofun(['cross',val])]
+        throw `illegal cross typ ${srfy(typ)}`
       },
+
       // donat [nat ..] [@]
       'donat': (state,args) => matchnat(state,args[0],[args[1]]),
+
       // dolam [@ [lam $typA $typB] $val] [@ $typA $val]
       //   -> [val $typB $val]
       'dolam': (state,args) => {
@@ -1134,6 +1240,7 @@ PT.fcc = function() {
         // TODO
         throw 'dolam TODO'
       },
+
       // newvec [typ $typ] [@ $num $int]
       //   -> [typ [vec $typ $int]]
       'newvec': (state,args) => {
@@ -1142,6 +1249,7 @@ PT.fcc = function() {
         if (len > 0) return ['typ',['vec',typ,len]]
         else throw `invalid vec len ${len}`
       },
+
       // newdef [typ $typA] [var $typB $var]
       //   -> [def $typA $var]
       'newdef': (state,args) => {
@@ -1152,6 +1260,7 @@ PT.fcc = function() {
         state.scp.tbl[ovar[2]] = ['var',typ,nvar]
         return ['def',typ,nvar]
       },
+
       // lamtyp [typ $typA] [typ $typB]
       //   -> [typ [lam $typA $typB]]
       'lamtyp': (state,args) => {
@@ -1161,12 +1270,14 @@ PT.fcc = function() {
       },
       // typcoerce [@ $typA $val] [typ $typB]
       //   -> [@ $typB $val]
+
       'typcoerce': (state,args) => {
         // TODO
         throw 'typcoerce TODO'
       },
       // deflam [def $typA $var] [@ $typB $val]
       //   -> [val [lam $typA $typB] $val]
+
       'deflam': (state,args) => {
         var typA = gettoks.typ(args[0])
         var vars = gettoks.vars(args[0])
@@ -1174,6 +1285,7 @@ PT.fcc = function() {
         var val = gettoks.val(args[1])
         return ['val',['lam',typA,typB],dofun(['lam',vars,val])]
       },
+
       // parlam [par $typA $vars] [@ $typB $val]
       //   -> [val [lam $typA $typB] $val]
       'parlam': (state,args) => {
@@ -1183,6 +1295,7 @@ PT.fcc = function() {
         var val = gettoks.val(args[1])
         return ['val',['lam',typA,typB],dofun(['lam',vars,val])]
       },
+
       // setlam [def $typ $var] [@ [lam $typB $typA] $val]
       //   -> [typ $void]
       'setlam': (state,args) => {
@@ -1194,6 +1307,7 @@ PT.fcc = function() {
         ovar[1].tbl[ovar[2]] = ['var',lamtyp,ovar,val]
         return ['typ',['void']]
       },
+
       // cmpnum [@ $allnumA $val] [@ $allnumB $val]
       //   -> [@ $allnum $val]
       'cmpnum': (state,args) => {
@@ -1206,18 +1320,18 @@ PT.fcc = function() {
 
         throw 'cmpnum TODO'
       },
+
       // cmpbol [@ $allbolA $val] [@ $allbolB $val]
       //   -> [@ $allnum $val]
       'cmpbol': (state,args) => {
         // TODO
         throw 'cmpbol TODO'
       },
+
       // tupvoid
       //   -> [typ $void]
       'tupvoid': () => ['typ',['void']],
-      // tuppass [@]
-      //   -> [@]
-      'tuppass': (state,args) => args[0],
+
       // vectyp [typ $typ] [typ $typ] ..
       //   -> [typ [vec $typ $int]]
       'vectyp': (state,args) => {
@@ -1225,6 +1339,7 @@ PT.fcc = function() {
         var typ = gettoks.typ(args[0])
         return ['typ',['vec',typ,len]]
       },
+
       // tuptyp [typ $typA] [typ $typB] ..
       //   -> [typ [tup $typA $typB ..]]
       'tuptyp': (state,args) => {
@@ -1232,6 +1347,7 @@ PT.fcc = function() {
         for (var i in args) typ.push(gettoks.typ(args[i]))
         return ['typ',typ]
       },
+
       // vecdef [def $typ $var] [def $typ $var] ..
       //   -> [par [vec $typ $int] $vars]
       'vecdef': (state,args) => {
@@ -1241,6 +1357,7 @@ PT.fcc = function() {
         for (var i in args) vars.push(gettoks.var(args[i]))
         return ['par',['vec',typ,len],vars]
       },
+
       // tupdef [def $typA $var] [def $typB $var] ..
       //   -> [par [tup $typA $typB ..] $vars]
       'tupdef': (state,args) => {
@@ -1252,6 +1369,7 @@ PT.fcc = function() {
         }
         return ['par',typ,vars]
       },
+
       // vecval [@ $typ $val] [@ typ $val] ..
       //   -> [val [vec $typ $int] $val]
       'vecval': (state,args) => {
@@ -1261,6 +1379,7 @@ PT.fcc = function() {
         for (var i in args) val.push(gettoks.val(args[i]))
         return ['val',['vec',typ,len],dofun(val)]
       },
+
       // tupval [@ $typA $val] [@ typB $val] ..
       //   -> [val [tup $typA $typB ..] $val]
       'tupval': (state,args) => {
@@ -1272,6 +1391,7 @@ PT.fcc = function() {
         }
         return ['val',typ,dofun(val)]
       },
+
       // conop [@ $bol $val] [@ $typ $val] [@ $typ $val]
       //   -> [val $typ $val]
       'conop': (state,args) => {
@@ -1281,9 +1401,11 @@ PT.fcc = function() {
         var valB = gettoks.val(args[1])
         return ['val',typ,dofun(['conop',bol,valA,valB])]
       },
+
       // scp ..
       //   -> [val $typ $val]
       'scp': (state,args) => state.scp.ret || ['typ',['void']],
+
       // settyp [var [typ $typA] $var] [typ $typB]
       //   -> [typ $typB]
       'settyp': (state,args) => {
@@ -1291,6 +1413,7 @@ PT.fcc = function() {
         tvar[1].tbl[tvar[2]] = ['var',args[1],tvar]
         return args[1]
       },
+
       // setvar [var $typ $var] [@ $typ $val]
       //   -> [@ $typ $val]
       'setvar': (state,args) => {
@@ -1300,6 +1423,7 @@ PT.fcc = function() {
         tvar[1].tbl[tvar[2]] = ['var',typ,tvar,val]
         return ['val',typ,val]
       },
+
       // setdef [def $typ $var] [@ $typ $val]
       //   -> [typ $void]
       'setdef': (state,args) => {
@@ -1309,18 +1433,25 @@ PT.fcc = function() {
         tvar[1].tbl[tvar[2]] = ['var',typ,tvar,val]
         return ['typ',['void']]
       },
+
       // idxvectyp [typ [vec $typ $int]] [val $num $int]
       //   -> [typ $typ]
+
       // idxvecvar [typ [tup $typA $typB ..]] [val $num $int]
       //   -> [typ $typ]
+
       // idxvecval [var [vec $typ $int] $var $val] [val $num $int]
       //   -> [var $typ $var $val]
+
       // idxtuptyp [var [tup $typA $typB ..] $var $val] [val $num $int]
       //   -> [var $typ $var $val]
+
       // idxtupvar [val [vec $typ $int] $val] [val $num $int]
       //   -> [val $typ $val]
+
       // idxtupval [val [tup $typA $typB ..] $val] [val $num $int]
       //   -> [val $typ $val]
+
       // pdec [var $num $var $val]
       //   -> [val $num $val]
       'pdec': (state,args) => {
@@ -1330,6 +1461,7 @@ PT.fcc = function() {
         tvar[1].tbl[tvar[2]] = ['var',['num'],tvar,nval]
         return ['val',['num'],nval]
       },
+
       // pinc [var $num $var $val]
       //   -> [val $num $val]
       'pinc': (state,args) => {
@@ -1339,6 +1471,7 @@ PT.fcc = function() {
         tvar[1].tbl[tvar[2]] = ['var',['num'],tvar,nval]
         return ['val',['num'],nval]
       },
+
       // dec [var $num $var $val]
       //   -> [val $num $val]
       'dec': (state,args) => {
@@ -1348,6 +1481,7 @@ PT.fcc = function() {
         tvar[1].tbl[tvar[2]] = ['var',['num'],tvar,nval]
         return ['val',['num'],val]
       },
+
       // inc [var $num $var $val]
       //   -> [val $num $val]
       'inc': (state,args) => {
@@ -1357,30 +1491,39 @@ PT.fcc = function() {
         tvar[1].tbl[tvar[2]] = ['var',['num'],tvar,nval]
         return ['val',['num'],val]
       },
+
       // negnum [@ $allnum $val]
       //   -> [@ $allnum $val]
       'negnum': (state,args) => ['val',gettoks.typ(args[0]),dofun(['neg',gettoks.val(args[0])])],
+
       // negbol [@ $allbol $val]
       //   -> [@ $allbol $val]
       'negbol': (state,args) => ['val',gettoks.typ(args[0]),dofun(['not',gettoks.val(args[0])])],
+
       // posnum [@ $allnum $val]
       //   -> [@ $allnum $val]
       'posnum': (state,args) => ['val',gettoks.typ(args[0]),gettoks.val(args[0])],
+
       // posbol [@ $allbol $val]
       //   -> [@ $allbol $val]
       'posbol': (state,args) => ['val',gettoks.typ(args[0]),gettoks.val(args[0])],
+
       // powvec [@ [vec $cmplx 2] $val]
       //   -> [val $vec2 $val]
-      'powvec': cmplxmath('pow'),
+      'powvec': cmplxmath('powvec'),
+
       // powtup [@ [tup $cmplxA $cmplxB] $val]
       //   -> [val $vec2 $val]
-      'powtup': cmplxmath('pow'),
+      'powtup': cmplxmath('powtup'),
+
       // mulvec [@ [vec $cmplx 2] $val]
       //   -> [val $vec2 $val]
-      'mulvec': cmplxmath('mul'),
+      'mulvec': cmplxmath('mulvec'),
+
       // multup [@ [tup $cmplxA $cmplxB] $val]
       //   -> [val $vec2 $val]
-      'multup': cmplxmath('mul'),
+      'multup': cmplxmath('multup'),
+
       // divnum [@ [vec $num 2] $val]
       //   -> [val $num $val]
       // divnum [@ [tup $allnum $num] $val]
@@ -1392,12 +1535,15 @@ PT.fcc = function() {
         var typ = gettoks.typ(args[0])[1]
         return ['val',typ,dofun(['divS',valA,valB])]
       },
+
       // divvec [@ [vec $cmplx 2] $val]
       //   -> [val $vec2 $val]
-      'divvec': cmplxmath('div'),
+      'divvec': cmplxmath('divvec'),
+
       // divtup [@ [tup $cmplxA $cmplxB] $val]
       //   -> [val $vec2 $val]
-      'divvec': cmplxmath('div'),
+      'divtup': cmplxmath('divtup'),
+
       // addnum [@ [vec $allnum 2] $val]
       'addnum': (state,args) => {
         var val = gettoks.val(args[0])
@@ -1406,7 +1552,9 @@ PT.fcc = function() {
         var valB = val[2]
         return ['val',typ,dofun(['addnum',valA,valB])]
       },
+
       // addbol [@ [vec $allbol 2] $val]
+
       // subnum [@ [vec $allnum 2] $val]
       'subnum': (state,args) => {
         var val = gettoks.val(args[0])
@@ -1415,30 +1563,55 @@ PT.fcc = function() {
         var valB = val[2]
         return ['val',typ,dofun(['subnum',valA,valB])]
       },
+
       // subbol [@ [vec $allbol 2] $val]
+
       // dotvecnum [@ [vec $allnum 2] $val]
+
       // dottupnum [@ [tup $allnumA $allnumB] $val]
+
       // dotvecbol [@ [vec $allbol 2] $val]
+
       // dottupbol [@ [tup $allbolA $allbolB] $val]
+
       // equ [@ [vec $typ 2] $val]
+
       // neq [@ [vec $typ 2] $val]
+
       // gtr [@ $vec2 $val]
+
       // les [@ $vec2 $val]
+
       // leq [@ $vec2 $val]
+
       // geq [@ $vec2 $val]
+
       // sin [@ $cmplx $val]
+
       // cos [@ $cmplx $val]
+
       // tan [@ $cmplx $val]
+
       // csc [@ $cmplx $val]
+
       // sec [@ $cmplx $val]
+
       // cot [@ $cmplx $val]
+
       // asin [@ $cmplx $val]
+
       // acos [@ $cmplx $val]
+
       // atan [@ $cmplx $val]
+
       // acsc [@ $cmplx $val]
+
       // asec [@ $cmplx $val]
+
       // acot [@ $cmplx $val]
+
       // atan2 [@ [vec $cmplx 2] $val]
+
     }
 
     // matchnat helpers
@@ -1528,7 +1701,10 @@ PT.fcc = function() {
         if (matchnatsub(state,nat[i],args)) {
           if (!allevals[nat[i][0]]) throw [`missing eval`,nat[i]]
           var ret = allevals[nat[i][0]](state,args)
-          log('ret',ret,JSON.stringify(nat[i]),args)
+          var nati = nat[i][0]
+          if (nati!='pass') {
+            log('ret',ret,srfy(nat[i]),args)
+          }
           return ret
         }
       }
