@@ -4,29 +4,18 @@
 <script>
 
   var temp = `
-  // (vec3 main)(vec3 a, vec3 b) {
-  //   // vec3 c = -(b - a)
-  //   // vec3 d = [1,2,3]
-  //   // vec3 k = [4,3,2]
-  //   // k = 3 k
-  //   // num r = -7 % 10
-  //   // vec3 e = (d - k) / |k|
-  //
-  //   // num l = |[[1,1],[1,1]]|
-  //
-  //   // return (e + c / |c|)
-  //   return []
-  // }
+    vec3 k = [1,2,3]
+    num l = k.1
 
+    (num unit)(vec3 a) {
+      return |a|
+    }
 
-    (num 5) a = [1,0,0,0,0]
-    (num 5) b = [0,1,0,0,0]
-    (num 5) c = [0,0,1,0,0]
-    (num 5) d = [0,0,0,1,0]
-    (num 5) e = [0,0,0,0,1]
-    cross(a,b,c,d,e)
-
-    cross([1,0,0,0],[0,0,1,0],[0,1,0,0])
+    (num main)(vec3 a, vec3 b, vec3 c) {
+      num m = b.1
+      c = a - b
+      return (m + (unit(c))cross(a,b,[1,2,3]))
+    }
   `
 
   log(PT.fcc(temp))

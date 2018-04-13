@@ -113,7 +113,7 @@ funs
   mul ['vec' $num $num] ['vec' $num $num]
   div ['vec' $num $num] ['vec' $num $num]
   divS $allnum $num
-  scal $allnum $num
+  mulS $allnum $num
   addnum $allnum $allnum
   subnum $allnum $allnum
 
@@ -356,7 +356,7 @@ nats
     ($tok)vec [@ [vec $cmplx 2] $val]
       -> [val $vec2 $val]
     ($tok)tup [@ [tup $cmplxA $cmplxB] $val]
-      -> [val $vec2 $val]
+      -mulSal $vec2 $val]
   add sub: nat
     $tok [@ [vec $allnum 2] $val]
     $tok [@ [vec $allbol 2] $val]
@@ -373,3 +373,61 @@ nats
     $tok [@ $cmplx $val]
   atan2
     $tok [@ [vec $cmplx 2] $val]
+
+
+
+  dofun
+    var ..
+    num $int
+    bol $bol
+    farg ..
+    vec ..
+    lam $vars $val
+
+    abs $num
+    abs (vec $num $int)
+    sqr $num
+    sqrt $num
+    not $allbol
+    mod $vec2
+    xor (vec $allbol 2)
+    invrt $vec2
+    mulS [vec $allnum $num]
+    andS [vec $allbol $bol]
+    divS [vec $allnum $num]
+    conop $bol $typ $typ
+    sum $num $num ..
+    neg $allnum
+    add [vec $allnum $allnum]
+    or [vec $allbol $allbol]
+    sub [vec $allnum $allnum]
+    ornot [vec $allbol $allbol]
+    dot (vec (vec $num $int) 2)
+
+    idx (vec $typ $int) (num $int)
+    det (vec (vec $num $int) $int)
+    cross (vec (vec $num $int) ($int-1))
+    dolam (lam $typA $typB) $typA
+
+    bolmath: equ [vec $typ $typ]
+    bolmath: neq [vec $typ $typ]
+    bolmath: gtr $vec2
+    bolmath: les $vec2
+    bolmath: leq $vec2
+    bolmath: geq $vec2
+    complx: pow [vec $cmplx $cmplx]
+    complx: mul [vec $cmplx $cmplx]
+    complx: div [vec $cmplx $cmplx]
+    complx: sin $cmplx
+    complx: cos $cmplx
+    complx: tan $cmplx
+    complx: csc $cmplx
+    complx: sec $cmplx
+    complx: cot $cmplx
+    complx: asin $cmplx
+    complx: acos $cmplx
+    complx: atan $cmplx
+    complx: acsc $cmplx
+    complx: asec $cmplx
+    complx: acot $cmplx
+    complx: atan2 [vec $cmplx $cmplx]
