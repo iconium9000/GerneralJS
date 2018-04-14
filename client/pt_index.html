@@ -11,6 +11,24 @@
       return |a|
     }
 
+    (num test)(num k){
+      return (2 k)
+    }
+
+    ((num,num (num,num num,num num)) getlam)(num a) {
+      ((num,num num,num num) lamt)(num k) {
+        (num lamb)(num b) {
+          k = k + 1
+          return (b + a + k)
+        }
+        (num lamp)(num p) {
+          return (a + k + p)
+        }
+        return (a + k,lamb,lamp)
+      }
+      return (a,lamt)
+    }
+
     (num main)(vec3 a, vec3 b, vec3 c) {
       num m = b.1
       c = a - b

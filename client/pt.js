@@ -832,7 +832,7 @@ PT.fcc = function() {
       typ: arg => arg[0] == 'nat' || arg[1],
       var: arg => (arg[0] == 'var' || arg[0] == 'def') && arg[2],
       vars: arg => {
-        if (arg[0] == 'var' || arg[0] == 'def') return [arg[2]]
+        if (arg[0] == 'var' || arg[0] == 'def') return ['vars',arg[2]]
         if (arg[0] == 'par') return arg[2]
       },
       val: arg => arg[0] == 'val' ?
@@ -848,6 +848,7 @@ PT.fcc = function() {
     var count = 100
 
     function dofun(val) {
+      // err('dofun',val)
       if (dofun.all[val[0]])
         return dofun.all[val[0]](val)
       else throw [`invalid dofun ${val[0]}`, val]
@@ -861,18 +862,22 @@ PT.fcc = function() {
       return ret
     }
     function replam(vars,reps,stat) {
-      // err('replam',vars,reps,stat)
+      err('replam',vars,reps,stat)
       if (stat[0]=='var'){
         var stat3 = stat[3]
-        for (var i in vars) if (vars[i][3]==stat3)return reps[i]
+        for (var i=1;i<vars.length;++i)
+          if (vars[i][3]==stat3)
+            return reps[i]
         return stat
       }
-      if (stat[0]=='num'||stat[0]=='bol') return stat
+      var root = stat[0]
+      if (root=='num'||root=='bol'||root=='farg') return stat
       return dofun(doall(stat[0],s=>replam(vars,reps,s),stat))
     }
 
     dofun.all = {
       var: val => val,
+      vars: val => val,
       num: val => val,
       bol: val => val,
       farg: val => val,
@@ -1129,16 +1134,15 @@ PT.fcc = function() {
         return valA[idx+1]
       },
       dolam: val => {
+        err('dolam',val)
         var lam = dofun(val[1])
         var arg = dofun(val[2])
         var lamP = lam[1]
         var lamR = lam[2]
 
-        if (lamP.length==1) arg = [arg]
-        else {
-          if (arg[0]!='vec') return ['dolam',lam,arg]
-          arg = arg.slice(1)
-        }
+
+        if (lamP.length==2) arg = arg//['vec',arg]
+        else if (arg[0]!='vec') return ['dolam',lam,arg]
 
         return replam(lamP,arg,lamR)
       },
@@ -1327,9 +1331,10 @@ PT.fcc = function() {
       // var $wrd
       //   -> [var $void $var]
       'var': (state,arg) => {
-        var nvar = dofun(['var',state.scp,arg,state.vars.length])
+        var typ = ['void']
+        var nvar = dofun(['var',state.scp,arg,state.vars.length,typ])
         state.vars.push(nvar)
-        return ['var',['void'],nvar]
+        return ['var',typ,nvar]
       },
 
       // num $wrd
@@ -1424,7 +1429,7 @@ PT.fcc = function() {
       'newdef': (state,args) => {
         var typ = gettoks.typ(args[0])
         var ovar = gettoks.var(args[1])
-        var nvar = dofun(['var',state.scp,ovar[2],state.vars.length])
+        var nvar = dofun(['var',state.scp,ovar[2],state.vars.length,typ])
         state.vars.push(nvar)
         state.scp.tbl[ovar[2]] = ['var',typ,nvar]
         return ['def',typ,nvar]
@@ -1454,7 +1459,7 @@ PT.fcc = function() {
         var vars = gettoks.vars(args[0])
         var typB = gettoks.typ(args[1])
         var val = gettoks.val(args[1])
-        for (var i in vars) {
+        for(var i=1;i<vars.length;++i) {
           var v = vars[i]
           var scp = v[1]
           var nam = v[2]
@@ -1531,7 +1536,7 @@ PT.fcc = function() {
       'vecdef': (state,args) => {
         var len = args.length
         var typ = gettoks.typ(args[0])
-        var vars = []
+        var vars = ['vars']
         for (var i in args) vars.push(gettoks.var(args[i]))
         return ['par',['vec',typ,len],vars]
       },
@@ -1540,7 +1545,7 @@ PT.fcc = function() {
       //   -> [par [tup $typA $typB ..] $vars]
       'tupdef': (state,args) => {
         var typ = ['tup']
-        var vars = []
+        var vars = ['vars']
         for (var i in args) {
           typ.push(gettoks.typ(args[i]))
           vars.push(gettoks.var(args[i]))
@@ -1958,17 +1963,16 @@ PT.fcc = function() {
       return ret
     }
 
-    function isdefined(val) {
-      if (typeof val != 'object') return true
-      if (val[0] == 'var') return false
+    function checkdefined(val,nam) {
+      if (typeof val != 'object' || val[0]=='lam') return
+      if (val[0] == 'var') throw `'${nam}' is not defined`
       for (var i=1;i<val.length;++i)
-        if(!isdefined(val[i])) return false
-      return true
+        checkdefined(val[i],nam)
     }
 
     function getfarg(ptyp,fvars,d) {
-      d = d||[]
       var root = ptyp[0]
+      err('getfarg',ptyp,fvars,d)
       if (root=='num'||root=='bol') {
         var farg = ['farg'].concat(d)
         fvars.push(farg)
@@ -1989,43 +1993,46 @@ PT.fcc = function() {
       throw `illegal farg typ '${srfy(ptyp)}'`
     }
 
-    function getflist(val,reps,ints) {
+    function getflist(val,reps,aints,ints,nam,d) {
       var root = val[0]
       var ret = val
-      if (root!='num'&&root!='bol'&&root!='farg') {
-        ret = [root]
-        for (var i=1;i<val.length;++i)
-          ret.push(getflist(val[i],reps,ints))
+      if (root=='lam') ret = dolamary(val,reps,aints,nam,d+1)
+      else if (root!='num'&&root!='bol'&&root!='farg') {
+        ret = doall(root,v=>getflist(v,reps,aints,ints,nam,d),val)
       }
       var str = srfy(ret)
       var idx = reps[str]
       if (idx !== undefined) return idx
-      idx = ints.length
+      idx = aints.length
       reps[str] = idx
+      aints.push(ret)
       ints.push(ret)
       return idx
     }
-    function checkvar(state,tvar) {
-      var nam = tvar[2][2]
-      if (!tvar[3]) throw `'${nam}' is not defined`
-      var typ = gettoks.typ(tvar)
-      var val = gettoks.val(tvar)
-      if (typ[0]!='lam') {
-        if (!isdefined(val)) throw `'${nam}' is not defined`
-        return ['val',typ,val]
+    function dolamary(val,reps,aints,nam,d) {
+      if (val[0]!='lam') {
+        checkdefined(val)
+        return val
       }
 
-      var ptyp = typ[1]
-      var rtyp = typ[2]
+      // var ptyp = typ[1]
+      // var rtyp = typ[2]
       var vars = val[1]
+      // err('dolamary',ptyp,rtyp,vars)
 
-      var fvars = []
-      var farg = getfarg(ptyp,fvars)
+      // var fvars = []
+      // var farg = getfarg(ptyp,fvars,[])
+      // err('farg',farg)
+      var farg = doall('vec',v=>getfarg(v[4],[],[d]),vars)
+      err('farg',farg)
+      err('fdolam',val,farg)
       var lval = dofun(['dolam',val,farg])
-      if (!isdefined(lval)) throw `'${nam}' is not defined`
+      err('lval',lval)
 
-      var ints = ['lam']
-      var ret = getflist(lval,{},ints)
+      checkdefined(lval,nam)
+
+      var ints = ['lamary']
+      var ret = getflist(lval,reps,aints,ints,nam,d)
       return ints
     }
 
@@ -2063,7 +2070,16 @@ PT.fcc = function() {
       log('state',state)
 
       var rets = {}
-      for (var v in state.scp.tbl) rets[v] = checkvar(state,state.scp.tbl[v])
+      for (var v in state.scp.tbl) {
+        var tvar = state.scp.tbl[v]
+        var nam = tvar[2][2]
+        if (!tvar[3]) throw `'${nam}' is not defined`
+        var typ = gettoks.typ(tvar)
+        var val = gettoks.val(tvar)
+        var reps = {}
+        var aints = ['aints']
+        rets[v] = ['val',typ,dolamary(val,reps,aints,nam,0),aints]
+      }
 
       log('rets',rets)
       log('main',rets.main)

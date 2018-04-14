@@ -378,6 +378,7 @@ nats
 
   dofun
     var ..
+    vars ..
     num $int
     bol $bol
     farg ..
