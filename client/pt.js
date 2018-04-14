@@ -906,66 +906,95 @@ PT.fcc = function() {
         return dofun(doall('vec',v=>['not',v],val))
       },
       mod: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['mod',val]
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['mod',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
         if (valA[0]=='num'&&valB[0]=='num')
           return ['num',FU.mod(valA[1],valB[1])]
-        return ['mod',val]
+        return ['mod',valA,valB]
       },
       xor: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['xor',val]
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['xor',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
         if (valA[0]=='bol'&&valB[0]=='bol')
           return ['num',valA[1]^valB[1]]
         if (valA[0]=='vec'&&valB[0]=='vec')
-          return dofun(doall('vec',(a,b)=>['xor',['vec',a,b]],valA,valB))
-        return ['xor',val]
+          return dofun(doall('vec',(a,b)=>['xor',a,b],valA,valB))
+        return ['xor',valA,valB]
       },
       invrt: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['invrt',val]
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['invrt',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
         return dofun(['vec',['neg',valB],valA])
       },
       mulS: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['mulS',val]
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['mulS',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
         if (valA[0]=='num'&&valB[0]=='num') return ['num',valA[1]*valB[1]]
         if (valB[0]=='num'&&!valB[1]) return ['num',0]
-        if (valA[0]!='vec') return ['mulS',val]
-        return dofun(doall('vec',v=>['mulS',['vec',v,valB]],valA))
+        if (valA[0]!='vec') return ['mulS',valA,valB]
+        return dofun(doall('vec',v=>['mulS',v,valB],valA))
       },
       andS: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['andS',val]
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['andS',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
         if (valA[0]=='bol'&&valB[0]=='bol') return ['bol',valA[1]&&valB[1]]
         if (valB[0]=='bol'&&!valB[1]) return ['bol',false]
-        if (valA[0]!='vec') return ['andS',val]
-        return dofun(doall('vec',v=>['andS',['vec',v,valB]],valA))
+        if (valA[0]!='vec') return ['andS',valA,valB]
+        return dofun(doall('vec',v=>['andS',v,valB],valA))
       },
       divS: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['divS',val]
-        var valA = val[1]
-        var valB = val[2]
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['divS',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
         if (valA[0]=='num'&&valB[0]=='num') return ['num',valA[1]/valB[1]]
-        if (valA[0]!='vec') return ['divS',val]
-        return dofun(doall('vec',v=>['divS',['vec',v,valB]],valA))
+        if (valA[0]!='vec') return ['divS',valA,valB]
+        return dofun(doall('vec',v=>['divS',v,valB],valA))
       },
       conop: val => {
         var bol = dofun(val[1])
@@ -980,9 +1009,20 @@ PT.fcc = function() {
           v = dofun(v)
           if (v[0]=='num') sum+=v[1]
           else return v
-        })
-        if (ret[0]==1) return ['num',sum]
+        },val)
+        if (ret.length==1) return ['num',sum]
         if (sum) ret.push(['num',sum])
+        return ret
+      },
+      and: val => {
+        var and = true
+        var ret = doall('sum',v=>{
+          v = dofun(v)
+          if (v[0]=='bol') and = and && v[1]
+          else return v
+        },val)
+        if (ret.length==1) return ['bol',and]
+        if (!and) return ['bol',false]
         return ret
       },
       neg: val => {
@@ -993,29 +1033,93 @@ PT.fcc = function() {
         return dofun(doall('vec',v=>['neg',v],val))
       },
       add: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['add',val]
-        var valA = val[1]
-        var valB = val[2]
-        if (valA[0]!=valB[0]) return ['add',val]
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['add',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
+        if (valA[0]!=valB[0]) return ['add',valA,valB]
         if (valA[0]=='num') return ['num',valA[1]+valB[1]]
-        if (valA[0]!='vec') return ['add',val]
-        return dofun(doall('vec',(a,b)=>['add',['vec',a,b]],valA,valB))
+        if (valA[0]!='vec') return ['add',valA,valB]
+        return dofun(doall('vec',(a,b)=>['add',a,b],valA,valB))
       },
       or: val => {
-        val = dofun(val[1])
-        var root = val[0]
-        if (root!='vec') return ['or',val]
-        var valA = val[1]
-        var valB = val[2]
-        if (valA[0]!=valB[0]) return ['or',val]
-        if (valA[0]=='bol') return ['bol',valA[1]||valB[1]]
-        if (valA[0]!='vec') return ['or',val]
-        return dofun(doall('vec',(a,b)=>['or',['vec',a,b]],valA,valB))
-      },
-      sub: 
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
 
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['or',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
+        if (valA[0]!=valB[0]) return ['or',valA,valB]
+        if (valA[0]=='bol') return ['bol',valA[1]||valB[1]]
+        if (valA[0]!='vec') return ['or',valA,valB]
+        return dofun(doall('vec',(a,b)=>['or',a,b],valA,valB))
+      },
+      sub: val => {
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['sub',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
+        return dofun(['add',valA,['neg',valB]])
+      },
+      ornot: val => {
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['ornot',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+        return dofun(['or',valA,['not',valB]])
+      },
+      dot: val => {
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['dot',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+        if (valA[0]!='vec'||valB[0]!='vec')return ['dot',valA,valB]
+        return dofun(doall('sum',(a,b)=>['mulS',a,b],valA,valB))
+      },
+      equ: val => {
+        var valA = dofun(val[1])
+        var valB = val[2] && dofun(val[2])
+
+        if (!valB){
+          var root = valA[0]
+          if (root!='vec') return ['equ',valA]
+          valB = valA[2]
+          valA = valA[1]
+        }
+
+        if (valA[0]!=valB[0])return['equ',valA,valB]
+        if (valA[0]=='num'||valA[0]=='bol')return['bol',valA[1]==valB[1]]
+        if (valA[0]!='vec')return['equ',valA,valB]
+
+
+
+      },
 
       idx: val => {
         var valA = dofun(val[1])
@@ -1044,8 +1148,6 @@ PT.fcc = function() {
         for (var i=1;i<val.length;++i)
           if (val[i][0]!='vec') return ['cross',val]
 
-        var retZ = ['vec',['num',1],['num',0],['num',0]]
-
         var ret = ['vec']
         var len = val.length
 
@@ -1069,16 +1171,18 @@ PT.fcc = function() {
       },
       det: val => {
         val = dofun(val[1])
+
         if (val[0]!='vec') return  ['det',val]
         for (var i=1;i<val.length;++i)
           if (val[i][0]!='vec') return ['det',val]
+        // err('det',val)
 
         if (val.length==3) {
           var valA = val[1]
           var valB = val[2]
           var retA = ['mulS',valA[1],valB[2]]
           var retB = ['mulS',valB[1],valA[2]]
-          return dofun(['subnum',retA,retB])
+          return dofun(['sub',retA,retB])
         }
 
         var ret = ['sum']
@@ -1920,9 +2024,9 @@ PT.fcc = function() {
       var lval = dofun(['dolam',val,farg])
       if (!isdefined(lval)) throw `'${nam}' is not defined`
 
-      var ints = []
+      var ints = ['lam']
       var ret = getflist(lval,{},ints)
-      return ['lam',ints]
+      return ints
     }
 
     function checkListTypes(list) {
@@ -1957,12 +2061,12 @@ PT.fcc = function() {
         }
       }
       log('state',state)
-      log('main',state.scp.tbl.main)
 
       var rets = {}
       for (var v in state.scp.tbl) rets[v] = checkvar(state,state.scp.tbl[v])
 
       log('rets',rets)
+      log('main',rets.main)
     }
   }
 
