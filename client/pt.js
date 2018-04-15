@@ -2027,26 +2027,58 @@ PT.fcc = function() {
       var ret = getflist(lval,reps,aints,ints,nam,d)
       err('nam',nam)
       err('ints',ints,aints)
-      var gfarg = v => {
-        if (v[0]!=0)throw `TODO`
+      var tab = ''
+      for (var i=0;i<d;++i)tab+='\t'
 
+      var getint = idx => {
+        var int = aints[idx]
+        var ret = ''
+        var root = int[0]
+        if (root=='farg') {
+          ret += 'a'
+          for (var i=1;i<int.length;++i)
+            ret+=`[${int[i]}]`
+        }
+        else if (root=='num'||root=='bol')
+          ret = `${int[1]}`
+        else if (root=='mulS')
+          ret = `v[${int[1]}]*v[${int[2]}]`
+        else if (root=='add')
+          ret = `v[${int[1]}]+v[${int[2]}]`
+        else if (root=='neg')
+          ret = `-v[${int[1]}]`
+        else if (root=='sqr')
+          ret = `v[${int[1]}]*v[${int[1]}]`
+        else if (root=='sqr')
+          ret = `v[${int[1]}]*v[${int[1]}]`
+        else if (root=='sqrt')
+          ret = `Math.sqrt(v[${int[1]}])`
+
+        else ret = `${int}`
+        return ret
       }
-      var getint = int => {
-        return `${aints[int]}`
+
+      var tmpstr = vars.length==2?'arguments[0]':'arguments'
+      var str = `function() {\n`
+      if (d) {
+        str += `${tab}\ta[${d}] = ${tmpstr}\n`
       }
-      var str = `return function() {
-        var a = ${vars.length==2?'arguments[0]':'arguments'}
-        var v = []\n`
+      else {
+        str += `${tab}\tvar a = [${tmpstr}]\n`
+        str += `${tab}\tvar v = []\n`
+      }
+
       err('vars',vars.length-1)
       for (var i=0;i<ints.length;++i) {
-        var int = getint(ints[i])
-        str += `\t\t`
-        if (i==ints.length-1) str += 'return '
-        str += `${int}\n`
+        var idx = ints[i]
+        var int = getint(idx)
+        str += `${tab}\t`
+        if (i==ints.length-1) str += `return ${int}\n`
+        else str += `v[${idx}] = ${int}\n`
       }
-      str+='\t}'
+      str+=`${tab}}`
       err('str',str)
-      return ['lamstr',]
+      return str
     }
 
     function checkListTypes(list) {
