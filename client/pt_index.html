@@ -22,13 +22,21 @@
       return 2 a
     }
 
-    ((num, num num) lamA)(num a) {
-      num ta = a
+    ((num, num num, num num) lamA)(num a) {
+      // num ta = a
       (num lamB)(num b) {
-        a = b
         return (a + b)
       }
-      return (ta,lamB)
+      (num lamC)(num c) {
+        return (a + c)
+      }
+      // ((num, num num) lamC)(num c) {
+      //   (num lamD)(num d) {
+      //     return (a + c + d)
+      //   }
+      //   return (c,lamD)
+      // }
+      return (a,lamB,lamC)
     }
 
     (num main)(vec3 a, vec3 b, vec3 c) {

@@ -861,18 +861,18 @@ PT.fcc = function() {
       }
       return ret
     }
-    function replam(vars,reps,stat) {
-      err('replam',vars,reps,stat)
+    function replam(vars,arg,stat) {
+      // err('replam',vars,arg,stat)
       if (stat[0]=='var'){
         var stat3 = stat[3]
         for (var i=1;i<vars.length;++i)
           if (vars[i][3]==stat3)
-            return reps[i]
+            return arg[i]
         return stat
       }
       var root = stat[0]
       if (root=='num'||root=='bol'||root=='farg') return stat
-      return dofun(doall(stat[0],s=>replam(vars,reps,s),stat))
+      return dofun(doall(stat[0],s=>replam(vars,arg,s),stat))
     }
 
     dofun.all = {
@@ -967,6 +967,10 @@ PT.fcc = function() {
 
         if (valA[0]=='num'&&valB[0]=='num') return ['num',valA[1]*valB[1]]
         if (valB[0]=='num'&&!valB[1]) return ['num',0]
+        if (valB[0]=='num') {
+          if (!valB[1]) return ['num',0]
+          if (valB[1]==1) return valA
+        }
         if (valA[0]!='vec') return ['mulS',valA,valB]
         return dofun(doall('vec',v=>['mulS',v,valB],valA))
       },
@@ -998,6 +1002,7 @@ PT.fcc = function() {
         }
 
         if (valA[0]=='num'&&valB[0]=='num') return ['num',valA[1]/valB[1]]
+        if (valB[0]=='num'&&valB[0]==1) return valA
         if (valA[0]!='vec') return ['divS',valA,valB]
         return dofun(doall('vec',v=>['divS',v,valB],valA))
       },
@@ -1017,6 +1022,7 @@ PT.fcc = function() {
         },val)
         if (ret.length==1) return ['num',sum]
         if (sum) ret.push(['num',sum])
+        if (ret.length==2) return ret[1]
         return ret
       },
       and: val => {
@@ -1048,6 +1054,8 @@ PT.fcc = function() {
           valA = valA[1]
         }
 
+        if (valA[0]=='num'&&valA[1]==0)return valB
+        if (valB[0]=='num'&&valB[1]==0)return valA
         if (valA[0]!=valB[0]) return ['add',valA,valB]
         if (valA[0]=='num') return ['num',valA[1]+valB[1]]
         if (valA[0]!='vec') return ['add',valA,valB]
@@ -1134,7 +1142,7 @@ PT.fcc = function() {
         return valA[idx+1]
       },
       dolam: val => {
-        err('dolam',val)
+        // err('dolam',val)
         var lam = dofun(val[1])
         var arg = dofun(val[2])
         var lamP = lam[1]
@@ -1972,7 +1980,7 @@ PT.fcc = function() {
 
     function getfarg(ptyp,fvars,d) {
       var root = ptyp[0]
-      err('getfarg',ptyp,fvars,d)
+      // err('getfarg',ptyp,fvars,d)
       if (root=='num'||root=='bol') {
         var farg = ['farg'].concat(d)
         fvars.push(farg)
@@ -1997,17 +2005,52 @@ PT.fcc = function() {
       var root = val[0]
       var ret = val
       if (root=='lam') ret = dolamary(val,reps,aints,nam,d+1)
-      else if (root!='num'&&root!='bol'&&root!='farg') {
-        ret = doall(root,v=>getflist(v,reps,aints,ints,nam,d),val)
+      else if (root=='num'||root=='bol') return ret
+      else if (root=='farg') {
+        if (ret.length==2) return ret
       }
+      // else if (root=='neg') return ret
+      else ret = doall(root,v=>getflist(v,reps,aints,ints,nam,d),val)
+
       var str = srfy(ret)
       var idx = reps[str]
       if (idx !== undefined) return idx
-      idx = aints.length
+      idx = ['v',aints.length]
       reps[str] = idx
       aints.push(ret)
       ints.push(idx)
       return idx
+    }
+    function getint(int,aints) {
+      var f = getint.all[int[0]]
+      // err('getint',int)
+      return f ? f(int,aints) : int
+    }
+    getint.all = {
+      'v': int => `v[${int[1]}]`,
+      'num': int => int[1],
+      'farg': int => {
+        var ret = 'a'
+        for (var i=1;i<int.length;++i) ret += `[${int[i]}]`
+        return `${ret}`
+      },
+      'mulS': int => `(${getint(int[1])}*${getint(int[2])})`,
+      'add': int => `(${getint(int[1])}+${getint(int[2])})`,
+      'sqr': int => `(${getint(int[1])}*${getint(int[1])})`,
+      'sqrt': int => `Math.sqrt(${getint(int[1])})`,
+      'neg': int => `-${getint(int[1])}`,
+      'sum': int => {
+        var ret = `${getint(int[1])}`
+        for (var i=2;i<int.length;++i)
+          ret += `+${getint(int[i])}`
+        return `(${ret})`
+      },
+      'vec': int => {
+        var ret = `${getint(int[1])}`
+        for (var i=2;i<int.length;++i)
+          ret += `,${getint(int[i])}`
+        return `[${ret}]`
+      }
     }
     function dolamary(val,reps,aints,nam,d) {
       if (val[0]!='lam') {
@@ -2016,47 +2059,19 @@ PT.fcc = function() {
       }
       var vars = val[1]
       var farg = doall('vec',v=>getfarg(v[4],[],[d]),vars)
-      err('farg',farg)
-      err('fdolam',val,farg)
+      // err('farg',farg)
+      // err('fdolam',val,farg)
       var lval = dofun(['dolam',val,farg])
-      err('lval',lval)
+      // err('lval',lval)
 
       checkdefined(lval,nam)
 
       var ints = []
       var ret = getflist(lval,reps,aints,ints,nam,d)
-      err('nam',nam)
-      err('ints',ints,aints)
+      // err('nam',nam)
+      // err('ints',ints,aints)
       var tab = ''
       for (var i=0;i<d;++i)tab+='\t'
-
-      var getint = idx => {
-        var int = aints[idx]
-        var ret = ''
-        var root = int[0]
-        if (root=='farg') {
-          ret += 'a'
-          for (var i=1;i<int.length;++i)
-            ret+=`[${int[i]}]`
-        }
-        else if (root=='num'||root=='bol')
-          ret = `${int[1]}`
-        else if (root=='mulS')
-          ret = `v[${int[1]}]*v[${int[2]}]`
-        else if (root=='add')
-          ret = `v[${int[1]}]+v[${int[2]}]`
-        else if (root=='neg')
-          ret = `-v[${int[1]}]`
-        else if (root=='sqr')
-          ret = `v[${int[1]}]*v[${int[1]}]`
-        else if (root=='sqr')
-          ret = `v[${int[1]}]*v[${int[1]}]`
-        else if (root=='sqrt')
-          ret = `Math.sqrt(v[${int[1]}])`
-
-        else ret = `${int}`
-        return ret
-      }
 
       var tmpstr = vars.length==2?'arguments[0]':'arguments'
       var str = `function() {\n`
@@ -2068,10 +2083,11 @@ PT.fcc = function() {
         str += `${tab}\tvar v = []\n`
       }
 
-      err('vars',vars.length-1)
+      // err('vars',vars.length-1)
       for (var i=0;i<ints.length;++i) {
-        var idx = ints[i]
-        var int = getint(idx)
+        var int = ints[i]
+        var idx = int[1]
+        int = getint(aints[idx])
         str += `${tab}\t`
         if (i==ints.length-1) str += `return ${int}\n`
         else str += `v[${idx}] = ${int}\n`
@@ -2121,9 +2137,10 @@ PT.fcc = function() {
         if (!tvar[3]) throw `'${nam}' is not defined`
         var typ = gettoks.typ(tvar)
         var val = gettoks.val(tvar)
-        var reps = {}
+        var reps = []
         var aints = ['aints']
         rets[v] = ['val',typ,dolamary(val,reps,aints,nam,0),aints]
+        err('reps',reps)
       }
 
       log('rets',rets)
