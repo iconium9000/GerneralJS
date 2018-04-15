@@ -1122,7 +1122,7 @@ PT.fcc = function() {
         if (valA[0]=='num'||valA[0]=='bol')return['bol',valA[1]==valB[1]]
         if (valA[0]!='vec')return['equ',valA,valB]
 
-
+        throw `equ err`
 
       },
 
@@ -2006,7 +2006,7 @@ PT.fcc = function() {
       idx = aints.length
       reps[str] = idx
       aints.push(ret)
-      ints.push(ret)
+      ints.push(idx)
       return idx
     }
     function dolamary(val,reps,aints,nam,d) {
@@ -2014,15 +2014,7 @@ PT.fcc = function() {
         checkdefined(val)
         return val
       }
-
-      // var ptyp = typ[1]
-      // var rtyp = typ[2]
       var vars = val[1]
-      // err('dolamary',ptyp,rtyp,vars)
-
-      // var fvars = []
-      // var farg = getfarg(ptyp,fvars,[])
-      // err('farg',farg)
       var farg = doall('vec',v=>getfarg(v[4],[],[d]),vars)
       err('farg',farg)
       err('fdolam',val,farg)
@@ -2031,9 +2023,30 @@ PT.fcc = function() {
 
       checkdefined(lval,nam)
 
-      var ints = ['lamary']
+      var ints = []
       var ret = getflist(lval,reps,aints,ints,nam,d)
-      return ints
+      err('nam',nam)
+      err('ints',ints,aints)
+      var gfarg = v => {
+        if (v[0]!=0)throw `TODO`
+
+      }
+      var getint = int => {
+        return `${aints[int]}`
+      }
+      var str = `return function() {
+        var a = ${vars.length==2?'arguments[0]':'arguments'}
+        var v = []\n`
+      err('vars',vars.length-1)
+      for (var i=0;i<ints.length;++i) {
+        var int = getint(ints[i])
+        str += `\t\t`
+        if (i==ints.length-1) str += 'return '
+        str += `${int}\n`
+      }
+      str+='\t}'
+      err('str',str)
+      return ['lamstr',]
     }
 
     function checkListTypes(list) {
