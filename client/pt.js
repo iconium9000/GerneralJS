@@ -866,13 +866,20 @@ PT.fcc = function() {
       if (stat[0]=='var'){
         var stat3 = stat[3]
         for (var i=1;i<vars.length;++i)
-          if (vars[i][3]==stat3)
+          if (vars[i][3]==stat3) {
+            // err('replam var',stat,arg)
             return arg[i]
+          }
+        // err('replam v',stat)
         return stat
       }
       var root = stat[0]
+      // err('replam r',stat)
       if (root=='num'||root=='bol'||root=='farg') return stat
-      return dofun(doall(stat[0],s=>replam(vars,arg,s),stat))
+      return dofun(doall(stat[0],s=>{
+        // err('replam s',s)
+        return replam(vars,arg,s)
+      },stat))
     }
 
     dofun.all = {
@@ -1149,9 +1156,10 @@ PT.fcc = function() {
         var lamR = lam[2]
 
 
-        if (lamP.length==2) arg = arg//['vec',arg]
+        if (lamP.length==2) arg = ['vec',arg]
         else if (arg[0]!='vec') return ['dolam',lam,arg]
 
+        // err('dofun dolam',lam,arg)
         return replam(lamP,arg,lamR)
       },
       cross: val => {
@@ -1515,7 +1523,7 @@ PT.fcc = function() {
         if (typA[0] == 'bol') return ['val',typB,dofun(['andS',['vec',valB,valA]])]
         if (typB[0] == 'bol') return ['val',typA,dofun(['andS',['vec',valA,valB]])]
 
-        err(typA,typB)
+        // err(typA,typB)
         throw 'cmpbol TODO'
       },
 
@@ -1990,6 +1998,7 @@ PT.fcc = function() {
         var ret = ['vec']
         for (var i=0;i<ptyp[2];++i)
           ret.push(getfarg(ptyp[1],fvars,d.concat(i)))
+        // err('getfarg ret',ret)
         return ret
       }
       if (root=='tup') {
@@ -2013,11 +2022,19 @@ PT.fcc = function() {
       else ret = doall(root,v=>getflist(v,reps,aints,ints,nam,d),val)
 
       var str = srfy(ret)
-      var idx = reps[str]
-      if (idx !== undefined) return idx
-      idx = ['v',aints.length]
-      reps[str] = idx
-      aints.push(ret)
+      for (var r=d;r>=0;--r)
+        if (reps[r][str]) {
+          var vidx = reps[r][str]
+          var aint = aints[vidx[1]]
+          ++aint[1]
+          // err('vaint',aint)
+          return vidx
+        }
+      // err('getflist',d)
+
+      var idx = ['v',aints.length]
+      reps[d][str] = idx
+      aints.push([ret,1])
       ints.push(idx)
       return idx
     }
@@ -2027,28 +2044,37 @@ PT.fcc = function() {
       return f ? f(int,aints) : int
     }
     getint.all = {
-      'v': int => `v[${int[1]}]`,
+      'v': (int,aints) => {
+        var aint = aints[int[1]]
+        if (aint[1]>1) return `v${int[1]}`
+
+        return getint(aint[0],aints)
+        // err('vaint',aint)
+        // return `v${int[1]}`
+      },
       'num': int => int[1],
       'farg': int => {
-        var ret = 'a'
-        for (var i=1;i<int.length;++i) ret += `[${int[i]}]`
+        var ret = `a${int[1]}`
+        for (var i=2;i<int.length;++i) ret += `[${int[i]}]`
         return `${ret}`
       },
-      'mulS': int => `(${getint(int[1])}*${getint(int[2])})`,
-      'add': int => `(${getint(int[1])}+${getint(int[2])})`,
-      'sqr': int => `(${getint(int[1])}*${getint(int[1])})`,
-      'sqrt': int => `Math.sqrt(${getint(int[1])})`,
-      'neg': int => `-${getint(int[1])}`,
-      'sum': int => {
-        var ret = `${getint(int[1])}`
+      'lamstr': int => int[1],
+      'mulS': (int,a) => `(${getint(int[1],a)}*${getint(int[2],a)})`,
+      'add': (int,a) => `(${getint(int[1],a)}+${getint(int[2],a)})`,
+      'sqr': (int,a) => `(${getint(int[1],a)}*${getint(int[1],a)})`,
+      'sqrt': (int,a) => `Math.sqrt(${getint(int[1],a)})`,
+      'neg': (int,a) => `-${getint(int[1],a)}`,
+      'sum': (int,a) => {
+        var ret = `${getint(int[1],a)}`
         for (var i=2;i<int.length;++i)
-          ret += `+${getint(int[i])}`
+          ret += `+${getint(int[i],a)}`
         return `(${ret})`
       },
-      'vec': int => {
-        var ret = `${getint(int[1])}`
+      'vec': (int,a) => {
+        var ret = `${getint(int[1],a)}`
+        if (int.length==2) return ret
         for (var i=2;i<int.length;++i)
-          ret += `,${getint(int[i])}`
+          ret += `,${getint(int[i],a)}`
         return `[${ret}]`
       }
     }
@@ -2058,7 +2084,11 @@ PT.fcc = function() {
         return val
       }
       var vars = val[1]
-      var farg = doall('vec',v=>getfarg(v[4],[],[d]),vars)
+      var i = 0
+      var farg = doall('vec',v=>{
+        var td = vars.length>2?[d,i++]:[d]
+        return getfarg(v[4],[],td)
+      },vars)
       // err('farg',farg)
       // err('fdolam',val,farg)
       var lval = dofun(['dolam',val,farg])
@@ -2067,7 +2097,10 @@ PT.fcc = function() {
       checkdefined(lval,nam)
 
       var ints = []
+      reps[d] = {}
       var ret = getflist(lval,reps,aints,ints,nam,d)
+      // err('dolamary',ints)
+      // return ['lamary',ints]
       // err('nam',nam)
       // err('ints',ints,aints)
       var tab = ''
@@ -2075,26 +2108,24 @@ PT.fcc = function() {
 
       var tmpstr = vars.length==2?'arguments[0]':'arguments'
       var str = `function() {\n`
-      if (d) {
-        str += `${tab}\ta[${d}] = ${tmpstr}\n`
-      }
-      else {
-        str += `${tab}\tvar a = [${tmpstr}]\n`
-        str += `${tab}\tvar v = []\n`
-      }
+      str += `${tab}\tvar a${d} = ${tmpstr}\n`
 
       // err('vars',vars.length-1)
       for (var i=0;i<ints.length;++i) {
         var int = ints[i]
         var idx = int[1]
-        int = getint(aints[idx])
-        str += `${tab}\t`
-        if (i==ints.length-1) str += `return ${int}\n`
-        else str += `v[${idx}] = ${int}\n`
+        var aint = aints[idx]
+        int = getint(aint[0],aints)
+        if (aint[1]>1||i==ints.length-1) {
+          str += `${tab}\t`
+          if (i==ints.length-1) str += `return ${int}\n`
+          else str += `var v${idx} = ${int}\n`
+        }
       }
       str+=`${tab}}`
       err('str',str)
-      return str
+      err('aints',aints)
+      return ['lamstr',str]
     }
 
     function checkListTypes(list) {
