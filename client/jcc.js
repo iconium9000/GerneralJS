@@ -20,10 +20,30 @@ jcc = function() {
       rot = fun(ary[i],rot,i)
     return rot
   }
-  function hshcvt(ary) {
+  function split(str,key) {
+    var ary = str.split(key)
+    var ret = []
+    for (var i = 0; i < ary.length; ++i)
+      ary[i] && ret.push(ary[i])
+
+    return ret
+  }
+  function hvt(ary) {
     if (typeof ary == 'object')
-      return doall(ary[0],ary,hshcvt)
-    if (ary[0]=='#') return ary.slice(1).split(' ')
+      return doall(ary[0],ary,hvt)
+
+    if (ary[0]=='#') {
+      var s = split(ary,'#')
+      var r = null
+      for (var i=s.length-1;i>=0;--i) {
+        var t = split(s[i],' ')
+        r && t.push(r)
+        r = t
+      }
+
+      err('r',r)
+      return ary.slice(1).split(' ')
+    }
     return ary
   }
   function splitkey(ary,key,last) {
@@ -31,30 +51,7 @@ jcc = function() {
     if (rot=='txt') ary = ['vtxt',['stxt',ary[1]]]
     else if (rot!='vtxt') return null
 
-    if (last) {
-      for (var i=1;i<ary.length;++i) {
-        var stxt = ary[i]
-        if (stxt[0]!='stxt') continue
-        var txt = stxt[1]
-        var idx = txt.indexOf(key)
-        if (idx<0) continue
-
-        var spltA = txt.slice(0,idx)
-        var spltB = txt.slice(idx+key.length)
-        retA = ary.slice(0,i)
-        retA.push(['stxt',spltA])
-        retB = ary.slice(i+1)
-        retB.splice(0,0,'vtxt',['stxt',spltB])
-        return [retA,retB,i+idx]
-      }
-    }
-    else for (var i=ary.length-1;i>0;--i) {
-      var stxt = ary[i]
-      if (stxt[0]!='stxt') continue
-      var txt = stxt[1]
-      var idx = txt.lastIndexOf(key)
-      if (idx<0) continue
-
+    function dosplit(txt,idx,i) {
       var spltA = txt.slice(0,idx)
       var spltB = txt.slice(idx+key.length)
       retA = ary.slice(0,i)
@@ -63,29 +60,73 @@ jcc = function() {
       retB.splice(0,0,'vtxt',['stxt',spltB])
       return [retA,retB,i+idx]
     }
+    if (last) {
+      for (var i=1;i<ary.length;++i) {
+        var stxt = ary[i]
+        if (stxt[0]!='stxt') continue
+        var txt = stxt[1]
+        var idx = txt.indexOf(key)
+        if (idx<0) continue
+        return dosplit(txt,idx,i)
+      }
+    }
+    else for (var i=ary.length-1;i>0;--i) {
+      var stxt = ary[i]
+      if (stxt[0]!='stxt') continue
+      var txt = stxt[1]
+      var idx = txt.lastIndexOf(key)
+      if (idx<0) continue
+      return dosplit(txt,idx,i)
+    }
     return null
   }
 
-  var frms = {
-    '$txt$tok$dep': [true,'mid'],
-    '$dep$tok$txt': [false,'mid'],
-    '$txt$tok': [true,'pst'],
-    '$dep$tok': [false,'pst'],
-    '$tok$dep': [true,'pre'],
-    '$tok$txt': [false,'pre'],
-  }
-  var adlm = hshcvt([
+  var ATB = hvt(['frm','#S X T AB','#? !S #Z X','#Z R SA SB'])
+  var BTA = hvt(['frm','#S X T BA','#? !S #Z X','#Z R SA SB'])
+  var TAT = hvt([
+    'frm',
+    '#S X T AB','#? !S #Z X',
+    '#S2 SB T2 AB','#? !S2 #E N T2',
+    ['Z','V','SA','#F R S2A','S2B']
+  ])
+  var TBT = hvt([
+    'frm',
+    '#S X T AB','#? !S #Z X',
+    '#F SB','#S F T2 AB','? !S2 #E N T2',
+    '#Z V SA F S2B'
+  ])
+  var AT = hvt([
+    'frm',
+    '#S X T AB','? !S #Z X',
+    ['Z','V','#F R SA','SB']
+  ])
+  var BT = hvt([
+    'frm',
+    'S(X,T,BA)','!S ? Z(X)',
+    'Z(V,F(R,F(SA)),SB)'
+  ])
+  var TA = hvt([
+    'frm',
+  ])
+  var TB = hvt([
+    'frm',
+  ])
+  var ATCTB = hvt([
+    'frm',
+  ])
+
+  var adlm = hvt([
     'adlm',
-    ['dlm','#frm $txt$tok$dep','#set ='],
-    ['dlm','#frm $dep$tok$txt','#add +','#sub -'],
-    ['dlm','#frm $dep$tok$txt','#mul *','#div /'],
-    ['dlm','#frm $txt$tok$dep','#pow ^'],
+    ['dlm',ATB,'#set ='],
+    ['dlm',BTA,'#add +','#sub -'],
+    ['dlm',BTA,'#mul *','#div /'],
+    ['dlm',ATB,'#pow ^'],
   ])
 
   err('adlm',adlm)
   function fx(ary,s) {
     var rot = ary[0]
-    if (rot=='#') return fx(hshcvt(ary))
+    if (rot=='#') return fx(hvt(ary))
     if (!fx.all[rot]) throw `bad fx rot '${rot}'`
     var ret = fx.all[rot](ary,s)
     if (!ret) throw `fx rot '${rot}' no ret`
@@ -93,74 +134,11 @@ jcc = function() {
   }
 
   fx.all = {
-    'txt': (mtxt,s) =>  {
-      var mtxt = dolep(mtxt,adlm,fx)
-      err('txt',mtxt)
-      return mtxt
-    },
-    'stxt': txt => txt,
-    'vtxt': (ary,s) => {
-      var prev = null
-      var ret = ['vtxt']
-      for (var i=1;i<ary.length;++i) {
-        var tmp = ary[i]
-        var rot = tmp[0]
-        if (rot == 'txt') tmp = ['stxt',tmp[1]]
-        else if (rot != 'stxt') {
-          ret.push(prev = fx(tmp))
-          continue
-        }
-        if (prev&&prev[0]=='stxt') {
-          prev[1]+=tmp[1]
-        }
-        else {
-          ret.push(prev = tmp)
-        }
-      }
-      if (ret.length==1) return ['void']
-      if (ret.length==2) {
-        if (ret[1][0]=='stxt') return fx(['txt',ret[1][1]])
-        return ret[1]
-      }
-      return ret
-    },
-    'dlm': (dlm,ary) => {
-      var frm = dlm[1][1]
-      var last = frms[frm]
-
-      var splt = null
-      var key = null
-      var mix = last ? Infinity : -Infinity
-      for (var i=2;i<dlm.length;++i) {
-        var tmpsplt = splitkey(ary,dlm[i][1],last[0])
-        if (tmpsplt&&((last&&tmpsplt[2]<mix)||(!last&&tmpsplt[2]>mix))) {
-            mix = tmpsplt[2]
-            splt = tmpsplt
-            key = dlm[i][0]
-        }
-      }
-      err('dlm',dlm)
-      err('splt',splt)
-      if (splt) {
-        if (last[1]=='mid') {
-          return fx([key,splt[0],splt[1]])
-        }
-        throw `bad tok '${last[1]}'`
-      }
+    'txt': ary => fx(['vtxt',['stxt',ary[1]]]),
+    'vtxt': ary => dolep(ary,adlm,(dlm,ary)=>{
+      err(dlm,ary)
       return ary
-    },
-    'set': (ary,s) => {
-      var valA = fx(ary[1])
-      var valB = fx(ary[2])
-
-      throw `fx set TODO`
-    },
-    'add': (ary,s) => {
-      var valA = fx(ary[1])
-      var valB = fx(ary[2])
-
-      throw `fx add TODO`
-    }
+    })
   }
 
   return function(text) {
