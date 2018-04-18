@@ -9,6 +9,14 @@ jcc = function() {
     }
     return ret
   }
+  function doobj(ary,fun) {
+    var ret = {}
+    for (var i in ary) {
+      var tmp = fun(ary[i],i)
+      if (tmp) ret[i]=tmp
+    }
+    return ret
+  }
   function docat(rot,ary,fun) {
     var ret = [rot]
     for (var i=1;i<ary.length;++i) {
@@ -86,130 +94,151 @@ jcc = function() {
     })
   }
 
-  function dodlm(dlm,vtxt) {
-    if (vtxt[0]!='vtxt')return
-    var typ = dodlm.typ[dlm[0]]
-    if (!typ) throw `bad typ '${dlm[0]}'`
-    var ret = typ(dlm,vtxt,typ)
-    return ret ? simp.x(ret,'vtxt') : vtxt
+  var dfx = {
+    'txt': '#vtxt', 'vtxt': '#vtxt',
+    'sat': '#vsat', 'vsat': '#vsat',
+    'scp': '#brk', 'tup': '#brk', 'vec':'#brk tup',
+    'wrd': '#ret', 'void': '#ret',
+    'com': ['ret',['void']], 'comln': ['ret',['txt','\n']],
+    'cmp': '#tvv','pow': '#tvv','mul': '#tvv','div': '#tvv',
+    'add': '#tvv','sub': '#tvv','set': '#tvv',
+    'atm': '#atm',
   }
-  {
-    dodlm.vtxt = val => {
-      var ret = simp(dolep(simp.sx(val,'vtxt'),dodlm.mdl,dodlm))
-      var rot = ret[0]
-      if (rot=='txt'||rot=='vtxt') throw `bad rot '${rot}'`
-      return fx(ret)
-    }
-    dodlm.vsat = val => {
-      var val = simp.sx(val,'vsat')
-      var rot = val[0]
-      if (rot!='vsat') return val
-      return simp(doall('vsat',val,fx))
-    }
-    dodlm.brk = val => docat(val[0],val,v=>{
-      v = fx(v)
-      if (v[0]=='void')return
-      if (v[0]=='vsat')return v.slice(1)
-      return [v]
-    })
-    dodlm.ftb = (dlm,vtxt)=>{
-      var ret = dolep([Infinity],dlm,(d,r)=>{
-        var s = split(d[1],vtxt,'ftb',d[0])
-        return s&&s[0]<r[0] ? s:r
-      })
-      if (ret[0]==Infinity) return
-      return [ret[3],ret[1],ret[2]]
-    }
-    dodlm.btf = (dlm,vtxt)=>{
-      var ret = dolep([-Infinity],dlm,(d,r)=>{
-        var s = split(d[1],vtxt,'btf',d[0])
-        return s&&s[0]>r[0] ? s:r
-      })
-      if (ret[0]==-Infinity) return
-      return [ret[3],ret[1],ret[2]]
-    }
-    dodlm.typ = {
-      'A': (dlm,vtxt,f)=>[dlm[1],vtxt],
-      'AB': (dlm,vtxt,f)=>{
-        if(vtxt.length<3)return
-        var retA = vtxt[1]
-        var retB = vtxt.slice(2)
-        retB.splice(0,0,'vtxt')
-        retB = f(dlm,retB,f)||retB
-        // err(retA,retB)
-        return [dlm[1],retA,retB]
-      },
-      'ATB': (dlm,vtxt,f)=>{
-        var ret = dodlm.ftb(dlm,vtxt)
-        return ret && [ret[0],ret[1],f(dlm,ret[2],f)||ret[2]]
-      },
-      'BTA': (dlm,vtxt,f)=>{
-        var ret = dodlm.btf(dlm,vtxt)
-        return ret && [ret[0],f(dlm,ret[1],f)||ret[1],ret[2]]
-      },
-      'TBT': (dlm,vtxt,f)=>{
-        var ret = dodlm.ftb(dlm,vtxt)
+  var dlmld = [
+    'adlm',
+    ['TAT','#com /* */','#comln // \n'],
+    ['TBT','#scp { }','#tup ( )','#vec [ ]'],
+    ['ATB','#vsat ;','#vsat ,','#vsat \n'],
+    ['ATB','#set ='],
+    ['BTA','#add +','#sub -'],
+    ['BTA','#mul *','#div /'],
+    ['ATB','#pow ^'],
+    ['ATB',['vtxt',' ']],
+    '#AB cmp',
+    '#A atm'
+  ]
+
+  function fx(val,s) {
+    var rot = val[0]
+    if (rot=='#')return fx(hsh(val),s)
+    var sd = s&&s[0]=='stt'?'s':'d'
+    var fun = fx[sd][rot]
+    if (!fun) throw `bad fx rot '${rot}'`
+    var ret = fun(val,s)
+    if (!ret) throw `${sd}fx rot '${rot}' no ret`
+    return ret
+  }
+
+  fx.d = function() {
+    var adlm = function() {
+      var ftf = (ftf,inf) => (dlm,vtxt)=>{
+        var ret = dolep([inf],dlm,(d,r)=>{
+          var s = split(d[1],vtxt,ftf,d[0])
+          return s&&s[0]<r[0] ? s:r
+        })
+        if (ret[0]==inf) return
+        return [ret[3],ret[1],ret[2]]
+      }
+      var dftb = ftf('ftb',Infinity)
+      var dbtf = ftf('btf',-Infinity)
+      var tabt = tok => (dlm,vtxt,f)=>{
+        var ret = dftb(dlm,vtxt)
         if (!ret) return
         var rot = ret[0]
         var rdlm = dosom(dlm,d=>d[0]==rot&&d)
         var retA = ret[1]
         var retBC = ret[2]
-        var tmp = f(dlm,retBC,f)
-        retBC = tmp ? simp.sx(tmp,'vtxt') : retBC
+        if (tok){
+          var tmp = f(dlm,retBC,f)
+          retBC = tmp ? simp.sx(tmp,'vtxt') : retBC
+        }
         retBC = split(rdlm[2],retBC,'ftb',rot)
         if (!retBC) throw `no '${rdlm[2]}' after '${rdlm[1]}'`
-        var retB = retBC[1]
-        var retC = retBC[2]
-        return ['vtxt',retA,[rdlm[0],retB],f(dlm,retC,f)||retC]
+        var retB = [rdlm[0],retBC[1]]
+        if (!tok) retB = fx(retB)
+        return ['vtxt',retA,retB,f(dlm,retBC[2],f)||retBC[2]]
+      }
+      var tdlm = {
+        'A': (dlm,vtxt,f)=>[dlm[1],vtxt],
+        'AB': (dlm,vtxt,f)=>{
+          if(vtxt.length<3)return
+          var retA = vtxt[1]
+          var retB = vtxt.slice(2)
+          retB.splice(0,0,'vtxt')
+          retB = f(dlm,retB,f)||retB
+          return [dlm[1],retA,retB]
+        },
+        'ATB': (dlm,vtxt,f)=>{
+          var ret = dftb(dlm,vtxt)
+          return ret && [ret[0],ret[1],f(dlm,ret[2],f)||ret[2]]
+        },
+        'BTA': (dlm,vtxt,f)=>{
+          var ret = dbtf(dlm,vtxt)
+          return ret && [ret[0],f(dlm,ret[1],f)||ret[1],ret[2]]
+        },
+        'TBT': tabt(true),
+        'TAT': tabt(false)
+      }
+      return doall('adlm',dlmld,d=>{
+        var dlm = hsh(d)
+        var typ = tdlm[dlm[0]]
+        if (!typ) throw `bad typ '${dlm[0]}'`
+        return vtxt => {
+          if (vtxt[0]!='vtxt')return
+          var ret = typ(dlm,vtxt,typ)
+          return ret ? simp.sx(ret,'vtxt') : vtxt
+        }
+      })
+    }()
+    var tfx = {
+      'vtxt': d => val => {
+        var ret = simp(dolep(simp.sx(val,'vtxt'),adlm,(dlm,vtxt)=>dlm(vtxt)))
+        var rot = ret[0]
+        if (rot=='txt'||rot=='vtxt') throw `bad rot '${rot}'`
+        return fx(ret)
+      },
+      'vsat': d=> val => {
+        var val = simp.sx(val,'vsat')
+        var rot = val[0]
+        if (rot!='vsat') return val
+        return simp(doall('vsat',val,fx))
+      },
+      'brk': d => val => docat(val[0],val,v=>{
+        v = fx(v)
+        if (v[0]=='void')return
+        if (v[0]=='vsat')return v.slice(1)
+        return [v]
+      }),
+      'ret': d=>d[1]?(v=>d[1]):(v=>v),
+      'tvv': d=> v =>[v[0],fx(v[1]),fx(v[2])],
+      'atm': d=> v=>{
+        v = simp(v[1])
+        var rot = v[0]
+        if (rot=='vtxt') throw `bad rot 'vtxt'`
+        if (rot=='txt') return fx(['wrd',v[1]])
+        return v
       }
     }
-    dodlm.mdl = hsh([
-      'adlm',
-      ['TBT','#scp { }','#tup ( )','#vec [ ]'],
-      ['ATB','#vsat ;','#vsat ,','#vsat \n'],
-      ['ATB','#set ='],
-      ['BTA','#add +','#sub -'],
-      ['ATB',['vtxt',' ']],
-      '#AB cmp',
-      '#A atm'
-    ])
-  }
-  function fx(val) {
-    var rot = val[0]
-    // err(val)
-    if (rot=='#')return fx(hsh(val))
-    var fun = fx.all[rot]
-    if (!fun) throw `bad fx rot '${rot}'`
-    var ret = fun(val)
-    if (!ret) throw `fx rot '${rot}' no ret`
-    return ret
-  }
-  fx.all = {
-    'txt': dodlm.vtxt, 'vtxt': dodlm.vtxt,
-    'sat': dodlm.vsat, 'vsat': dodlm.vsat,
-    'scp': dodlm.brk, 'tup': dodlm.brk, 'vec': dodlm.brk,
-    'wrd': val => val,
-    'void': val => val,
-    'cmp': val => {
-      var valA=fx(val[1]),valB=fx(val[2])
-      if (valA[0]=='void')return valB
-      if (valB[0]=='void')return valA
-      return['cmp',valA,valB]
-    },
-    'add': val => ['add',fx(val[1]),fx(val[2])],
-    'sub': val => ['sub',fx(val[1]),fx(val[2])],
-    'set': val => ['set',fx(val[1]),fx(val[2])],
-    'atm': val => {
-      val = simp(val[1])
-      var rot = val[0]
-      if (rot=='vtxt') throw `bad rot 'vtxt'`
-      if (rot=='txt') return fx(['wrd',val[1]])
-      return val
+    return doobj(dfx,d=>{
+      d = hsh(d)
+      var k = tfx[d[0]]
+      if (!k) throw `bad k '${d[0]}'`
+      return k(d)
+    })
+  }()
+  fx.s = {
+    'scp': (val,s)=>{
+      err(val)
     }
   }
 
   return function(text) {
-    var parse = fx(['txt',`{${text}}\n`])
+    var stt = {
+      0: 'stt',
+      args: [],
+      argS: {},
+    }
+    var parse = fx(fx(['txt',`{${text}}\n`]),stt)
     err('parse',parse)
     return text
   }
