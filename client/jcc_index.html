@@ -4,7 +4,17 @@
 <script src="jcc.js"></script>
 <script>
 
-  var temp = `int a = b*c + l/k*m^3+q m ^ l m ^ k`
+  var temp = `
+    int a = b*c + l/k*m^3+q m ^ l m ^ k
+    this is a test
+    // this is a commnet
+    vec2 l = /* you can't see me! */ [3,4,5]
+  `
+
+  var temp  = `
+    (this + is (a - test, my + name - sub) )
+    (ass my = off)
+  `
 
   log(jcc(temp))
 </script>
