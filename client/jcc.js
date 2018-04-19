@@ -9,9 +9,10 @@ jcc = function() {
     }
     return ret
   }
-  function doobj(ary,fun) {
-    var ret = {}
+  function doobj(rot,ary,fun) {
+    var ret = {0:rot}
     for (var i in ary) {
+      if (i=='0')continue
       var tmp = fun(ary[i],i)
       if (tmp) ret[i]=tmp
     }
@@ -68,6 +69,7 @@ jcc = function() {
     if(ret.length==2)return ret[1]
     return ret
   }
+  function isflt(i) { return !isNaN(parseFloat(i))}
   simp.all = {
     'vtxt': 'txt',
     'vsat': 'sat'
@@ -94,18 +96,18 @@ jcc = function() {
     })
   }
 
-  var dfx = {
+  var mdlm = doobj('mdlm',{
     'txt': '#vtxt', 'vtxt': '#vtxt',
     'sat': '#vsat', 'vsat': '#vsat',
     'scp': '#brk', 'tup': '#brk', 'vec':'#brk tup',
-    'wrd': '#ret', 'void': '#ret',
-    'com': ['ret',['void']], 'comln': ['ret',['txt','\n']],
+    'wrd': '#@', 'void': '#@',
+    'com': ['@',['void']], 'comln': ['@',['txt','\n']],
     'cmp': '#tvv','pow': '#tvv','mul': '#tvv','div': '#tvv',
     'add': '#tvv','sub': '#tvv','set': '#tvv',
     'atm': '#atm',
-  }
-  var dlmld = [
-    'adlm',
+  },hsh)
+  var adlm = hsh([
+    'fdlm',
     ['TAT','#com /* */','#comln // \n'],
     ['TBT','#scp { }','#tup ( )','#vec [ ]'],
     ['ATB','#vsat ;','#vsat ,','#vsat \n'],
@@ -116,25 +118,66 @@ jcc = function() {
     ['ATB',['vtxt',' ']],
     '#AB cmp',
     '#A atm'
-  ]
+  ])
+  var nats = doobj('nats',{
+    'void': ['nat','#@'],
+    'scp': ['nat','#scp ..'],
+    'tup': ['nat','#@',
+      '#vec $typ $typ',
+      '#tup $typA $typB ..',
+      '#vec $val $val ..',
+      '#tup $valA $valB ..',
+      '#vec $def $def ..',
+      '#tup $defA $defB ..',
+    ],
+    'vec': ['nat','#@',
+      '#vec $typ $typ',
+      '#vec $val $val ..',
+      '#vec $def $def ..',
+    ],
+    'set': ['nat','#set $varV $typ','#set $var $val','#set $def $val'],
+    'add': ['nat','#addA $allnum $allnum','#orA $allbol $allbol'],
+    'sub': ['nat','#subA $allnum $allnum','#ornotA $allbol $allbol'],
+    'mul': ['nat','#mulC $cmplxA $cmplxB'],
+    'div': ['nat','#divC $cmplxA $cmplxB'],
+    'pow': ['nat','#powC $cmplxA $cmplxB'],
+    'conop': ['nat','#conop $bol $val $val'],
+    'wrd': ['nat',
+      '#typ @num','#typ @vec1','#typ @vec2','#typ @vec3',
+      '#nat @return', '#nat @if', '#nat @while', '#nat @for',
+      '#nat @break', '#nat @continue', '#nat @goto',
+      '#bol @true', '#bol @false',
+      '#num $flt','#var $str'
+    ],
+    'cmp': ['nat',
+      '#donat $nat @',
+      ['dolam','#lam $typA $typB','$valA'],
+      '#def $typ $var',
+      '#ltyp $typA $typB', '#vtyp $typ $int',
+      '#nlam $def $val', '#nlam $par $val',
+      '#mulS $allnumA $allnumB','#mulB $allbolA $allbolB',
+    ]
+  },hsh)
+  err(nats)
 
-  function fx(val,s) {
+  function fx(fxm,val,valB) {
     var rot = val[0]
-    if (rot=='#')return fx(hsh(val),s)
-    var sd = s&&s[0]=='stt'?'s':'d'
-    var fun = fx[sd][rot]
-    if (!fun) throw `bad fx rot '${rot}'`
-    var ret = fun(val,s)
-    if (!ret) throw `${sd}fx rot '${rot}' no ret`
+    if (rot=='#')return fx(fxm,hsh(val))
+    if (!fxm) throw `bad fxm`
+    // err(fxm[0],val)
+    var fun = fxm[rot]
+    if (!fun) throw `bad ${fxm[0]}fx rot '${rot}'`
+    var ret = fun(val,valB)
+    if (!ret) throw `${fxm[0]}fx rot '${rot}' no ret`
     return ret
   }
 
-  fx.d = function() {
-    var adlm = function() {
+  var fxd = function() {
+    var fdlm = function() {
       var ftf = (ftf,inf) => (dlm,vtxt)=>{
         var ret = dolep([inf],dlm,(d,r)=>{
           var s = split(d[1],vtxt,ftf,d[0])
-          return s&&s[0]<r[0] ? s:r
+          return s&&(ftf=='ftb'?s[0]<r[0]:s[0]>r[0]) ? s:r
         })
         if (ret[0]==inf) return
         return [ret[3],ret[1],ret[2]]
@@ -155,7 +198,7 @@ jcc = function() {
         retBC = split(rdlm[2],retBC,'ftb',rot)
         if (!retBC) throw `no '${rdlm[2]}' after '${rdlm[1]}'`
         var retB = [rdlm[0],retBC[1]]
-        if (!tok) retB = fx(retB)
+        if (!tok) retB = fx(fxd,retB)
         return ['vtxt',retA,retB,f(dlm,retBC[2],f)||retBC[2]]
       }
       var tdlm = {
@@ -179,8 +222,7 @@ jcc = function() {
         'TBT': tabt(true),
         'TAT': tabt(false)
       }
-      return doall('adlm',dlmld,d=>{
-        var dlm = hsh(d)
+      return doall('fdlm',adlm,dlm=>{
         var typ = tdlm[dlm[0]]
         if (!typ) throw `bad typ '${dlm[0]}'`
         return vtxt => {
@@ -192,45 +234,72 @@ jcc = function() {
     }()
     var tfx = {
       'vtxt': d => val => {
-        var ret = simp(dolep(simp.sx(val,'vtxt'),adlm,(dlm,vtxt)=>dlm(vtxt)))
+        var ret = simp(dolep(simp.sx(val,'vtxt'),fdlm,(dlm,vtxt)=>dlm(vtxt)))
         var rot = ret[0]
         if (rot=='txt'||rot=='vtxt') throw `bad rot '${rot}'`
-        return fx(ret)
+        return fx(fxd,ret)
       },
       'vsat': d=> val => {
         var val = simp.sx(val,'vsat')
         var rot = val[0]
         if (rot!='vsat') return val
-        return simp(doall('vsat',val,fx))
+        return simp(doall('vsat',val,v=>fx(fxd,v)))
       },
       'brk': d => val => docat(val[0],val,v=>{
-        v = fx(v)
+        v = fx(fxd,v)
         if (v[0]=='void')return
         if (v[0]=='vsat')return v.slice(1)
         return [v]
       }),
-      'ret': d=>d[1]?(v=>d[1]):(v=>v),
-      'tvv': d=> v =>[v[0],fx(v[1]),fx(v[2])],
+      '@': d=>d[1]?(v=>d[1]):(v=>v),
+      'tvv': d=> v =>[v[0],fx(fxd,v[1]),fx(fxd,v[2])],
       'atm': d=> v=>{
         v = simp(v[1])
         var rot = v[0]
         if (rot=='vtxt') throw `bad rot 'vtxt'`
-        if (rot=='txt') return fx(['wrd',v[1]])
+        if (rot=='txt') return fx(fxd,['wrd',v[1]])
         return v
       }
     }
-    return doobj(dfx,d=>{
-      d = hsh(d)
+    return doobj('dlm',mdlm,d=>{
       var k = tfx[d[0]]
       if (!k) throw `bad k '${d[0]}'`
       return k(d)
     })
   }()
-  fx.s = {
-    'scp': (val,s)=>{
-      err(val)
+  var fxs = function() {
+    var sfx = {
+      0: 'sfx',
+      'typ': v=>v,
+      'var': v=>v,
+      'num': v=>v,
+      'scp': (val,s)=>{
+        err(val,s)
+      }
     }
-  }
+    function mchnat(nat,val,stt) {
+      if (val[0]=='wrd') {
+        var w = val[1]
+        var rot = nat[0]
+        var nw = nat[1]
+        if (nw[0]=='@') {
+          nw = nw.slice(1)
+          return nw==w&&fx(sfx,[rot,[nw]],stt)
+        }
+        if (nw=='$flt') return isflt(w)&&fx(sfx,[rot,parseFloat(w)],stt)
+        if (nw=='$str') return fx(sfx,[rot,w],stt)
+        throw `bad nat '${nw}'`
+      }
+      val = doall(val[0],val,v=>fx(fxs,v,stt))
+      err(nat,val)
+      return val
+    }
+    return doobj('stt',nats,(nat,key)=> (v,s)=>{
+      if (val[0]=='wrd')
+      dosom(nat,n=>mchnat(n,v,s)
+    })
+  }()
+  err(fxs)
 
   return function(text) {
     var stt = {
@@ -238,7 +307,7 @@ jcc = function() {
       args: [],
       argS: {},
     }
-    var parse = fx(fx(['txt',`{${text}}\n`]),stt)
+    var parse = fx(fxs,fx(fxd,['txt',`{${text}}\n`]),stt)
     err('parse',parse)
     return text
   }

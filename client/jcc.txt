@@ -85,3 +85,10 @@ test
           [txt ' int c '] -> [cmp [txt 'int'] [txt 'c']]
           [txt ' a + b'] -> [add [txt 'a'] [txt 'b']]
       [vtxt [sat ..] [stxt '  if '] [par ..] [brc ..]]
+
+
+MIDTERM
+HEAVY ON CHAPTER 2
+HEAVY ON CHAPTER 4
+LIGHT ON CHAPTER 3
+ALMOST NOTHING 6,7,8
