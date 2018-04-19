@@ -1,10 +1,13 @@
 log('init jcc.js')
 
 jcc = function() {
+  function forall(ary,fun) {
+    for (var i=1;i<ary.length;++i)fun(ary[i],i)
+  }
   function doall(rot,ary,fun) {
     var ret = [rot]
     for (var i=1;i<ary.length;++i) {
-      var tmp = fun(ary[i],i)
+      var tmp = fun?fun(ary[i],i):ary[i]
       tmp && ret.push(tmp)
     }
     return ret
@@ -32,6 +35,13 @@ jcc = function() {
       if (ret) return ret
     }
     return null
+  }
+  function donon(ary,fun) {
+    for (var i=1;i<ary.length;++i) {
+      var ret = fun(ary[i],i)
+      if (!ret) return false
+    }
+    return true
   }
   function dobck(ary,fun) {
     for (var i=ary.length-1;i>0;--i) {
@@ -95,6 +105,21 @@ jcc = function() {
       return [i+idx,retA,retB,rot]
     })
   }
+  function findkey(dlm,vtxt) {
+    return dosom(vtxt,txt=>txt[0]=='txt'&&txt[1].indexOf(dlm)>=0)
+  }
+  function isallnum(typ) {
+    if (typ[0]=='num')return true
+    if (typ[0]=='vec')return isallnum(typ[1])
+    if (typ[0]=='tup')return donon(typ,isallnum)
+    return false
+  }
+  function isallbol(typ) {
+    if (typ[0]=='bol')return true
+    if (typ[0]=='vec')return isallbol(typ[1])
+    if (typ[0]=='tup')return donon(typ,isallbol)
+    return false
+  }
 
   var mdlm = doobj('mdlm',{
     'txt': '#vtxt', 'vtxt': '#vtxt',
@@ -109,7 +134,9 @@ jcc = function() {
   var adlm = hsh([
     'fdlm',
     ['TAT','#com /* */','#comln // \n'],
+    '#bad */',
     ['TBT','#scp { }','#tup ( )','#vec [ ]'],
+    '#bad } ) ]',
     ['ATB','#vsat ;','#vsat ,','#vsat \n'],
     ['ATB','#set ='],
     ['BTA','#add +','#sub -'],
@@ -135,7 +162,7 @@ jcc = function() {
       '#vec $val $val ..',
       '#vec $def $def ..',
     ],
-    'set': ['nat','#set $varV $typ','#set $var $val','#set $def $val'],
+    'set': ['nat','#set $var $val','#set $def $val'],
     'add': ['nat','#addA $allnum $allnum','#orA $allbol $allbol'],
     'sub': ['nat','#subA $allnum $allnum','#ornotA $allbol $allbol'],
     'mul': ['nat','#mulC $cmplxA $cmplxB'],
@@ -143,7 +170,7 @@ jcc = function() {
     'pow': ['nat','#powC $cmplxA $cmplxB'],
     'conop': ['nat','#conop $bol $val $val'],
     'wrd': ['nat',
-      '#typ @num','#typ @vec1','#typ @vec2','#typ @vec3',
+      '#typ @bol','#typ @num','#typ @vec1','#typ @vec2','#typ @vec3', '#nat @typ',
       '#nat @return', '#nat @if', '#nat @while', '#nat @for',
       '#nat @break', '#nat @continue', '#nat @goto',
       '#bol @true', '#bol @false',
@@ -158,13 +185,45 @@ jcc = function() {
       '#mulS $allnumA $allnumB','#mulB $allbolA $allbolB',
     ]
   },hsh)
+  var styps = ['styps',
+    ['$nat',v=>v[0]=='nat'],
+    ['$void',v=>true],
+    ['$bol',v=>true],
+    ['$val',v=>true],
+    ['$def',v=>v[0]=='def'],
+    ['$par',v=>v[0]=='par'],
+    ['$var',v=>v[0]=='var'],
+    ['$varV',v=>v[0]=='var'&&v[1][0]=='void'],
+    ['$int',v=>true],
+    ['$typ',v=>v[0]=='typ'],
+    ['$allnum',v=>{
+      if (v[0]!='val'&&v[0]!='var')return false
+      return isallnum(v[1])
+    }],
+    ['$allbol',v=>{
+      if (v[0]!='val'&&v[0]!='var')return false
+      return isallbol(v[1])
+    }],
+    ['$cmplx',v=>{
+      err('$cmplx',v)
+      if (v[0]!='val'&&v[0]!='var')return false
+      var t = v[1]
+      var ret = t[0]=='num'||(t[0]=='vec'&&t[1][0]=='num'&&t[2]==2)
+      return ret
+    }],
+    ['lam',(m,v)=>{
+      if (v[0]!='lam')return false
+      err('lam',v)
+      return true
+    }]
+  ]
   err(nats)
+  err(styps)
 
   function fx(fxm,val,valB) {
     var rot = val[0]
     if (rot=='#')return fx(fxm,hsh(val))
     if (!fxm) throw `bad fxm`
-    // err(fxm[0],val)
     var fun = fxm[rot]
     if (!fun) throw `bad ${fxm[0]}fx rot '${rot}'`
     var ret = fun(val,valB)
@@ -220,7 +279,8 @@ jcc = function() {
           return ret && [ret[0],f(dlm,ret[1],f)||ret[1],ret[2]]
         },
         'TBT': tabt(true),
-        'TAT': tabt(false)
+        'TAT': tabt(false),
+        'bad': (dlm,vtxt,f)=>dosom(dlm,d=>{if (findkey(d,vtxt)) throw `bad dlm '${d}'`})
       }
       return doall('fdlm',adlm,dlm=>{
         var typ = tdlm[dlm[0]]
@@ -271,41 +331,124 @@ jcc = function() {
     var sfx = {
       0: 'sfx',
       'typ': v=>v,
-      'var': v=>v,
-      'num': v=>v,
-      'scp': (val,s)=>{
-        err(val,s)
+      'var': (v,s)=>{
+        var a = v[1]
+        var b = v[2]
+        if (a[0]=='@') {
+          v = s.scp[a] || dosom(s.scpS,s=>s[a])
+          if (v) return v
+          b = a
+          a = ['void']
+        }
+        return s.scp[b] = ['var',a,b]
+      },
+      'num': v=>['val',['num'],v],
+      'def': (v,s)=>{
+        var a = v[1][1]
+        var b = v[2][2]
+        return ['def',a,s.scp[b] = fx(sfx,['var',a,b],s)]
+      },
+      'set': (v,s)=> {
+        var a = v[1]
+        var ar = a[0]
+        if (ar=='def') return ['val',['void'],v]
+        else return v
+        var b = v[2]
+        throw ['set',a,b]
+      },
+      'scp': (v,s)=>{
+        err('scp',v,s)
+        var ret = s.scp[0] || ['typ',['void']]
+        s.scp = s.scpS.pop()||s.scp
+        return ret
+      },
+      'nlam': (v,s)=>{
+        err('nlam',v,s)
+      },
+      'powC': (v,s)=>{
+        return ['val',['vec',['num'],2],v]
       }
     }
-    function mchnat(nat,val,stt) {
-      if (val[0]=='wrd') {
-        var w = val[1]
-        var rot = nat[0]
-        var nw = nat[1]
+    var typmch = function() {
+      function tmch(m,t,v,i) {
+        err('tmch',t,i,v)
+        return true // TODO
+      }
+      var nvmch = {'@': (m,v)=>true}
+      forall(styps,n=>{
+        var t = n[0]
+        if (t[0]!='$') return nvmch[t]=n[1]
+        nvmch[t]=(m,v)=>n[1](v)&&tmch(m,t,v,0)
+        nvmch[t+'A']=(m,v)=>n[1](v)&&tmch(m,t,v,1)
+        nvmch[t+'B']=(m,v)=>n[1](v)&&tmch(m,t,v,2)
+      })
+      return (m,n,v) => {
+        var nr = n[0]
+        var ns = nr=='$'||nr=='@'?n:nr
+        var f = nvmch[ns]
+        if (!f) throw `bad nat '${ns}'`
+        return f(m,v)
+      }
+    }()
+    function wrdnat(nat) {
+      return (v,s)=>dosom(nat,n=>{
+        var w = v[1]
+        var rot = n[0]
+        var nw = n[1]
         if (nw[0]=='@') {
           nw = nw.slice(1)
-          return nw==w&&fx(sfx,[rot,[nw]],stt)
+          return nw==w&&fx(sfx,[rot,[nw]],s)
         }
-        if (nw=='$flt') return isflt(w)&&fx(sfx,[rot,parseFloat(w)],stt)
-        if (nw=='$str') return fx(sfx,[rot,w],stt)
+        if (nw=='$flt') return isflt(w)&&fx(sfx,[rot,parseFloat(w)],s)
+        if (nw=='$str') return fx(sfx,[rot,'@'+w],s)
         throw `bad nat '${nw}'`
-      }
-      val = doall(val[0],val,v=>fx(fxs,v,stt))
-      err(nat,val)
-      return val
+      })
     }
-    return doobj('stt',nats,(nat,key)=> (v,s)=>{
-      if (val[0]=='wrd')
-      dosom(nat,n=>mchnat(n,v,s)
-    })
+    function valnat(nat,key){
+      return (v,s)=>{
+        if(v[0]=='scp'){
+          s.scp && s.scpS.push(s.scp)
+          s.scp=[]
+        }
+        if (v[0]=='set'){
+          var b = fx(fxs,v[2],s)
+          var a = fx(fxs,v[1],s)
+          v = [v[0],a,b]
+        }
+        else {
+          v=doall(v[0],v,t=>fx(fxs,t,s))
+        }
+        var vlen = v.length-1
+        return dosom(nat,n=>{
+          var rot = n[0]
+          var len = n.length-1
+          err('valnat',n,nat)
+          if (len==0) return fx(sfx,rot=='@'?v[1]:[rot],s)
+          var lst = n[len]
+          var m = []
+          if (lst=='..') {
+            if (len==1)return fx(sfx,doall(rot,v,t=>t),s)
+            if (len!=3)throw `bad nat len '${len}'`
+            throw `TODO ..`
+          }
+          else if (len!=vlen)return
+          if (dosom(v,(t,i)=>!typmch(m,n[i],t))) {
+             err('fail',v,n)
+             return
+          }
+          return fx(sfx,doall(n[0],v),s)
+        })
+      }
+    }
+    return doobj('stt',nats,(nat,key)=>(key=='wrd'?wrdnat:valnat)(nat,key))
   }()
   err(fxs)
 
   return function(text) {
     var stt = {
       0: 'stt',
-      args: [],
-      argS: {},
+      scp: null,
+      scpS: []
     }
     var parse = fx(fxs,fx(fxd,['txt',`{${text}}\n`]),stt)
     err('parse',parse)
