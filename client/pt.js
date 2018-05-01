@@ -208,6 +208,11 @@ PT.rand = l => {
   return p
 }
 
+PT.mul2 = (a,b) => {
+  var a0 = a[0]||0, a1 = a[1]||0
+  var b0 = b[0]||0, b1 = b[1]||0
+  return [a0*b0-a1*b1,a0*b1+a1*b0]
+}
 PT.length = (p,l) => Math.sqrt(PT.suma(PT.mul(p,p,l)))
 PT.dist = (a,b) => PT.length(PT.sub(a,b))
 PT.invert = p => [-p[1] || 0, p[0] || 0]
