@@ -1,94 +1,10 @@
-adlm
-  com $txt
-  comln $txt
-  par $sat
-  brc $sat
-  brk $sat
-  txt $str
-  vtxt @ ..
+$sat :: $hsh $key | $str | [$rot] | [$rot $sat ..]
+$key :: '$..'
+$str :: '@..'
+$hsh :: '#..'
 
-test
-  [dlm [set $txt = $dep]]
-  [dlm [add $dep + $txt] [sub $dep - $txt]]
-  [dlm [mul $dep * $txt] [div $dep / $txt]]
-  [dlm [pow $txt ^ $dep]]
-  [dlm [cmp $txt $dep]]
+fx[main $str]
 
-  [txt 'int a = b*c + l/k*m^3+q m ^ l m ^ k']
-  [set [txt 'int a '] [txt ' b*c + l/k*m^3+q m ^ l m ^ k']]
-    [txt ' int a ']
-      [vtxt [spc 'int'] [spc 'a']]
-      [cmp [wrd int] [wrd a]]
-    [txt ' b*c + l/k*m^3+q m ^ l m ^ k']
-      [add [txt ' b*c + l/k*m^3'] [txt 'q m ^ l m ^ k']]
-        [txt ' b*c + l/k*m^3']
-          [add [txt ' b*c '] [txt ' l/k*m^3']]
-            [txt ' b*c ']
-              [mul [wrd b] [wrd c]]
-            [txt ' l/k*m^3']
-              [mul [txt ' l/k'] [txt 'm^3']]
-                [txt ' l/k']
-                  [div [wrd l] [wrd k]]
-                [txt 'm^3']
-                  [pow [wrd m] [num 3]]
-        [txt 'q m ^ l m ^ k']
-          [pow [txt 'q m '] [txt ' l m ^ k']]
-            [txt 'q m ']
-              [cmp [wrd q] [wrd m]]
-            [txt ' l m ^ k']
-              [pow [txt ' l m '] [wrd k]]
-                [txt ' l m ']
-                  [cmp [wrd l] [wrd m]]
-test
-  [dlm [comln // $txt \n] [com /* $txt */]]
-  [dlm [par ( $dep )] [brc { $dep }] [brk [ $dep ]] ]
-  [dlm [sat $txt ;] [sat $txt ,] [sat $txt \n]]
-  [dlm [set $txt = $dep]]
-  [dlm [les $dep < $txt]]
-  [dlm [add $dep + $txt]]
-  [dlm ['spc','$txt',' ']]
-  [dlm [cmp $txt $dep]]
+main = [rep $arg $prs $stt $typ $run]
 
-  [vtxt .. [stxt $txtA] [stxt $txtA] ..]
-    [vtxt .. [stxt $txtA $txtB] ..]
-  [vtxt [stxt $txt]]
-    [txt $txt]
-  [com ..]
-    [void]
-  [comln ..]
-    [txt '\n']
-  [vtxt .. $good [void] ..]
-    [vtxt .. $good ..]
-  [vtxt .. [vtxt $goodA $goodB ..] ..]
-    [vtxt .. $goodA $goodB ..]
-  [vtxt .. [txt $txt] ..]
-    [vtxt .. [stxt $txt] ..]
-    [txt '{ int c = a + b; // comment \n if (k<q) { g = [3,4,1] }  }']
-    [vtxt [stxt '{ int c = a + b; '] [com [txt ' comment ']] [stxt ' if (k<q) { g = [3,4,1] }  }']]
-      [com ..]
-      [void]
-    [vtxt [stxt '{ int c = a + b; '] [stxt ' if (k<q) { g = [3,4,1] }  }']]
-    [txt '{ int c = a + b;  if (k<q) { g = [3,4,1] }  }']
-    [brc [txt ' int c = a + b;  if (k<q) { g = [3,4,1] }  ']]
-      [txt ' int c = a + b;  if (k<q) { g = [3,4,1] }  ']
-      [vtxt [stxt ' int c = a + b;  if '] [par [txt 'k<q']] [brc [txt ' g = [3,4,1] ']]]
-        [txt 'k<q']
-          [les [txt 'k'] [txt 'q']]
-        [txt ' g = [3,4,1] ']
-          [vtxt [stxt ' g = '] [brk [txt '3,4,1']]
-            [txt '3,4,1']
-            [vtxt [sat [txt '3']] [sat [txt '4']] [stxt '1']]
-          [vtxt [stxt ' g = '] [brk ..]]
-          [set [txt 'g'] [brk ..]]
-      [vtxt [sat [txt ' int c = a + b']] [stxt '  if '] [par ..] [brc ..]]
-        [txt ' int c = a + b'] -> [set [txt ' int c '] [txt ' a + b']]
-          [txt ' int c '] -> [cmp [txt 'int'] [txt 'c']]
-          [txt ' a + b'] -> [add [txt 'a'] [txt 'b']]
-      [vtxt [sat ..] [stxt '  if '] [par ..] [brc ..]]
-
-
-MIDTERM
-HEAVY ON CHAPTER 2
-HEAVY ON CHAPTER 4
-LIGHT ON CHAPTER 3
-ALMOST NOTHING 6,7,8
+asdf

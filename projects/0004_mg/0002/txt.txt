@@ -1,0 +1,29 @@
+[rom $dors $pors $plrs $keys $hans]
+
+[plr @rk $rom $key]
+[plr @r $rom]
+[plr @hk $han $key]
+[plr @h $han]
+
+[key @trp $tri $rom $plr]
+[key @tr  $tri $rom]
+[key @thp $tri $han $plr]
+[key @th  $tri $han]
+
+[key @srp $sqr $rom $plr]
+[key @sr  $sqr $rom]
+[key @shp $sqr $han $plr]
+[key @sh  $sqr $han]
+
+[han @spk $rom $sqr $plr $key]
+[han @sp  $rom $sqr $plr]
+[han @sk  $rom $sqr $key]
+[han @s   $rom $sqr]
+
+[han @tpk $rom $tri $plr $key]
+[han @tp  $rom $tri $plr]
+[han @tk  $rom $tri $key]
+[han @t   $rom $tri]
+
+[por $rom $hans]
+[dor $rom $hans]
