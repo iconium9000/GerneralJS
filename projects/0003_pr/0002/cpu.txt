@@ -1,19 +1,19 @@
-or  $c $a $b    :: $c = $a | $b
-xor $c $a $b    :: $c = xor($a,$b)
-and $c $a $b    :: $c = $a & $b
-nor $c $a $b    :: $c = !($a | $b)
-srl $c $a s     :: $c = $a >> s
-sra $c $a s     :: $c = $a >>> s
-sll $c $a s     :: $c = $a << s
-add $c $a $b    :: $c = $a + $b
-sub $c $a $b    :: $c = $a - $b
-orlo $c $imm    :: $c = $c | $imm(lo8)
-orhi $c $imm    :: $c = $c | $imm(hi8)
-addi $c $imm    :: $c = $c + $imm(lo8)
-gtr $c $a $b    :: $c = $a > $b ? 0 : 1
-ifz $c $a $b    :: $c = $b==0 ? $a : $c
-rd $c $b $a     :: $c = mem[$b] = mem[$a]
-wt $c $b $a     :: mem[$c] = mem[$b] = $a
+0 or  $c $a $b    :: $c = $a | $b
+1 xor $c $a $b    :: $c = xor($a,$b)
+2 and $c $a $b    :: $c = $a & $b
+3 nor $c $a $b    :: $c = !($a | $b)
+4 srl $c $a s     :: $c = $a >> s
+5 sra $c $a s     :: $c = $a >>> s
+6 sll $c $a s     :: $c = $a << s
+7 add $c $a $b    :: $c = $a + $b
+8 sub $c $a $b    :: $c = $a - $b
+9 orlo $c $imm    :: $c = $c | $imm(lo8)
+a orhi $c $imm    :: $c = $c | $imm(hi8)
+b addi $c $imm    :: $c = $c + $imm(lo8)
+c gtr $c $a $b    :: $c = $a > $b ? 0 : 1
+d ifz $c $a $b    :: $c = $b==0 ? $a : $c
+e rd $c $b $a     :: $c = mem[$b] = mem[$a]
+f wt $c $b $a     :: mem[$c] = mem[$b] = $a
 
 $0 zero           :: always 0
 $1 $t1            :: temp1
@@ -27,7 +27,13 @@ $8 $r0            :: ret0
 $9 $r1            :: ret1
 $A $a0            :: arg0
 $B $a1            :: arg1
-$C $sp            :: stack pointer
-$D $ra            :: return address
-$E $pc            :: program counter
-$F $ni            :: next instruction
+$C $a2            :: arg2
+$D $sp            :: stack pointer
+$E $ra            :: return address
+$F $pc            :: program counter
+
+*$r = $v
+[0 $b $a]         :: call($b,$a)
+[1 $b $a]         :: call($b,*$a)
+[2 $f]            :: ufun = f($r,*$r)
+[3 $f $c $a $b]   :: call($c,f(*$a,*$b))
