@@ -2,8 +2,8 @@
 1 xor $c $a $b    :: $c = xor($a,$b)
 2 and $c $a $b    :: $c = $a & $b
 3 nor $c $a $b    :: $c = !($a | $b)
-4 srl $c $a s     :: $c = $a >> s
-5 sra $c $a s     :: $c = $a >>> s
+4 srl $c $a s     :: $c = $a >>> s
+5 sra $c $a s     :: $c = $a >> s
 6 sll $c $a s     :: $c = $a << s
 7 add $c $a $b    :: $c = $a + $b
 8 sub $c $a $b    :: $c = $a - $b
@@ -12,13 +12,13 @@ a orhi $c $imm    :: $c = $c | $imm(hi8)
 b addi $c $imm    :: $c = $c + $imm(lo8)
 c gtr $c $a $b    :: $c = $a > $b ? 0 : 1
 d ifz $c $a $b    :: $c = $b==0 ? $a : $c
-e rd $c $b $a     :: $c = mem[$b] = mem[$a]
-f wt $c $b $a     :: mem[$c] = mem[$b] = $a
+e rd $c $a $b     :: $c = $b==0 ? *$a : **$a
+f wt $c $a $b     :: ($b ? *$c : **$c) = $a
 
 $0 zero           :: always 0
-$1 $t1            :: temp1
-$2 $t2            :: temp2
-$3 $t3            :: temp3
+$1 $t0            :: temp1
+$2 $t1            :: temp2
+$3 $t2            :: temp3
 $4 $s0            :: var0
 $5 $s1            :: var1
 $6 $s2            :: var2
