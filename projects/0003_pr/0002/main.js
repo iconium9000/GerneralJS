@@ -1,101 +1,97 @@
-  log = console.log
+log = console.log
 err = console.error
 
-var mem_val = {}
+//--------------------------------------------------------------
+// main bus
+//--------------------------------------------------------------
 
-var mem_ret = 'ffff'
+var mem_val = {}
+var mem_sat = {}
+var mem_act = {}
+var mem_nop = (r,v) => null
+var mem_stk = []
 var mem_fun = {
-  '0000': [[5,'0000','0000']],
-  'f0af': [
-    [4,'f0f0','f0af'],
-    [4,'000f','f0af'],
-    [4,'f0a0','f0f0']
-  ],
-  'f0a0': [
-    [3,'f0bb','bf01'],[0],[0],
-    [7,(l,v)=>[3,'f0b'+v[0],v]],[0],[0],
-    [4,'f0f0','000f'],[0],
-    [4,'f0a0','f0f0']
-  ],
+  '0000': [],
   'f0b0': [
-    [7,(l,v)=>v=='0000'?[9]:
-      [8,(a,b)=>a|b,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0b0','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b0',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)|to_int(r[2]))]
   ],
   'f0b1': [
-    [7,(l,v)=>[8,(a,b)=>a^b,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0b1','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b1',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)^to_int(r[2]))]
   ],
   'f0b2': [
-    [7,(l,v)=>[8,(a,b)=>a&b,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0b2','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b2',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)&to_int(r[2]))]
   ],
   'f0b3': [
-    [7,(l,v)=>[8,(a,b)=>-(a|b)-1,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0b3','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b3',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(-(to_int(v)|to_int(r[2]))-1)]
   ],
   'f0b4': [
-    [7,(l,v)=>[5,'f0e0','00'+v[2]+v[3]]],
-    [7,(l,v)=>[8,(a,b)=>a>>>b,'000'+v[1],'000'+v[2],'f0e0']],
+    (r,v) => [2,'f0b4','000'+v[2],r[0]='000'+v[1],r[1]='000'+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)>>>to_int(r[1]))]
   ],
   'f0b5': [
-    [7,(l,v)=>[5,'f0e0','00'+v[2]+v[3]]],
-    [7,(l,v)=>[8,(a,b)=>a>>b,'000'+v[1],'000'+v[2],'f0e0']],
+    (r,v) => [2,'f0b5','000'+v[2],r[0]='000'+v[1],r[1]='000'+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)>>to_int(r[1]))]
   ],
   'f0b6': [
-    [7,(l,v)=>[5,'f0e0','00'+v[2]+v[3]]],
-    [7,(l,v)=>[8,(a,b)=>a<<b,'000'+v[1],'000'+v[2],'f0e0']],
+    (r,v) => [2,'f0b6','000'+v[2],r[0]='000'+v[1],r[1]='000'+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)<<to_int(r[1]))]
   ],
   'f0b7': [
-    [7,(l,v)=>[8,(a,b)=>a+b,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0b7','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b7',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)+to_int(r[2]))]
   ],
   'f0b8': [
-    [7,(l,v)=>[8,(a,b)=>a-b,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0b8','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b8',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)-to_int(r[2]))]
   ],
   'f0b9': [
-    [7,(l,v)=>[5,'f0e0','00'+v[2]+v[3]]],
-    [7,(l,v)=>[8,(a,b)=>a|b,'000'+v[1],'000'+v[1],'f0e0']],
+    (r,v) => [2,'f0b9',r[0]='000'+v[1],r[1]='00'+v[2]+v[3]],
+    (r,v) => [1,r[0],to_loc(v[0]+v[1]+r[1][2]+r[1][3])]
   ],
   'f0ba': [
-    [7,(l,v)=>[5,'f0e0',v[2]+v[3]+'00']],
-    [7,(l,v)=>[8,(a,b)=>a|b,'000'+v[1],'000'+v[1],'f0e0']],
+    (r,v) => [2,'f0ba',r[0]='000'+v[1],r[1]=v[2]+v[3]+'00'],
+    (r,v) => [1,r[0],to_loc(r[1][0]+r[1][1]+v[2]+v[3])]
   ],
   'f0bb': [
-    [7,(l,v)=>[3,'f0e0','00'+v[2]+v[3]]],
-    [7,(l,v)=>[8,(a,b)=>a+b,'000'+v[1],'000'+v[1],'f0e0']],
+    (r,v) => [2,'f0bb',r[0] = '000'+v[1], r[1] = '00'+v[2]+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)+to_int(r[1]))]
   ],
   'f0bc': [
-    [7,(l,v)=>[8,(a,b)=>a>b?0:1,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0bc','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0bc',r[1], r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)>to_int(r[2])?0:1)]
   ],
   'f0bd': [
-    [7,(l,v)=>[8,(a,b,c)=>b==0?a:c,'000'+v[1],'000'+v[2],'000'+v[3]]],
+    (r,v) => [2,'f0bd','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => v=='0000'?[2,r[0],r[1]]:[0]
   ],
-  'f0be': [
-    [7,(l,v)=>{
-      var b = to_int(mem_rd('000'+v[3]))
-      var a = mem_rd('000'+v[2])
-      return [b==0?3:4,'f0f0',a]
-    }]
+  'f0a0': [
+    (r,v) => v=='0000'?[3,'f0a0']:[1,'f0bb','bf01',r[0]=v,r[1]='f0b'+v[0]],
+    mem_nop, mem_nop,
+    (r,v) => [1,r[1],r[0]],
+    mem_nop, mem_nop, mem_nop,
+    (r,v) => [2,'f0a0','000f'],
+    (r,v) => [2,'f0a0',v],
   ],
-  'f0bf': [
-    [7,(l,v)=>{
-      var c = mem_rd(mem_rd('000'+v[1]))
-      var b = to_int(mem_rd('000'+v[3]))
-      if (b==0) c = mem_rd(c)
-      return [4,c,'000'+v[2]]
-    }]
-  ]
+  'f0af': [
+    (r,v) => [1,'000f',r[0]=v],
+    (r,v) => [2,'f0a0',r[0]],
+    // (r,v) => [0]
+  ],
 }
-for (var i=0xf0f0;i<0xf100;++i)
-  mem_fun[to_loc(i)] = [[7,(l,v)=>[6,l,v]]]
 
-var mem_nsat = {}
-var mem_sat = {}
-
-function to_reg(loc,idx) {
-  return '000'+loc[idx]
-}
 function mem_rd(loc) {
   return mem_val[loc]||'0000'
-}
-function get_reg(loc,idx) {
-  return mem_rd(to_reg(loc,idx))
 }
 function to_int(loc) {
   var int = parseInt(loc,16)
@@ -109,56 +105,53 @@ function to_loc(int) {
   return ('0000'+int.toString(16)).slice(-4)
 }
 
-function call(loc,val) {
-  log('_call',loc,val)
-  mem_val[loc] = val
-  mem_nsat[loc] = 0
-}
-function call_sat(loc) {
-  var sat = mem_sat[loc]
-  var fun = mem_fun[loc] && mem_fun[loc][sat]
-  log('sat',loc,mem_val[loc],sat,fun)
-  if (fun) call_fun(loc,fun)
-}
-function call_fun(loc,fun) {
-  log('_fun',loc,fun)
-  var sat = mem_sat[loc]
-  var rot = fun[0]
-  mem_nsat[loc] = mem_sat[loc]
-  if (rot!=1&&rot!=7) ++mem_nsat[loc]
-  if (rot==2) {
-    var val = fun[1]
-    mem_nsat[val] = (mem_sat[val]||0)+1
-  }
-  else if (rot==3) call(fun[1],fun[2])
-  else if (rot==4) call(fun[1],mem_rd(fun[2]))
-  else if (rot==5) mem_val[fun[1]] = fun[2]
-  else if (rot==6) mem_val[fun[1]] = mem_rd(fun[2])
-  else if (rot==7) call_fun(loc,fun[1](loc,mem_rd(loc)))
-  else if (rot==8) {
-    var ra = to_int(mem_rd(fun[3]))
-    var rb = to_int(mem_rd(fun[4]))
-    var rc = to_int(mem_rd(fun[2]))
-    call(fun[2],to_loc(fun[1](ra,rb,rc)))
-  }
-  else if (rot==9) throw loc
-}
 var sanity = 0
 function boot() {
   try {
     while (true) {
       if (sanity++>0x100) throw `sanity`
-      var c = 0
+      if (!mem_stk.length) throw 'no stk'
       err('boot')
-      mem_sat = mem_nsat
-      mem_nsat = {}
-      for (var i in mem_sat) call_sat(i) || ++c
-      if (!c) throw `no_sat`
+
+      while (mem_stk.length) {
+        var call = mem_stk.pop()
+        var loc = mem_stk.pop()
+        var sat = mem_sat[loc]
+        log('call',loc,call,sat&&sat[0],sat&&sat[1])
+        var fun = mem_fun[loc]
+        var rot = call[0]
+
+        if (fun && rot!=3 && (!sat || sat[0]<fun.length)) {
+          mem_act[loc] = mem_act[loc] || mem_rd(loc)
+        }
+        if(rot==1) mem_act[call[1]] = call[2]
+        else if(rot==2) mem_act[call[1]] = mem_rd(call[2])
+      }
+
+      for (var loc in mem_act) {
+        var val = mem_act[loc]
+        var fun = mem_fun[loc]
+
+        if (fun) {
+          var sat = mem_sat[loc] || (mem_sat[loc] = [0,[mem_rd(loc)]])
+          if (sat[0]>=fun.length) sat[0] = 0
+          fun = fun[sat[0]++]
+          if (fun) mem_stk.push(loc,fun(sat[1],val)||[0])
+          mem_val[loc] = sat[1][0]
+        }
+        else mem_val[loc] = val
+        delete mem_act[loc]
+      }
     }
   } catch (e) {
     return e
   }
 }
+
+//--------------------------------------------------------------
+// set prog
+//--------------------------------------------------------------
+
 
 var inst_rep = 'or xor and nor srl sra sll \
 add sub orlo orhi addi gtr ifz rd wt'.split(' ')
@@ -174,15 +167,15 @@ var macros = {
     l => l[r[2]] && ('a'+r[1]+l[r[2]][0]+l[r[2]][1]),
     l => l[r[2]] && ('9'+r[1]+l[r[2]][2]+l[r[2]][3]),
   ],
+  'li': r => {
+
+  },
   '#deflbl': r => [],
   '#nomacro': r => [l => {
     var ret = ''
     for (var i in r) ret += r[i]
     return ret
   }],
-}
-function premacro(macro,line) {
-  err(line)
 }
 
 function setprog(txt,loc) {
@@ -220,19 +213,22 @@ function setprog(txt,loc) {
 }
 
 var prog = `
-  mov   t0 t2
-  la    t0 this
-  orlo  t0 01       # a = 1
-  this:
-  orlo  t1 02       # b = 2
-  sub   t2 t0 t1    # c = a-b
+  orlo    t0 03
+  orlo    t1 06
+  sub     t2 t0 t1
 `
-
 setprog(prog,'4000')
-call('f0af','4000')
+
+//--------------------------------------------------------------
+//main
+//--------------------------------------------------------------
+
+mem_stk.push('f0af',[1,'f0af','4000'])
 err('boot ret',boot())
 
 log(`mem_fun`,mem_fun)
 log(`mem_val`,mem_val)
 log(`mem_sat`,mem_sat)
+log(`mem_act`,mem_act)
+log(`mem_sat`,mem_stk)
 log('sanity',sanity)

@@ -32,14 +32,7 @@ $D $sp            :: stack pointer
 $E $ra            :: return address
 $F $pc            :: program counter
 
-*$r = $v
-[0]               :: nop
-[1]               :: sleep($r)
-[2 $a]            :: wake($a)
-[3 $b $a]         :: call($b,$a)
-[4 $b $a]         :: call($b,*$a)
-[5 $b $a]         :: *$b = $a
-[6 $b $a]         :: *$b = *$a
-[7 $f]            :: f($r,*$r)
-[8 $f $c $a $b]   :: call($c,f(*$a,*$b))
-[9]               :: stop
+[0]       :: nop
+[1 b a]   :: *b = a
+[2 b a]   :: *b = *a
+[3]       :: pause
