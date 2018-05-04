@@ -6,29 +6,28 @@ var prog = `9105 9203 8312 0000`.split(' ')
 for(var i=0;i<prog.length;++i)
   mem_val[to_loc(i+0x4000)]=prog[i]
 
-var mem_usat = [0,'0000']
-var mem_inst = '0000'
-var mem_ufun = null
-
+var mem_ret = 'ffff'
 var mem_fun = {
+  '0000': [[5,'0000','0000']],
+  'f0af': [
+    [4,'000f','f0af'],
+    [4,'f0f0','000f'],
+    [4,'f0a0','f0f0']
+  ],
   'f0a0': [
-    [0,'f0bb','bf01'],
-    [2,(l,v)=>[0,'f0b'+v[0],v]],
-    [1,'f0f0','000f'],
-    [1,'f0a0','f0e0']
+    [3,'f0bb','bf01'],[1],
+    [7,(l,v)=>[3,'f0b'+v[0],v]],[1],
+    [4,'f0f0','000f'],
+    [4,'f0a0','f0f0']
   ],
   'f0bb': [
-    [2,(l,v)=>[0,'f0e0','00'+v[2]+v[3]]],
-    [2,(l,v)=>[3,(a,b)=>a+b,'000'+v[1],'000'+v[1],'f0e0']]
-  ],
-  'f0af': [
-    [1,'000f','f0af'],
-    [1,'f0f0','000f'],
-    [1,'f0a0','f0e0']
+    [7,(l,v)=>[3,'f0e0','00'+v[2]+v[3]]],
+    [7,(l,v)=>[8,(a,b)=>a+b,'000'+v[1],'000'+v[2],'f0e0']],
+    [2,'f0a0']
   ],
 }
 for (var i=0xf0f0;i<0xf100;++i)
-  mem_fun[to_loc(i)]=[[2,(l,v)=>[1,'f0e'+l[3],v]]]
+  mem_fun[to_loc(i)] = [[7,(l,v)=>[6,l,v]]]
 
 var mem_sat = {
 
@@ -56,38 +55,58 @@ function to_loc(int) {
 }
 
 function call(loc,val) {
-  mem_usat = [0,mem_inst]
-  if (mem_fun[loc]) mem_sat[loc] = mem_usat
+  log('call',loc,val)
   mem_val[loc] = val
-  mem_inst = loc
-  mem_ufun = null
+  mem_sat[loc] = 0
+}
+function call_sat(loc) {
+
+  var sat = mem_sat[loc] || 0
+  var fun = mem_fun[loc] && mem_fun[loc][sat]
+  log('call_sat',loc,sat,fun)
+  if (fun) call_fun(loc,fun)
+  else delete mem_sat[loc]
+}
+function call_fun(loc,fun) {
+  log('call_fun',loc,fun)
+  var sat = mem_sat[loc]
+  var rot = fun[0]
+  if (rot!=1&&rot!=7) ++mem_sat[loc]
+  if (rot==2) {
+    var val = fun[1]
+    if (mem_sat[val]) ++mem_sat[val]
+    else mem_sat[val] = 1
+  }
+  else if (rot==3) call(fun[1],fun[2])
+  else if (rot==4) call(fun[1],mem_rd(fun[2]))
+  else if (rot==5) call(fun[1],fun[2])
+  else if (rot==6) call(fun[1],mem_rd(fun[2]))
+  else if (rot==7) call_fun(loc,fun[1](loc,mem_rd(loc)))
+  else if (rot==8) {
+    var ra = to_int(mem_rd(fun[3]))
+    var rb = to_int(mem_rd(fun[4]))
+    call(fun[2],to_loc(fun[1](ra,rb)))
+  }
+  else if (rot==9) throw loc
 }
 var sanity = 0
 function boot() {
-  while (true) {
-    if (sanity++>0x100) return `sanity`
-
-    var sat = mem_sat[mem_inst] || mem_usat
-    if (!mem_ufun && mem_fun[mem_inst]) mem_ufun = mem_fun[mem_inst][sat[0]++]
-    log(sanity,mem_inst,mem_rd(mem_inst),sat,mem_ufun)
-    var fun = mem_ufun
-    // if (!fun) err(sat[1])
-    if (!fun) mem_inst = sat[1]
-    else if (fun[0]==0) call(fun[1],fun[2])
-    else if (fun[0]==1) call(fun[1],mem_rd(fun[2]))
-    else if (fun[0]==2) mem_ufun = fun[1](mem_inst,mem_rd(mem_inst))
-    else if (fun[0]==3) {
-      var ra = to_int(mem_rd(fun[3]))
-      var rb = to_int(mem_rd(fun[4]))
-      mem_ufun = [0,fun[2],to_loc(fun[1](ra,rb))]
+  try {
+    while (true) {
+      if (sanity++>0x100) throw `sanity`
+      var c = 0
+      err('boot')
+      for (var i in mem_sat) call_sat(i) || ++c
+      if (!c) throw `no_sat`
     }
-    else break
+  } catch (e) {
+    return e
   }
 }
 
 call('f0af','4000')
 err(boot())
-log(`mem_inst`,mem_inst)
+
+log(`mem_fun`,mem_fun)
 log(`mem_val`,mem_val)
 log(`mem_sat`,mem_sat)
-log(`mem_usat`,mem_usat)
