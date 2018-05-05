@@ -75,6 +75,16 @@ var mem_fun = {
     (r,v) => [2,'f0bd','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
     (r,v) => v=='0000'?[2,r[0],r[1]]:[0]
   ],
+  'f0be': [
+    (r,v) => [2,'f0be','000'+v[3], r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0be',r[1],r[2]=v],
+    (r,v) => [2,r[0],to_loc(to_int(v)+to_int(r[2]))]
+  ],
+  'f0bf': [
+    (r,v) => [2,'f0bf','000'+v[3], r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0bf',r[1],r[2]=v],
+    (r,v) => [2,to_loc(to_int(v)+to_int(r[2])),r[0]]
+  ],
   'f0a0': [
     (r,v) => v=='0000'?[3,'f0a0']:[1,'f0bb','bf01',r[0]=v,r[1]='f0b'+v[0]],
     mem_nop, mem_nop,
@@ -156,20 +166,23 @@ function boot() {
 var inst_rep = 'or xor and nor srl sra sll \
 add sub orlo orhi addi gtr ifz rd wt'.split(' ')
 var regs_rep = 'z t0 t1 t2 s0 s1 s2 \
-s3 r0 r1 a0 a1 a2 sp ra pc'.split(' ')
+s3 r0 r1 a0 a1 at sp ra pc'.split(' ')
 var prog_rep = {}
 for (var i=0;i<0x10;++i)
   prog_rep[inst_rep[i]] = prog_rep[regs_rep[i]] = i.toString(16)
 var macros = {
+  'idx': (r,i) => (i[0] = r) && [],
+  'nop': r => [l => '0001'],
+  'pause': r => [l => '0000'],
   'mov': r => [l => '0'+r[1]+'0'+r[2]],
   'la': r => [
-    l => '0'+r[1]+'00',
     l => l[r[2]] && ('a'+r[1]+l[r[2]][0]+l[r[2]][1]),
     l => l[r[2]] && ('9'+r[1]+l[r[2]][2]+l[r[2]][3]),
   ],
-  'li': r => {
-
-  },
+  'li': r => [
+    l => 'a'+r[1]+r[2][0]+r[2][1],
+    l => '9'+r[1]+r[2][2]+r[2][3]
+  ],
   '#deflbl': r => [],
   '#nomacro': r => [l => {
     var ret = ''
@@ -200,22 +213,32 @@ function setprog(txt,loc) {
       simp = simp.concat(m(r))
     }
   }
-  var ans = []
   for (var i in simp) {
+    var idx = []
     var tmp = simp[i](lbls)
+    if (idx[0]) loc = to_int(idx[0])
     var tst = to_loc(to_int(tmp))
     if (tst!=tmp) throw `bad input '${tmp}' (${tst})`
-    ans.push(tmp)
+    mem_val[to_loc(loc++)] = tmp
   }
-  for (var i=0;i<ans.length;++i)
-    mem_val[to_loc(i+loc)] = ans[i]
   err(lbls)
 }
 
 var prog = `
+  idx     4000
+main:
   orlo    t0 03
   orlo    t1 06
+  li      s0 f0b0
   sub     t2 t0 t1
+  nop
+  pause
+
+  idx     5000
+
+prog:
+  la      r0 prog
+
 `
 setprog(prog,'4000')
 
