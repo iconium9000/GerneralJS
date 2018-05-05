@@ -86,7 +86,8 @@ var mem_fun = {
     (r,v) => [2,to_loc(to_int(v)+to_int(r[2])),r[0]]
   ],
   'f0a0': [
-    (r,v) => v=='0000'?[3,'f0a0']:[1,'f0bb','bf01',r[0]=v,r[1]='f0b'+v[0]],
+    (r,v) => v=='0000'?[3,'f0a0']:
+      [1,'f0bb','bf01',r[0]=v,r[1]='f0b'+v[0]],
     mem_nop, mem_nop,
     (r,v) => [1,r[1],r[0]],
     mem_nop, mem_nop, mem_nop,
@@ -95,8 +96,7 @@ var mem_fun = {
   ],
   'f0af': [
     (r,v) => [1,'000f',r[0]=v],
-    (r,v) => [2,'f0a0',r[0]],
-    // (r,v) => [0]
+    (r,v) => [2,'f0a0',r[0]]
   ],
 }
 
@@ -109,6 +109,7 @@ function to_int(loc) {
   return (int%0x10000)-0x10000
 }
 function to_loc(int) {
+  int = int || 0
   if (int>0xffff) int = int % 0x10000
   if (int<-0x8000) int = int % 0x8000
   if (int< 0) int = 0xffff+int+1
@@ -121,13 +122,13 @@ function boot() {
     while (true) {
       if (sanity++>0x100) throw `sanity`
       if (!mem_stk.length) throw 'no stk'
-      err('boot')
+      // err('boot')
 
       while (mem_stk.length) {
         var call = mem_stk.pop()
         var loc = mem_stk.pop()
         var sat = mem_sat[loc]
-        log('call',loc,call,sat&&sat[0],sat&&sat[1])
+        // log('call',loc,call,sat&&sat[0],sat&&sat[1])
         var fun = mem_fun[loc]
         var rot = call[0]
 
@@ -171,19 +172,33 @@ var prog_rep = {}
 for (var i=0;i<0x10;++i)
   prog_rep[inst_rep[i]] = prog_rep[regs_rep[i]] = i.toString(16)
 var macros = {
-  'idx': (r,i) => (i[0] = r) && [],
   'nop': r => [l => '0001'],
   'pause': r => [l => '0000'],
   'mov': r => [l => '0'+r[1]+'0'+r[2]],
   'la': r => [
     l => l[r[2]] && ('a'+r[1]+l[r[2]][0]+l[r[2]][1]),
-    l => l[r[2]] && ('9'+r[1]+l[r[2]][2]+l[r[2]][3]),
+    l => '9'+r[1]+l[r[2]][2]+l[r[2]][3],
   ],
   'li': r => [
     l => 'a'+r[1]+r[2][0]+r[2][1],
     l => '9'+r[1]+r[2][2]+r[2][3]
   ],
-  '#deflbl': r => [],
+  '#deflbl': (r,i,l,s) => {
+    if (l[r[0]]) throw `already defined label '${r[0]}'`
+    i[0] = l[r[0]] = r[1] || i[0]
+    if (!s) return []
+    s += '\0'
+    var r = []
+    var i = 0
+    var f = (a,b) => l => a+b
+    while (i < s.length) {
+      var a = to_loc(s.charCodeAt(i++)).slice(2)
+      var b = to_loc(s.charCodeAt(i++)).slice(2)
+      r.push(f(a,b))
+    }
+
+    return r
+  },
   '#nomacro': r => [l => {
     var ret = ''
     for (var i in r) ret += r[i]
@@ -192,53 +207,58 @@ var macros = {
 }
 
 function setprog(txt,loc) {
-  err(prog_rep)
+  log(prog_rep)
   loc = to_int(loc)
 
   txt = txt.replace(/:/g,'\n').split('\n')
-  var simp = []
+  var simp = {}
   var lbls = {}
   for (var t in txt) {
-    t = txt[t].split('#')[0].split(' ')
+    t = txt[t]
+    var str_idx = t.indexOf('@')+1
+    var str = str_idx && t.slice(str_idx)
+    t = str_idx ? t.slice(0,str_idx-1) : t
+    t = t.split('#')[0].split(' ')
     var r = []
     t.forEach(i=>i && r.push(prog_rep[i]||i))
     if (r.length) {
       var m = macros[r[0]]
-      if (r.length==1&&!m) {
-        m = macros['#deflbl']
-        if (lbls[r[0]]) throw `already defined label '${r[0]}'`
-        lbls[r[0]] = to_loc(simp.length+loc)
-      }
+      if (r.length<=2&&!m) m = macros['#deflbl']
       if (!m) m = macros['#nomacro']
-      simp = simp.concat(m(r))
+      var idx = [to_loc(loc)]
+      var r = m(r,idx,lbls,str)
+      loc = to_int(idx[0])
+      // err(r)
+      for (var i in r) simp[to_loc(loc++)] = r[i]
     }
   }
-  for (var i in simp) {
-    var idx = []
-    var tmp = simp[i](lbls)
-    if (idx[0]) loc = to_int(idx[0])
+  log(simp)
+  for (var loc in simp) {
+    var tmp = simp[loc](lbls)
     var tst = to_loc(to_int(tmp))
     if (tst!=tmp) throw `bad input '${tmp}' (${tst})`
-    mem_val[to_loc(loc++)] = tmp
+    mem_val[loc] = tmp
   }
-  err(lbls)
+  log(lbls)
 }
 
 var prog = `
-  idx     4000
-main:
+main      4000
   orlo    t0 03
   orlo    t1 06
-  li      s0 f0b0
-  sub     t2 t0 t1
-  nop
+  sub     a0 t0 t1
+  la      ra ret
+  la      at prog
+  mov     pc at
+
+ret
+  mov     s0 r0
   pause
 
-  idx     5000
-
-prog:
-  la      r0 prog
-
+prog
+  mov     r0 a0
+  addi    r0 30
+  mov     pc ra
 `
 setprog(prog,'4000')
 
