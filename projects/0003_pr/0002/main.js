@@ -11,7 +11,17 @@ var mem_act = {}
 var mem_nop = (r,v) => null
 var mem_stk = []
 to_term.doc = document.getElementById('text')
+to_term.bod = document.getElementById('body')
 to_term.txt = to_term.doc.innerHTML
+// var keys = {
+//   'Enter': '\n',
+//   'Escape': ''
+// }
+// to_term.bod.addEventListener('keydown',e => {
+//   var keyCode = e.keyCode
+//   log(`'${e.key}'`,e.keyCode)
+// })
+
 function to_term(obj) {
   to_term.txt += obj
   var str = ''
@@ -124,6 +134,10 @@ function to_int(loc) {
   if (int<0x8000) return int
   return (int%0x10000)-0x10000
 }
+function to_abs(loc) {
+  loc = to_int(loc)
+  return loc < 0 ? 0xfffe - loc : loc
+}
 function to_loc(int) {
   int = int || 0
   if (int>0xffff) int = int % 0x10000
@@ -136,7 +150,7 @@ var sanity = 0
 function boot() {
   try {
     while (true) {
-      if (sanity++>0x1000) throw `sanity`
+      if (sanity++>Infinity) throw `sanity`
       if (!mem_stk.length) throw 'no stk'
       // err('boot')
 
@@ -192,16 +206,32 @@ var macros = {
   'pause': r => [l => '0000'],
   'mov': r => [l => '0'+r[1]+'0'+r[2]],
   'la': r => [
-    l => l[r[2]] && ('a'+r[1]+l[r[2]][0]+l[r[2]][1]),
-    l => '9'+r[1]+l[r[2]][2]+l[r[2]][3],
+    l => {
+      l = l(r[2])
+      return l && ('a'+r[1]+l[0]+l[1])
+    },
+    l => {
+      l = l(r[2])
+      return l && ('9'+r[1]+l[2]+l[3])
+    }
   ],
+  'str': r => {
+    var ret = []
+    var f = i => {
+      ret.push(l=>i==4?'0c00':'bc01')
+      ret.push(l=>r[1]+r[i]+r[2]+'c')
+    }
+    for (var i=4;i<r.length;++i) f(i)
+    return ret
+  },
   'li': r => [
     l => 'a'+r[1]+r[2][0]+r[2][1],
     l => '9'+r[1]+r[2][2]+r[2][3]
   ],
   '#deflbl': (r,i,l,s) => {
-    if (l[r[0]]) throw `already defined label '${r[0]}'`
-    i[0] = l[r[0]] = r[1] || i[0]
+    var ls = l[r[0]] || (l[r[0]] = [])
+    var loc = i[0] = r[1] || i[0]
+    ls.push(loc)
     if (!s) return []
     s += '\0'
     var r = []
@@ -249,7 +279,25 @@ function setprog(txt,loc) {
   }
   // log(simp)
   for (var loc in simp) {
-    var tmp = simp[loc](lbls)
+    var int = to_abs(loc)
+
+    var f = r => {
+      var min = Infinity
+      var ls = null
+      var l = lbls[r]
+      for (var i in l) {
+        i = l[i]
+        var d = Math.abs(to_abs(i)-int)
+        // log(d,i)
+        if (d<min) {
+          min = d
+          ls = i
+        }
+      }
+      // err(r,min,ls)
+      return ls
+    }
+    var tmp = simp[loc](f)
     var tst = to_loc(to_int(tmp))
     if (tst!=tmp) throw `bad input '${tmp}' (${tst},${loc})`
     mem_val[loc] = tmp
@@ -260,26 +308,101 @@ var prog = `
 p_loc     f0c0
 p_int     f0c1
 p_char    f0c2
-text      1000 @My name is Khan!
+
+text      8000 @My name is Khan!
+half      8100 @Some more text
+stack     a000
 main      4000
-  la      s0 text
-  or      s1 00
-  la      s2 p_char
-  la      s3 end
-  mov     r0 pc
+  la      sp stack
+  la      a0 text
+  la      at print_str
+  mov     ra pc
+  addi    ra 02
+  mov     pc at
+
+  la      t0 p_char
+  li      t1 000a
+  wt      t1 t0 0
+
+  la      a0 half
+  la      at print_str
+
+  mov     ra pc
+  addi    ra 02
+  mov     pc at
+
+  la      t0 p_char
+  li      t1 000a
+  wt      t1 t0 0
+
+  li      a0 000d
+  la      at fib
+  mov     ra pc
+  addi    ra 02
+  mov     pc at
+
+  la      t0 p_int
+  wt      r0 t0 0
+
+end
+  li      t0 1234
+  pause
+
+print_str 7000    # address at a0, return to ra
+  str     wt sp at t0 t1 s0 s1 s2 ra
+  mov     s2 sp
+  addi    sp 06
+
+  or      at 00
+  la      s0 p_char
+  la      s1 end
+  mov     ra pc
+
 loop
-  rd      t0 s0 s1
-  addi    s1 01
+  rd      t0 a0 at
+  addi    at 01
   srl     t1 t0 8
   sll     t0 t0 8
   srl     t0 t0 8
-  ifz     pc s3 t0
-  wt      t0 s2 0
-  ifz     pc s3 t1
-  wt      t1 s2 0
-  mov     pc r0
+  ifz     pc s1 t0
+  wt      t0 s0 0
+  ifz     pc s1 t1
+  wt      t1 s0 0
+  mov     pc ra
 end
-  pause
+  mov     sp s2
+  str     rd sp at t0 t1 s0 s1 s2 ra
+  mov     pc ra
+
+fib       7100
+  str     wt sp at t0 s0 s1 s2 a0 ra
+  mov     s0 sp
+  addi    sp 06
+
+  li      r0 0001
+  add     t0 r0 r0
+  gtr     t0 t0 a0
+  la      s1 end
+  ifz     pc s1 t0
+
+  la      s2 fib
+  sub     a0 a0 t0
+  mov     ra pc
+  addi    ra 02
+  mov     pc s2
+
+  mov     s1 r0
+  sub     a0 a0 t0
+
+  mov     ra pc
+  addi    ra 02
+  mov     pc s2
+  add     r0 r0 s1
+
+end
+  mov     sp s0
+  str     rd sp at t0 s0 s1 s2 a0 ra
+  mov     pc ra
 `
 setprog(prog,'4000')
 
