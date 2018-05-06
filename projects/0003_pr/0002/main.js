@@ -10,6 +10,19 @@ var mem_sat = {}
 var mem_act = {}
 var mem_nop = (r,v) => null
 var mem_stk = []
+to_term.doc = document.getElementById('text')
+to_term.txt = to_term.doc.innerHTML
+function to_term(obj) {
+  to_term.txt += obj
+  var str = ''
+  for (var i in to_term.txt) {
+    var c = to_term.txt[i]
+    var d = c.charCodeAt(0)
+    if (d==0x7f) str = str.slice(0,str.length-1)
+    else str += c
+  }
+  to_term.doc.innerHTML = str
+}
 var mem_fun = {
   '0000': [],
   'f0b0': [
@@ -98,6 +111,9 @@ var mem_fun = {
     (r,v) => [1,'000f',r[0]=v],
     (r,v) => [2,'f0a0',r[0]]
   ],
+  'f0c0': [(r,v) => to_term(v)],
+  'f0c1': [(r,v) => to_term(to_int(v))],
+  'f0c2': [(r,v) => to_term(String.fromCharCode(to_int(v[2]+v[3])))],
 }
 
 function mem_rd(loc) {
@@ -120,7 +136,7 @@ var sanity = 0
 function boot() {
   try {
     while (true) {
-      if (sanity++>0x100) throw `sanity`
+      if (sanity++>0x1000) throw `sanity`
       if (!mem_stk.length) throw 'no stk'
       // err('boot')
 
@@ -194,7 +210,7 @@ var macros = {
     while (i < s.length) {
       var a = to_loc(s.charCodeAt(i++)).slice(2)
       var b = to_loc(s.charCodeAt(i++)).slice(2)
-      r.push(f(a,b))
+      r.push(f(b,a))
     }
 
     return r
@@ -207,7 +223,7 @@ var macros = {
 }
 
 function setprog(txt,loc) {
-  log(prog_rep)
+  // log(prog_rep)
   loc = to_int(loc)
 
   txt = txt.replace(/:/g,'\n').split('\n')
@@ -228,37 +244,42 @@ function setprog(txt,loc) {
       var idx = [to_loc(loc)]
       var r = m(r,idx,lbls,str)
       loc = to_int(idx[0])
-      // err(r)
       for (var i in r) simp[to_loc(loc++)] = r[i]
     }
   }
-  log(simp)
+  // log(simp)
   for (var loc in simp) {
     var tmp = simp[loc](lbls)
     var tst = to_loc(to_int(tmp))
-    if (tst!=tmp) throw `bad input '${tmp}' (${tst})`
+    if (tst!=tmp) throw `bad input '${tmp}' (${tst},${loc})`
     mem_val[loc] = tmp
   }
-  log(lbls)
 }
 
 var prog = `
+p_loc     f0c0
+p_int     f0c1
+p_char    f0c2
+text      1000 @My name is Khan!
 main      4000
-  orlo    t0 03
-  orlo    t1 06
-  sub     a0 t0 t1
-  la      ra ret
-  la      at prog
-  mov     pc at
-
-ret
-  mov     s0 r0
+  la      s0 text
+  or      s1 00
+  la      s2 p_char
+  la      s3 end
+  mov     r0 pc
+loop
+  rd      t0 s0 s1
+  addi    s1 01
+  srl     t1 t0 8
+  sll     t0 t0 8
+  srl     t0 t0 8
+  ifz     pc s3 t0
+  wt      t0 s2 0
+  ifz     pc s3 t1
+  wt      t1 s2 0
+  mov     pc r0
+end
   pause
-
-prog
-  mov     r0 a0
-  addi    r0 30
-  mov     pc ra
 `
 setprog(prog,'4000')
 
@@ -269,9 +290,9 @@ setprog(prog,'4000')
 mem_stk.push('f0af',[1,'f0af','4000'])
 err('boot ret',boot())
 
-log(`mem_fun`,mem_fun)
+// log(`mem_fun`,mem_fun)
 log(`mem_val`,mem_val)
-log(`mem_sat`,mem_sat)
-log(`mem_act`,mem_act)
-log(`mem_sat`,mem_stk)
-log('sanity',sanity)
+// log(`mem_sat`,mem_sat)
+// log(`mem_act`,mem_act)
+// log(`mem_sat`,mem_stk)
+// log('sanity',sanity)
