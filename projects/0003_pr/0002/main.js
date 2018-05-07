@@ -5,22 +5,26 @@ err = console.error
 // main bus
 //--------------------------------------------------------------
 
+var PAUSE = false
+var boot_interval = null
 var mem_val = {}
 var mem_sat = {}
 var mem_act = {}
 var mem_nop = (r,v) => null
 var mem_stk = []
+var mem_prev = {}
 to_term.doc = document.getElementById('text')
 to_term.bod = document.getElementById('body')
 to_term.txt = to_term.doc.innerHTML
-// var keys = {
-//   'Enter': '\n',
-//   'Escape': ''
-// }
-// to_term.bod.addEventListener('keydown',e => {
-//   var keyCode = e.keyCode
-//   log(`'${e.key}'`,e.keyCode)
-// })
+var key_funs = {
+  'Escape': e => {
+    PAUSE = !PAUSE
+    log('Escape')
+    boot_interval && setInterval(boot_interval)
+  }
+}
+var def_key_fun = e => {}
+to_term.bod.addEventListener('keydown',e => (key_funs[e.key]||def_key_fun)(e))
 
 function to_term(obj) {
   to_term.txt += obj
@@ -149,44 +153,63 @@ function to_loc(int) {
 var sanity = 0
 function boot() {
   try {
-    while (true) {
-      if (sanity++>Infinity) throw `sanity`
-      if (!mem_stk.length) throw 'no stk'
-      // err('boot')
+    if (PAUSE||sanity++>Infinity) throw `sanity`
+    if (!mem_stk.length) throw 'no stk'
+    // err('boot')
 
-      while (mem_stk.length) {
-        var call = mem_stk.pop()
-        var loc = mem_stk.pop()
-        var sat = mem_sat[loc]
-        // log('call',loc,call,sat&&sat[0],sat&&sat[1])
-        var fun = mem_fun[loc]
-        var rot = call[0]
+    while (mem_stk.length) {
+      var call = mem_stk.pop()
+      var loc = mem_stk.pop()
+      var sat = mem_sat[loc]
+      // log('call',loc,call,sat&&sat[0],sat&&sat[1])
+      var fun = mem_fun[loc]
+      var rot = call[0]
 
-        if (fun && rot!=3 && (!sat || sat[0]<fun.length)) {
-          mem_act[loc] = mem_act[loc] || mem_rd(loc)
-        }
-        if(rot==1) mem_act[call[1]] = call[2]
-        else if(rot==2) mem_act[call[1]] = mem_rd(call[2])
+      if (fun && rot!=3 && (!sat || sat[0]<fun.length)) {
+        mem_act[loc] = mem_act[loc] || mem_rd(loc)
       }
-
-      for (var loc in mem_act) {
-        var val = mem_act[loc]
-        var fun = mem_fun[loc]
-
-        if (fun) {
-          var sat = mem_sat[loc] || (mem_sat[loc] = [0,[mem_rd(loc)]])
-          if (sat[0]>=fun.length) sat[0] = 0
-          fun = fun[sat[0]++]
-          if (fun) mem_stk.push(loc,fun(sat[1],val)||[0])
-          mem_val[loc] = sat[1][0]
-        }
-        else mem_val[loc] = val
-        delete mem_act[loc]
-      }
+      if(rot==1) mem_act[call[1]] = call[2]
+      else if(rot==2) mem_act[call[1]] = mem_rd(call[2])
     }
+
+    for (var loc in mem_act) {
+      var val = mem_act[loc]
+      var fun = mem_fun[loc]
+
+      if (fun) {
+        var sat = mem_sat[loc] || (mem_sat[loc] = [0,[mem_rd(loc)]])
+        if (sat[0]>=fun.length) sat[0] = 0
+        fun = fun[sat[0]++]
+        if (fun) mem_stk.push(loc,fun(sat[1],val)||[0])
+        mem_val[loc] = sat[1][0]
+      }
+      else mem_val[loc] = val
+      delete mem_act[loc]
+    }
+
+    var col = document.getElementById('regs')
+    col.innerHTML = ''
+    for (var i = 0x0; i < 0x10; ++i) {
+      var loc = to_loc(i)
+      var val = mem_rd(loc)
+      col.innerHTML += `<pre>${regs_rep[i]} ${val}\n</pre>`
+    }
+
+    var col = document.getElementById('stack')
+    col.innerHTML = ''
+    var i = 0xa000
+    while (true) {
+      var loc = to_loc(i++)
+      var val = mem_rd(loc)
+      if (!mem_val[loc]) break
+      // col.innerHTML += `<pre>${loc} ${val}\n</pre>`
+    }
+
   } catch (e) {
     return e
   }
+
+
 }
 
 //--------------------------------------------------------------
@@ -335,7 +358,7 @@ main      4000
   li      t1 000a
   wt      t1 t0 0
 
-  li      a0 000d
+  li      a0 0005
   la      at fib
   mov     ra pc
   addi    ra 02
@@ -348,7 +371,7 @@ end
   li      t0 1234
   pause
 
-print_str 7000    # address at a0, return to ra
+print_str c000    # address at a0, return to ra
   str     wt sp at t0 t1 s0 s1 s2 ra
   mov     s2 sp
   addi    sp 06
@@ -374,7 +397,7 @@ end
   str     rd sp at t0 t1 s0 s1 s2 ra
   mov     pc ra
 
-fib       7100
+fib       7000
   str     wt sp at t0 s0 s1 s2 a0 ra
   mov     s0 sp
   addi    sp 06
@@ -411,7 +434,10 @@ setprog(prog,'4000')
 //--------------------------------------------------------------
 
 mem_stk.push('f0af',[1,'f0af','4000'])
-err('boot ret',boot())
+var boot_interval = setInterval(boot)
+// i => {
+//   for (var i=0;i<0x100;++i) boot()
+// })
 
 // log(`mem_fun`,mem_fun)
 log(`mem_val`,mem_val)
