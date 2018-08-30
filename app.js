@@ -1,6 +1,6 @@
 log = console.log
 
-var default_port = 2000
+var default_port = 3000
 var port = parseInt(process.argv[3]) || default_port
 
 var project = process.argv[2] || '0000_template'
