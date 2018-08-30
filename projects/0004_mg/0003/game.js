@@ -10,7 +10,6 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
     log(key, sndr, rcvr, msg)
   }
 }
-
 GAME_SRVR_INIT = () => {
   log('init game srvr')
 }
@@ -31,9 +30,20 @@ BAD_PRG = ++DEF_ERR
 USED_NODE = ++DEF_ERR
 
 // -----------------------------------------------------------------------------
+// Modes
+// -----------------------------------------------------------------------------
+MODE_ID = 0
+WALL_MODE = ++MODE_ID
+DOOR_MODE = ++MODE_ID
+PORTAL_MODE = ++MODE_ID
+HANDLE_MODE = ++MODE_ID
+DRIVER_MODE = ++MODE_ID
+KEY_MODE = ++MODE_ID
+
+// -----------------------------------------------------------------------------
 // Overview
 // -----------------------------------------------------------------------------
-IDS = 0
+SIDS = 0
 EDITOR_CONTROLLER = false
 GAME_CONTROLLER = true
 
@@ -45,81 +55,57 @@ NODE_RADIUS = 30
 LEVELS = []
 SEL_LEVEL = null
 SEL_NODE = null
-SEL_PORT = null
-
-MODES = {
-  WALL: {
-    sqr: null,
-    wall: false,
-    door: false,
-    portal: false,
-    handle: false,
-    gate: null,
-    allow_piece: false,
-    can_override: [],
-    check_src_node: new_link
-  },
-  DOOR: {
-    sqr: null,
-    wall: true,
-    door: true,
-    portal: false,
-    handle: false,
-    gate: null,
-    can_override: ['WALL'],
-    allow_piece: false,
-    check_src_node: new_link
-  }
-}
-for (var i in MODES) MODES[i].name = i
+SEL_PIECE = null
 
 function get_node(point) {
-  if (!SEL_LEVEL) throw [BAD_PRG, `null level`]
   for (var i in SEL_LEVEL.nodes) {
     var node = SEL_LEVEL.nodes[i]
-    if (NODE_RADIUS > PT.dist(node.point,point)) return node
+    if (NODE_RADIUS > PT.dist(point,node.point)) {
+      return node
+    }
   }
   return null
 }
 
-function new_link(src_node, new_node) {
+function set_gate(node) {
 
 }
 
-function new_level() {
-  SEL_LEVEL = {
-    id: ++IDS,
-    name: prompt('New Level?','Level ' + LEVELS.length),
-    nodes: {},
-    links: {},
-    pieces: {}
+
+function set_mode(mode,node) {
+  if (node.src_node) {
+    switch (mode) {
+      case WALL_MODE:
+
+      case DOOR_MODE:
+
+      case PORTAL_MODE:
+      case HANDLE_MODE:
+
+    }
   }
-  if (!SEL_LEVEL.name) throw [BAD_USR, `no level name given`]
-  LEVELS.push(SEL_LEVEL)
-  return SEL_LEVEL
+  else if (mode == PORTAL_MODE) {
+    
+  }
 }
 
 function new_node(point,src_node,mode) {
-  if (!SEL_LEVEL) throw [BAD_PRG, `null level`]
   var node = get_node(point)
   if (node) {
-    if ()
+    node.src_node = src_node
+    return set_mode(mode,node)
   }
-
   var node = {
-    id: ++IDS,
+    sid: ++SIDS,
     point: PT.copy(point),
-    mode: mode,
-    links: {},
+    src_node: src_node,
+    peice_target: false,
     handles: {},
-    gate: null,
-    driver: null,
-    key: null
+    doors: {},
+    walls: {}
   }
-  mode.check_src_node(src_node,node)
-
-  SEL_LEVEL.nodes[node.id] = node
-  return node
+  SEL_LEVEL.nodes[node.sid] = node
+  return set_mode(mode,src_node,node)
 }
 
 // -----------------------------------------------------------------------------
