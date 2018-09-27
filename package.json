@@ -3,11 +3,6 @@
   "version": "1.0.0",
   "description": "John FitzGerald\r General Purpose JavaScript Project",
   "main": "app.js",
-  "dependencies": {
-    "express": "^4.16.3",
-    "socket.io": "^2.1.1"
-  },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -20,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/iconium9000/GeneralJS/issues"
   },
-  "homepage": "https://github.com/iconium9000/GeneralJS#readme"
+  "homepage": "https://github.com/iconium9000/GeneralJS#readme",
+  "dependencies": {
+    "express": "^4.16.3",
+    "socket.io": "^2.1.1"
+  }
 }

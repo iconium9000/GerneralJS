@@ -11,6 +11,7 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
     log(key, sndr, rcvr, msg)
   }
 }
+
 GAME_SRVR_INIT = () => {
   log('init game srvr')
 }
@@ -22,11 +23,6 @@ GAME_CLNT_INIT = () => {
 GAME_TICK = () => {
   var g = USR_IO_DSPLY.g
   var wh = USR_IO_DSPLY.wh
-<<<<<<< HEAD
-
-
-}
-=======
   var cntr = PT.divs(wh,2)
 
   for (var i in MODE_KEYS) {
@@ -88,52 +84,9 @@ GAME_TICK = () => {
 // CONSTS
 // -----------------------------------------------------------------------------
 
-<<<<<<< HEAD
 SID = 0
 LEVELS = {}
 SEL_LEVEL = null
-=======
-// -----------------------------------------------------------------------------
-// Modes
-// -----------------------------------------------------------------------------
-MODE_ID = 0
-WALL_MODE = ++MODE_ID
-DOOR_MODE = ++MODE_ID
-PORTAL_MODE = ++MODE_ID
-HANDLE_MODE = ++MODE_ID
-DRIVER_MODE = ++MODE_ID
-KEY_MODE = ++MODE_ID
->>>>>>> d0901fea471f9071741505e506bdb440fbbc5ef6
-
-// -----------------------------------------------------------------------------
-SIDS = 0
-<<<<<<< HEAD
-LEVELS = {}
-SEL_NODE = null
-SEL_PEICE = null
-SEL_LEVEL = null
-MODE = 'WALL'
-
-NODE_RADIUS = 15
-
-new_level()
-
-// -----------------------------------------------------------------------------
-
-function new_level() {
-  SEL_LEVEL = {
-    sid: ++SIDS,
-    nodes: {},
-    walls: {},
-    portals: {},
-    keys: {},
-    drivers: {}
-  }
-}
-=======
-EDITOR_CONTROLLER = false
-GAME_CONTROLLER = true
->>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
 
 SEL_NODE = null
 DRAG_NODE = null
@@ -175,18 +128,10 @@ new_level()
 // -----------------------------------------------------------------------------
 // BACKBONE
 // -----------------------------------------------------------------------------
-<<<<<<< HEAD
 
 function gate_color(gate) {
   return gate ? !SEL_LEVEL.portal_lock&&gate.is_open ? 'green' : 'red' : 'white'
 }
-=======
-LEVELS = []
-SEL_LEVEL = null
-SEL_NODE = null
-SEL_PIECE = null
->>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
->>>>>>> d0901fea471f9071741505e506bdb440fbbc5ef6
 
 function new_level() {
   SEL_LEVEL = {
@@ -201,17 +146,8 @@ function new_level() {
 function get_node(point) {
   for (var i in SEL_LEVEL.nodes) {
     var node = SEL_LEVEL.nodes[i]
-<<<<<<< HEAD
-    if (NODE_RADIUS * 2 > PT.dist(node.point,point)) {
-=======
-<<<<<<< HEAD
     if (NODE_RADIUS > PT.dist(node.point,point)) {
       return node.pig ? node.pig.pig || node.pig : node
-=======
-    if (NODE_RADIUS > PT.dist(point,node.point)) {
->>>>>>> d0901fea471f9071741505e506bdb440fbbc5ef6
-      return node
->>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
     }
   }
   return null
@@ -230,13 +166,6 @@ function get_link(node_a,node_b) {
   node_a.links[node_b.sid] = {link:link,node:node_b}
   node_b.links[node_a.sid] = {link:link,node:node_a}
 
-<<<<<<< HEAD
-function check_handle(src_node,node) {
-  if (src_node == node) return true
-  else if (!src_node) return false
-  else return check_handle(node.src_node,node)
-=======
-<<<<<<< HEAD
   return link
 }
 function kill_links(node) {
@@ -246,35 +175,6 @@ function kill_links(node) {
     delete node_link.node.links[node.sid]
     delete SEL_LEVEL.links[node_link.link.sid]
     set_gate(node_link.node)
-=======
-function set_gate(node) {
-
->>>>>>> d0901fea471f9071741505e506bdb440fbbc5ef6
-}
-
-function set_gate(node,gate) {
-
-}
-
-function new_wall(src_node,node) {
-  var wall = node.walls[src_node.sid]
-  if (wall) return wall
-  else {
-    var wall = {
-      sid: ++SIDS,
-      src_node: src_node,
-      node: node,
-    }
-<<<<<<< HEAD
-    SEL_LEVEL.walls[wall.sids] = wall
-    src_node.walls[node.sid] = { wall: wall, node: node }
-    node.walls[src_node.sid] = { wall: wall, node: src_node }
-    return wall
-=======
-  }
-  else if (mode == PORTAL_MODE) {
-    
->>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
   }
 }
 function kill_node(node) {
@@ -282,7 +182,6 @@ function kill_node(node) {
   if (node.back) {
     node.back.pig = null
     kill_node(node.back)
->>>>>>> d0901fea471f9071741505e506bdb440fbbc5ef6
   }
   kill_links(node)
   delete SEL_LEVEL.nodes[node.sid]
@@ -294,19 +193,10 @@ function set_gate(node,gate) {
     is_open: true
   }
 
-<<<<<<< HEAD
   if (node.is_handle && !node.pig) {
     gate.is_open = false
   }
 
-<<<<<<< HEAD
-function kill_wall(src_node,node) {
-  var wall = node.walls[src_node.sid]
-  if (wall) {
-    delete SEL_LEVEL.walls[wall.sid]
-    delete node.walls[src_node.sid]
-    delete src_node.walls[node.sid]
-=======
   for (var i in node.links) {
     var node_link = node.links[i]
     if (node_link.link.gate) {
@@ -329,76 +219,6 @@ function new_node(point) {
   var node = node.back ? node.back.back || node.back : node
   set_gate(node)
   return node
-=======
-function new_node(point,src_node,mode) {
-  var node = get_node(point)
-  if (node) {
-    node.src_node = src_node
-    return set_mode(mode,node)
->>>>>>> d0901fea471f9071741505e506bdb440fbbc5ef6
-  }
-}
-function killall_walls(node) {
-
-}
-
-function new_node(point,src_node) {
-  var node = get_node(point) || {
-    sid: ++SIDS,
-    peice_node: null,
-    square: null,
-    key: null,
-    driver: null,
-    src_node: null,
-    handles: {},
-    walls: {}
-  }
-  SEL_LEVEL.nodes[node.sid] = node
-<<<<<<< HEAD
-  if (!src_node) {
-    if (MODE == 'PORTAL') {
-
-    }
-    return node
-  }
-
-  switch (MODE) {
-    case 'WALL':
-      node.peice_node = false
-      var wall = new_wall(src_node,node)
-      wall.gate = null
-      set_gate(node,null)
-      set_gate(src_node,null)
-      return node
-    case 'DOOR':
-      node.peice_node = false
-      var wall = new_wall(src_node,node)
-      wall.gate = true
-      set_gate(node,null)
-      return node
-    case 'HANDLE':
-      kill_wall(src_node,node)
-
-      if (check_handle(src_node,node)) return node
-      if (node.src_node) {
-        delete node.src_node.handles[node.sid]
-        set_gate(node.src_node,null)
-      }
-      node.src_node = src_node
-      src_node.handles[node.sid] = node
-      node.peice_node = true
-      for (var i in node.walls) {
-        node.peice_node = false
-        break
-      }
-      set_gate(node.src_node,null)
-      return node
-    case 'PORTAL':
-
-  }
-=======
-  return set_mode(mode,src_node,node)
->>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
 }
 function link_node(node,src_node) {
 
@@ -424,5 +244,4 @@ function link_node(node,src_node) {
 
   set_gate(node)
   return node
->>>>>>> d0901fea471f9071741505e506bdb440fbbc5ef6
 }
