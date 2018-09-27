@@ -1,7 +1,7 @@
 {
-  "name": "general-js",
-  "version": "0.0.0",
-  "description": "general javascript project",
+  "name": "generaljs",
+  "version": "1.0.0",
+  "description": "John FitzGerald\r General Purpose JavaScript Project",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,15 +10,14 @@
     "type": "git",
     "url": "git+https://github.com/iconium9000/GeneralJS.git"
   },
-  "author": "IC90",
+  "author": "",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/iconium9000/GeneralJS/issues"
   },
   "homepage": "https://github.com/iconium9000/GeneralJS#readme",
   "dependencies": {
-    "express": "^4.16.2",
-    "socket.io": "^2.0.4"
-  },
-  "devDependencies": {}
+    "express": "^4.16.3",
+    "socket.io": "^2.1.1"
+  }
 }
