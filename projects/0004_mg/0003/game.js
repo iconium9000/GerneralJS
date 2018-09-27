@@ -11,7 +11,6 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
     log(key, sndr, rcvr, msg)
   }
 }
-
 GAME_SRVR_INIT = () => {
   log('init game srvr')
 }
@@ -84,9 +83,29 @@ GAME_TICK = () => {
 // CONSTS
 // -----------------------------------------------------------------------------
 
+<<<<<<< HEAD
 SID = 0
 LEVELS = {}
 SEL_LEVEL = null
+=======
+// -----------------------------------------------------------------------------
+// Modes
+// -----------------------------------------------------------------------------
+MODE_ID = 0
+WALL_MODE = ++MODE_ID
+DOOR_MODE = ++MODE_ID
+PORTAL_MODE = ++MODE_ID
+HANDLE_MODE = ++MODE_ID
+DRIVER_MODE = ++MODE_ID
+KEY_MODE = ++MODE_ID
+
+// -----------------------------------------------------------------------------
+// Overview
+// -----------------------------------------------------------------------------
+SIDS = 0
+EDITOR_CONTROLLER = false
+GAME_CONTROLLER = true
+>>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
 
 SEL_NODE = null
 DRAG_NODE = null
@@ -128,10 +147,17 @@ new_level()
 // -----------------------------------------------------------------------------
 // BACKBONE
 // -----------------------------------------------------------------------------
+<<<<<<< HEAD
 
 function gate_color(gate) {
   return gate ? !SEL_LEVEL.portal_lock&&gate.is_open ? 'green' : 'red' : 'white'
 }
+=======
+LEVELS = []
+SEL_LEVEL = null
+SEL_NODE = null
+SEL_PIECE = null
+>>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
 
 function new_level() {
   SEL_LEVEL = {
@@ -146,8 +172,13 @@ function new_level() {
 function get_node(point) {
   for (var i in SEL_LEVEL.nodes) {
     var node = SEL_LEVEL.nodes[i]
+<<<<<<< HEAD
     if (NODE_RADIUS > PT.dist(node.point,point)) {
       return node.pig ? node.pig.pig || node.pig : node
+=======
+    if (NODE_RADIUS > PT.dist(point,node.point)) {
+      return node
+>>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
     }
   }
   return null
@@ -166,6 +197,7 @@ function get_link(node_a,node_b) {
   node_a.links[node_b.sid] = {link:link,node:node_b}
   node_b.links[node_a.sid] = {link:link,node:node_a}
 
+<<<<<<< HEAD
   return link
 }
 function kill_links(node) {
@@ -175,6 +207,27 @@ function kill_links(node) {
     delete node_link.node.links[node.sid]
     delete SEL_LEVEL.links[node_link.link.sid]
     set_gate(node_link.node)
+=======
+function set_gate(node) {
+
+}
+
+
+function set_mode(mode,node) {
+  if (node.src_node) {
+    switch (mode) {
+      case WALL_MODE:
+
+      case DOOR_MODE:
+
+      case PORTAL_MODE:
+      case HANDLE_MODE:
+
+    }
+  }
+  else if (mode == PORTAL_MODE) {
+    
+>>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
   }
 }
 function kill_node(node) {
@@ -193,6 +246,7 @@ function set_gate(node,gate) {
     is_open: true
   }
 
+<<<<<<< HEAD
   if (node.is_handle && !node.pig) {
     gate.is_open = false
   }
@@ -219,6 +273,25 @@ function new_node(point) {
   var node = node.back ? node.back.back || node.back : node
   set_gate(node)
   return node
+=======
+function new_node(point,src_node,mode) {
+  var node = get_node(point)
+  if (node) {
+    node.src_node = src_node
+    return set_mode(mode,node)
+  }
+  var node = {
+    sid: ++SIDS,
+    point: PT.copy(point),
+    src_node: src_node,
+    peice_target: false,
+    handles: {},
+    doors: {},
+    walls: {}
+  }
+  SEL_LEVEL.nodes[node.sid] = node
+  return set_mode(mode,src_node,node)
+>>>>>>> c4d2114857eb92c06e2515b2da31b1bb4eb4db06
 }
 function link_node(node,src_node) {
 
