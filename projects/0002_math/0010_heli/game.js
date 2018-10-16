@@ -177,6 +177,7 @@ GAME_TICK = () => {
     g.fillText("Press P to pause",20,70)
     g.fillText("Press T for trails",20,95)
     g.fillText("Press ? for Instructions",20,120)
+    g.fillText("iconium9000:3000",300,20)
   }
 
 }
