@@ -2,9 +2,134 @@ log = console.log
 err = console.error
 
 //--------------------------------------------------------------
-// funs
+// main bus
 //--------------------------------------------------------------
+
+var PAUSE = false
+var boot_interval = null
 var mem_val = {}
+var mem_sat = {}
+var mem_act = {}
+var mem_nop = (r,v) => null
+var mem_stk = []
+var mem_prev = {}
+to_term.doc = document.getElementById('text')
+to_term.bod = document.getElementById('body')
+to_term.txt = to_term.doc.innerHTML
+var key_funs = {
+  'Escape': e => {
+    PAUSE = !PAUSE
+    log('Escape')
+    boot_interval && setInterval(boot_interval)
+  }
+}
+var def_key_fun = e => {}
+to_term.bod.addEventListener('keydown',e => (key_funs[e.key]||def_key_fun)(e))
+
+function to_term(obj) {
+  to_term.txt += obj
+  var str = ''
+  for (var i in to_term.txt) {
+    var c = to_term.txt[i]
+    var d = c.charCodeAt(0)
+    if (d==0x7f) str = str.slice(0,str.length-1)
+    else str += c
+  }
+  to_term.doc.innerHTML = str
+}
+var mem_fun = {
+  '0000': [],
+  'f0b0': [
+    (r,v) => [2,'f0b0','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b0',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)|to_int(r[2]))]
+  ],
+  'f0b1': [
+    (r,v) => [2,'f0b1','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b1',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)^to_int(r[2]))]
+  ],
+  'f0b2': [
+    (r,v) => [2,'f0b2','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b2',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)&to_int(r[2]))]
+  ],
+  'f0b3': [
+    (r,v) => [2,'f0b3','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b3',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(-(to_int(v)|to_int(r[2]))-1)]
+  ],
+  'f0b4': [
+    (r,v) => [2,'f0b4','000'+v[2],r[0]='000'+v[1],r[1]='000'+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)>>>to_int(r[1]))]
+  ],
+  'f0b5': [
+    (r,v) => [2,'f0b5','000'+v[2],r[0]='000'+v[1],r[1]='000'+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)>>to_int(r[1]))]
+  ],
+  'f0b6': [
+    (r,v) => [2,'f0b6','000'+v[2],r[0]='000'+v[1],r[1]='000'+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)<<to_int(r[1]))]
+  ],
+  'f0b7': [
+    (r,v) => [2,'f0b7','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b7',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)+to_int(r[2]))]
+  ],
+  'f0b8': [
+    (r,v) => [2,'f0b8','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0b8',r[1],r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)-to_int(r[2]))]
+  ],
+  'f0b9': [
+    (r,v) => [2,'f0b9',r[0]='000'+v[1],r[1]='00'+v[2]+v[3]],
+    (r,v) => [1,r[0],to_loc(v[0]+v[1]+r[1][2]+r[1][3])]
+  ],
+  'f0ba': [
+    (r,v) => [2,'f0ba',r[0]='000'+v[1],r[1]=v[2]+v[3]+'00'],
+    (r,v) => [1,r[0],to_loc(r[1][0]+r[1][1]+v[2]+v[3])]
+  ],
+  'f0bb': [
+    (r,v) => [2,'f0bb',r[0] = '000'+v[1], r[1] = '00'+v[2]+v[3]],
+    (r,v) => [1,r[0],to_loc(to_int(v)+to_int(r[1]))]
+  ],
+  'f0bc': [
+    (r,v) => [2,'f0bc','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0bc',r[1], r[2]=v],
+    (r,v) => [1,r[0],to_loc(to_int(v)>to_int(r[2])?0:1)]
+  ],
+  'f0bd': [
+    (r,v) => [2,'f0bd','000'+v[3],r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => v=='0000'?[2,r[0],r[1]]:[0]
+  ],
+  'f0be': [
+    (r,v) => [2,'f0be','000'+v[3], r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0be',r[1],r[2]=v],
+    (r,v) => [2,r[0],to_loc(to_int(v)+to_int(r[2]))]
+  ],
+  'f0bf': [
+    (r,v) => [2,'f0bf','000'+v[3], r[0]='000'+v[1],r[1]='000'+v[2]],
+    (r,v) => [2,'f0bf',r[1],r[2]=v],
+    (r,v) => [2,to_loc(to_int(v)+to_int(r[2])),r[0]]
+  ],
+  'f0a0': [
+    (r,v) => v=='0000'?[3,'f0a0']:
+      [1,'f0bb','bf01',r[0]=v,r[1]='f0b'+v[0]],
+    mem_nop, mem_nop,
+    (r,v) => [1,r[1],r[0]],
+    mem_nop, mem_nop, mem_nop,
+    (r,v) => [2,'f0a0','000f'],
+    (r,v) => [2,'f0a0',v],
+  ],
+  'f0af': [
+    (r,v) => [1,'000f',r[0]=v],
+    (r,v) => [2,'f0a0',r[0]]
+  ],
+  'f0c0': [(r,v) => to_term(v)],
+  'f0c1': [(r,v) => to_term(to_int(v))],
+  'f0c2': [(r,v) => to_term(String.fromCharCode(to_int(v[2]+v[3])))],
+}
+
 function mem_rd(loc) {
   return mem_val[loc]||'0000'
 }
@@ -25,232 +150,66 @@ function to_loc(int) {
   return ('0000'+int.toString(16)).slice(-4)
 }
 
-
-//--------------------------------------------------------------
-// main bus
-//--------------------------------------------------------------
-
-var mem_stk = []
-var mem_sat = {}
-
-var apu_fun = {
-  '0': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      r[c] = to_loc(a|b)
-    },
-    ()=>[0]
-  ],
-  '1': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      r[c] = to_loc(a^b)
-    },
-    ()=>[0]
-  ],
-  '2': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      r[c] = to_loc(a&b)
-    },
-    ()=>[0]
-  ],
-  '3': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      r[c] = to_loc(-(a|b)-1)
-    },
-    ()=>[0]
-  ],
-  '4': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      r[c] = to_loc(a >>> b)
-    },
-    ()=>[0]
-  ],
-  '5': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      r[c] = to_loc(a >> b)
-    },
-    ()=>[0]
-  ],
-  '6': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      r[c] = to_loc(a << b)
-    },
-    ()=>[0]
-  ],
-  '7': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      r[c] = to_loc(a+b)
-    },
-    ()=>[0]
-  ],
-  '8': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      r[c] = to_loc(a-b)
-    },
-    ()=>[0]
-  ],
-  '9': [
-    (r,c,a,b) => {
-      var t = r[c] || '0000'
-      t = t[0] + t[1]
-      var s = a.toString(16) + b.toString(16)
-      r[c] = t + s
-    },
-    ()=>[0]
-  ],
-  'a': [
-    (r,c,a,b) => {
-      var t = r[c] || '0000'
-      t = t[0] + t[1]
-      var s = a.toString(16) + b.toString(16)
-      r[c] = s + t
-    },
-    ()=>[0]
-  ],
-  'b': [
-    (r,c,a,b) => {
-      var t = to_int(r[c] || '0000')
-      r[c] = to_loc(t + (a << 4) + b)
-    },
-    ()=>[0]
-  ],
-  'c': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      r[c] = '000' + (a > b ? '0' : '1')
-    },
-    ()=>[0]
-  ],
-  'd': [
-    (r,c,a,b) => {
-      r[c] = r[b] == '0000' ? r[a] : r[c]
-    },
-    ()=>[0]
-  ],
-  'e': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      return [2,'a0f0',to_loc(a+b)]
-    },
-    (r,c,a,b,v) => {
-      r[c] = v
-    }
-  ],
-  'f': [
-    (r,c,a,b) => {
-      a = to_int(r[a] || '0000')
-      b = to_int(r[b] || '0000')
-      err(r[c]||'0000')
-      return [2,to_loc(a+b),r[c]||'0000']
-    },
-    ()=>[0]
-  ],
-}
-var count = 0
-var mem_fun = {
-  '0000': [],
-  'f0a0': [
-    (r,v) => [2,'f0a0',r[0xf]=v],
-    (r,v) => {
-      r[0xf] = to_loc(1+to_int(r[0xf]))
-      r[0x10] = v
-      if (v=='0000') return [3]
-      r[0] = '0000'
-      var c = parseInt(v[1],16)
-      var a = parseInt(v[2],16)
-      var b = parseInt(v[3],16)
-      // err(r[0xf])
-      return apu_fun[v[0]][0](r,c,a,b)
-    },
-    (r,v) => {
-      var i = r[0x10]
-      r[0] = '0000'
-      var c = parseInt(i[1])
-      var a = parseInt(i[2])
-      var b = parseInt(i[3])
-      return apu_fun[v[0]][1](r,c,a,b,v)
-    },
-    (r,v) => [1,'f0a0',r[0xf]]
-  ]
-}
-
-function tick() {
+var sanity = 0
+function boot() {
   try {
-    var mem_act = {}
+    if (PAUSE||sanity++>Infinity) throw `sanity`
+    if (!mem_stk.length) throw 'no stk'
+    // err('boot')
+
     while (mem_stk.length) {
       var call = mem_stk.pop()
       var loc = mem_stk.pop()
+      var sat = mem_sat[loc]
+      // log('call',loc,call,sat&&sat[0],sat&&sat[1])
       var fun = mem_fun[loc]
-      // log('call',call)
+      var rot = call[0]
 
-      if (call[0]!=3 && fun) {
-        var sat = mem_sat[loc]
-        if (!sat) sat = mem_sat[loc] = [0,[]]
-        if (sat[0]<fun.length&&!mem_act[loc])
-          mem_act[loc] = mem_rd(loc)
+      if (fun && rot!=3 && (!sat || sat[0]<fun.length)) {
+        mem_act[loc] = mem_act[loc] || mem_rd(loc)
       }
-      if (call[0]==1||call[0]==2) {
-        mem_act[call[1]] = call[0]==2 ? mem_rd(call[2]) :call[2]
-      }
+      if(rot==1) mem_act[call[1]] = call[2]
+      else if(rot==2) mem_act[call[1]] = mem_rd(call[2])
     }
 
     for (var loc in mem_act) {
       var val = mem_act[loc]
       var fun = mem_fun[loc]
-      // log('act',loc,val,fun)
 
-      if (!fun) {
-        mem_val[loc] = val
-        continue
+      if (fun) {
+        var sat = mem_sat[loc] || (mem_sat[loc] = [0,[mem_rd(loc)]])
+        if (sat[0]>=fun.length) sat[0] = 0
+        fun = fun[sat[0]++]
+        if (fun) mem_stk.push(loc,fun(sat[1],val)||[0])
+        mem_val[loc] = sat[1][0]
       }
-      else if (!fun.length) continue
-
-      var sat = mem_sat[loc]
-      if (!sat) sat = mem_sat[loc] = [0,[]]
-
-      if (sat[0]>=fun.length) sat[0] %= fun.length
-
-      fun = fun[sat[0]++]
-
-      var call = fun(sat[1],val) || [0]
-      mem_stk.push(loc,call)
-
-      // log('fin',mem_stk)
+      else mem_val[loc] = val
+      delete mem_act[loc]
     }
-  }
-  catch(e) {
-    err(e)
+
+    var col = document.getElementById('regs')
+    col.innerHTML = ''
+    for (var i = 0x0; i < 0x10; ++i) {
+      var loc = to_loc(i)
+      var val = mem_rd(loc)
+      col.innerHTML += `<pre>${regs_rep[i]} ${val}\n</pre>`
+    }
+
+    var col = document.getElementById('stack')
+    col.innerHTML = ''
+    var i = 0xa000
+    while (true) {
+      var loc = to_loc(i++)
+      var val = mem_rd(loc)
+      if (!mem_val[loc]) break
+      // col.innerHTML += `<pre>${loc} ${val}\n</pre>`
+    }
+
+  } catch (e) {
     return e
   }
-}
 
-function boot(loc) {
-  boot.sanity = 0
-  boot.m_sanity = 0x100
-  mem_stk.push('f0a0',[1,'f0a0',loc])
-  boot.loop = setInterval(tick)
-}
 
-function stop() {
-  clearInterval(boot.loop)
-  err('ERR SANITY')
-  log(mem_sat['f0a0'][1])
 }
 
 //--------------------------------------------------------------
@@ -474,7 +433,11 @@ setprog(prog,'4000')
 //main
 //--------------------------------------------------------------
 
-boot('4000')
+mem_stk.push('f0af',[1,'f0af','4000'])
+var boot_interval = setInterval(boot)
+// i => {
+//   for (var i=0;i<0x100;++i) boot()
+// })
 
 // log(`mem_fun`,mem_fun)
 log(`mem_val`,mem_val)
