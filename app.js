@@ -43,7 +43,8 @@ CLNT_SKT = null
 CLNT = {
   id: CLNT_ID,
   key: CLNT_KEY,
-  skt: CLNT_SKT
+  skt: CLNT_SKT,
+  name: CLNT_NAME
 }
 SRVR_CLNTS[CLNT_ID] = CLNT
 log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)

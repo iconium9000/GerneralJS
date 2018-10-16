@@ -6,6 +6,21 @@ GAME_HIDE_CURSER = false
 
 GAME_MSG = (key, sndr, rcvr, msg) => {
   switch (key) {
+  case 'get_score':
+    // log('get_score',SRVR_MAX_SCORE)
+    HOST_MSG('clnt_score',[sndr],[SRVR_WINNER,SRVR_MAX_SCORE])
+    break
+  case 'srvr_score':
+    SRVR_WINNER = msg[0]
+    SRVR_MAX_SCORE = msg[1]
+    HOST_MSG('clnt_score',null,msg)
+    // log('srvr_score',msg)
+    break
+  case 'clnt_score':
+    SRVR_WINNER = msg[0]
+    SRVR_MAX_SCORE = msg[1]
+    // log('clnt_score',msg)
+    break
   default:
     log(key, sndr, rcvr, msg)
   }
@@ -17,6 +32,7 @@ GAME_SRVR_INIT = () => {
 
 GAME_CLNT_INIT = () => {
   log('init game clnt')
+  HOST_MSG('get_score',[0])
 }
 
 HELI_X = 0
@@ -28,7 +44,7 @@ HELI_V = 0
 HELI_GRAVITY = 70/1e2 // h per sec per sec
 HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
 
-PAUSED = false
+PAUSED = true
 TRAILS = false
 
 BAR_FREQ = 4/1 // bar spawn per sec
@@ -42,8 +58,9 @@ BAR_H = 1/10
 
 SCORE = 0
 SPACE = true
-// var cook = document.cookie
-MAX_SCORE = 0//cook.length ? parseInt(cook.split('=')[1]) : 0
+SRVR_MAX_SCORE = 0
+MAX_SCORE = 0
+SRVR_WINNER = 'SRVR'
 
 MUL = (a,b) => a*b
 
@@ -83,7 +100,12 @@ GAME_TICK = () => {
     var bar = BARS[i]
     if (bar[0][0] < -1/10) {
       ++SCORE
-      if (SCORE > MAX_SCORE) FU.setCookie('SCORE', MAX_SCORE = SCORE, 2)
+      if (SCORE > MAX_SCORE) {
+        MAX_SCORE = SCORE
+        if (MAX_SCORE > SRVR_MAX_SCORE) {
+          HOST_MSG('srvr_score',[0],[CLNT_NAME,MAX_SCORE])
+        }
+      }
       delete BARS[i]
     }
     else {
@@ -96,10 +118,11 @@ GAME_TICK = () => {
     }
   }
 
-  if (USR_IO_KYS.hsDn[' ']) SPACE = false
+  if (USR_IO_KYS.hsDn[' ']) PAUSED = SPACE = false
   if (USR_IO_KYS.hsDn['?']) SPACE = !SPACE
   if (USR_IO_KYS.hsDn['p']) PAUSED = !PAUSED
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
+  if (USR_IO_KYS.hsDn['r']) RESET = true
 
 
   if (!PAUSED) {
@@ -168,15 +191,31 @@ GAME_TICK = () => {
   }
 
   g.fillStyle = 'white'
-  g.font = "bold 20px arial,serif"
-  g.fillText(`${SCORE} / ${MAX_SCORE}`,20,20)
+  g.font = 'bold 20px arial,serif'
+  g.fillText(`Score ${SCORE}`,20,20)
+  g.fillText(`Hight Score ${MAX_SCORE}`,20,40)
+  g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,20,60)
+  g.fillText(`Champion ${SRVR_WINNER}`,20,80)
 
   if (SPACE) {
+    g.font = 'bold 40px arial,serif'
     g.fillStyle = 'white'
+<<<<<<< HEAD
+    var offset = 120
+    g.fillText("Press SPACE to boost",20,offset)
+    g.fillText("Press P to pause",20,offset += 40)
+    g.fillText("Press T for trails",20,offset += 40)
+    g.fillText("Press R to restart",20,offset += 40)
+    g.fillText("Press ? for Instructions",20,offset += 40)
+
+    g.fillText("Press Space To Start",20,offset += 120)
+=======
     g.fillText("Press SPACE to boost",20,45)
     g.fillText("Press P to pause",20,70)
     g.fillText("Press T for trails",20,95)
     g.fillText("Press ? for Instructions",20,120)
+    g.fillText("iconium9000:3000",300,20)
+>>>>>>> 11c96bbdd3bc6d8b2affea95272cd0261799e757
   }
 
 }
