@@ -42,8 +42,8 @@ BAR_H = 1/10
 
 SCORE = 0
 SPACE = true
-var cook = document.cookie
-MAX_SCORE = cook.length ? parseInt(cook.split('=')[1]) : 0
+// var cook = document.cookie
+MAX_SCORE = 0//cook.length ? parseInt(cook.split('=')[1]) : 0
 
 MUL = (a,b) => a*b
 

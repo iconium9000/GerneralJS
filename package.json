@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/iconium9000/GeneralJS#readme",
   "dependencies": {
-    "express": "^4.16.3",
+    "express": "^4.16.4",
     "socket.io": "^2.1.1"
   }
 }
