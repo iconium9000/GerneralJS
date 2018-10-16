@@ -41,6 +41,7 @@ BAR_W = 1/8
 BAR_H = 1/10
 
 SCORE = 0
+SPACE = true
 var cook = document.cookie
 MAX_SCORE = cook.length ? parseInt(cook.split('=')[1]) : 0
 
@@ -95,8 +96,11 @@ GAME_TICK = () => {
     }
   }
 
+  if (USR_IO_KYS.hsDn[' ']) SPACE = false
+  if (USR_IO_KYS.hsDn['?']) SPACE = !SPACE
   if (USR_IO_KYS.hsDn['p']) PAUSED = !PAUSED
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
+
 
   if (!PAUSED) {
     HELI_V += dt * acceleration
@@ -166,5 +170,13 @@ GAME_TICK = () => {
   g.fillStyle = 'white'
   g.font = "bold 20px arial,serif"
   g.fillText(`${SCORE} / ${MAX_SCORE}`,20,20)
+
+  if (SPACE) {
+    g.fillStyle = 'white'
+    g.fillText("Press SPACE to boost",20,45)
+    g.fillText("Press P to pause",20,70)
+    g.fillText("Press T for trails",20,95)
+    g.fillText("Press ? for Instructions",20,120)
+  }
 
 }
