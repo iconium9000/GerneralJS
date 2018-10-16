@@ -36,3 +36,21 @@ F pc            :: program counter
 [1 b a]   :: *b = a
 [2 b a]   :: *b = *a
 [3]       :: pause
+
+
+0 or  c a b    :: c = a | b
+1 xor c a b    :: c = xor(a,b)
+2 and c a b    :: c = a & b
+3 nor c a b    :: c = !(a | b)
+4 add c a b    :: c = a + b
+5 sub c a b    :: c = a - b
+6 slt c a b    :: c = a < b ? 1 : 0
+7 addi c imm    :: c = c + imm(lo8)
+8 orlo c imm    :: c = c | imm(lo8)
+9 orhi c imm    :: c = c | imm(hi8)
+a srl c a s     :: c = a >>> s
+b sra c a s     :: c = a >> s
+c sll c a s     :: c = a << s
+d ifz c a b    :: c = *b==0 ? a : c
+e rd c a b     :: c = *(a + b)
+f wt c a b     :: *(a + b) = c

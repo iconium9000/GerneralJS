@@ -1,12 +1,10 @@
 log = console.log
-SRVR_CLNT_ID = 0
 
-var default_port = 2000
+var default_port = 3000
 var port = parseInt(process.argv[3]) || default_port
 
 var project = process.argv[2] || '0000_template'
 var do_socket = !process.argv[4]
-var fs = require('fs')
 
 log('do', do_socket ? 'skt' : 'no_skt')
 
@@ -34,7 +32,7 @@ try {
 var socket_io = require('socket.io')(serv, {})
 
 SRVR_CLNTS = {}
-SRVR_CLNT_IDX = SRVR_CLNT_ID
+SRVR_CLNT_IDX = 0
 
 CLNT_NAME = 'SRVR'
 CLNT_ID = SRVR_CLNT_IDX
@@ -78,10 +76,6 @@ process.openStdin().addListener('data', msg => {
 })
 
 GAME_SRVR_INIT()
-SRVR_WRITE_FILE_CALLBACK = ()=>{}
-SRVR_WRITE_FILE = (file_name,obj) => fs.writeFileSync(PROJ_PATH+file_name,
-  JSON.stringify(obj), 'utf8',SRVR_WRITE_FILE_CALLBACK)
-SRVR_READ_FILE = file_name => JSON.parse(fs.readFileSync(PROJ_PATH+file_name))
 
 socket_io.sockets.on('connection', clnt_skt => {
   var clnt_id = ++SRVR_CLNT_IDX
