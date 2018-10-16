@@ -48,36 +48,36 @@ function USR_IO_SET_MWS() {
   $(document).mousemove(e => {
     setMouse(e)
     USR_IO_MWS.hsDrgd = USR_IO_MWS.isDn
-    USR_IO_MWS.shftDn = e.shiftKey
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
   $(document).mousedown(e => {
     setMouse(e)
     USR_IO_MWS.hsDrgd = false
     USR_IO_MWS.isDn = true
     USR_IO_MWS.hsDn = true
-    USR_IO_MWS.shftDn = e.shiftKey
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
   $(document).mouseup(e => {
     setMouse(e)
     USR_IO_MWS.isDn = false
     USR_IO_MWS.hsUp = true
-    USR_IO_MWS.shftDn = e.shiftKey
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
 
   $(document).keypress(e => {
     var c = FU.etochar(e)
     USR_IO_KYS.isDn[c] = true
     USR_IO_KYS.hsDn[c] = true
-    USR_IO_MWS.shftDn = e.shiftKey
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
   $(document).keyup(e => {
     var c = FU.etochar(e)
     USR_IO_KYS.isDn[c] = false
     USR_IO_KYS.hsUp[c] = true
-    USR_IO_MWS.shftDn = e.shiftKey
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
   document.onkeydown = e => {
     USR_IO_KYS.hsDn[e.key] = true
-    USR_IO_MWS.shftDn = e.shiftKey
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   }
 }

@@ -8,6 +8,18 @@ log('init pt.js')
 
 pt = PT = {}
 
+PT.shuffle = input => {
+  for (var i = input.length-1; i >=0; i--) {
+
+    var randomIndex = Math.floor(Math.random()*(i+1))
+    var itemAtIndex = input[randomIndex]
+
+    input[randomIndex] = input[i]
+    input[i] = itemAtIndex
+  }
+  return input;
+}
+
 PT.vec = (a,b,s,l) => {
   var p = []
   if (!s) return []
@@ -305,7 +317,7 @@ PT.spliceif = (p,f) => {
       p.splice(i--,1)
   return p
 }
-PT.circle = a => [Math.cos(a),Math.sin(a)]
+PT.circle = (a,r) => [r*Math.cos(a),r*Math.sin(a)]
 PT.color = p => PT.suma(PT.mats(p, 1, c => {
   c = c > 1 ? 1 : c < 0 ? 0 : c
   c = Math.floor(c * 255).toString(16)
@@ -405,8 +417,13 @@ PT.radint2 = (p1,p2,c,r) => {
   if (qd < 0) return null
 
   var q = (Math.sqrt(qd) - qb) / 2 / qa
-  return PT.sum(c,PT.vec(k2,k3,q,2))
+  return q > 1 || 0 > q ? null : PT.sum(c,PT.vec(k2,k3,q,2))
 }
+PT.hitbox = (p1,v1,p2,v2) =>
+   (p1[0] < p2[0] + v2[0]) &&
+   (p1[0] + v1[0] > p2[0]) &&
+   (p1[1] < p2[1] + v2[1]) &&
+   (p1[1] + v1[1] > p2[1])
 
 
 
