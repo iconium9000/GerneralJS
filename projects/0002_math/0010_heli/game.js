@@ -41,7 +41,8 @@ BAR_W = 1/8
 BAR_H = 1/10
 
 SCORE = 0
-MAX_SCORE = 0
+var cook = document.cookie
+MAX_SCORE = cook.length ? parseInt(cook.split('=')[1]) : 0
 
 MUL = (a,b) => a*b
 
@@ -68,7 +69,6 @@ GAME_TICK = () => {
 
   var timer = Math.floor(USR_IO_EVNTS.nw * 1e-3 * BAR_FREQ)
   if (!PAUSED && timer != BAR_TIMER) {
-    PT.fillRect(g,[20,20],[20,20],'white')
     BARS.push([
       [11/10,Math.random()],
       [BAR_W_MIN+BAR_W*Math.random(),BAR_H_MIN+BAR_H*Math.random()]
@@ -82,7 +82,7 @@ GAME_TICK = () => {
     var bar = BARS[i]
     if (bar[0][0] < -1/10) {
       ++SCORE
-      if (SCORE > MAX_SCORE) MAX_SCORE = SCORE
+      if (SCORE > MAX_SCORE) FU.setCookie('SCORE', MAX_SCORE = SCORE, 2)
       delete BARS[i]
     }
     else {
@@ -139,7 +139,6 @@ GAME_TICK = () => {
     p1 -= w1; m1 -= w1; l1 -= w1
     draw_quad(g,p1,p2,m1,m2,l1,l2,'red')
 
-
     var v1 = BAR_SPEED
     var v2 = HELI_V
     var h2 = HELI_Y
@@ -164,7 +163,6 @@ GAME_TICK = () => {
     draw_quad(g,p1,p2,m1,m2,l1,l2,'blue')
   }
 
-  PT.fillRect(g,[10,10],[40,30],'black')
   g.fillStyle = 'white'
   g.font = "bold 20px arial,serif"
   g.fillText(`${SCORE} / ${MAX_SCORE}`,20,20)
