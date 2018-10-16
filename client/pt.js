@@ -445,6 +445,7 @@ PT.vcc = (s,f,l) => {
     return ans
   }
   else return function() {
+    log('asdf')
     var len = arguments[s.length]
     var ans = [], arg = []
     for (var i = 0; i < len; ++i) {
