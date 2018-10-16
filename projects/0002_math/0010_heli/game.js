@@ -200,7 +200,6 @@ GAME_TICK = () => {
   if (SPACE) {
     g.font = 'bold 40px arial,serif'
     g.fillStyle = 'white'
-<<<<<<< HEAD
     var offset = 120
     g.fillText("Press SPACE to boost",20,offset)
     g.fillText("Press P to pause",20,offset += 40)
@@ -209,13 +208,6 @@ GAME_TICK = () => {
     g.fillText("Press ? for Instructions",20,offset += 40)
 
     g.fillText("Press Space To Start",20,offset += 120)
-=======
-    g.fillText("Press SPACE to boost",20,45)
-    g.fillText("Press P to pause",20,70)
-    g.fillText("Press T for trails",20,95)
-    g.fillText("Press ? for Instructions",20,120)
-    g.fillText("iconium9000:3000",300,20)
->>>>>>> 11c96bbdd3bc6d8b2affea95272cd0261799e757
   }
 
 }
