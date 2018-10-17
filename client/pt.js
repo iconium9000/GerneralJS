@@ -371,7 +371,7 @@ PT.drawRect = (g, a, b, c) => {
 
   g.beginPath()
   g.rect(a[0] || 0, a[1] || 0, b[0] || 0, b[1] || 0)
-  g.draw()
+  g.stroke()
 }
 PT.fillRect = (g, a, b, c) => {
   if (c) g.fillStyle = c

@@ -7,11 +7,18 @@ GAME_HIDE_CURSER = false
 GAME_MSG = (key, sndr, rcvr, msg) => {
   switch (key) {
   case 'new_bar':
-    if (CLNT_ID != SRVR_CLNT_ID) BARS.push(msg)
+    if (CLNT_ID != SRVR_CLNT_ID) {
+      // var floor_score = Math.floor(plr[3] * COLORS.length / SRVR_MAX_SCORE)
+      // if (floor_score > COLORS.length) floor_score = COLORS.length
+      // var color = COLORS[floor_score]
+      // msg.push(color)
+
+      BARS.push(msg)
+    }
     break
   case 'player_update':
     if (sndr != CLNT_ID) {
-      PLAYERS[sndr] = [msg,2]
+      PLAYERS[sndr] = msg
     }
     break
   case 'get_score':
@@ -48,19 +55,21 @@ GAME_CLNT_INIT = () => {
   log('init game clnt')
   START_TIME = USR_IO_EVNTS.nw
   setInterval(() => {
-    if (!PAUSED) HOST_MSG('player_update',null,HELI_Y)
+    if (!PAUSED) HOST_MSG('player_update',null,[HELI_Y,2,CLNT_NAME.slice(0,8),SCORE])
     for (var i in PLAYERS) if (PLAYERS[i][1]-- < 0) delete PLAYERS[i]
   },UPDATE_FREQ)
   HOST_MSG('get_score',[0])
 }
 
-HELI_X = 0
+COLORS = ['green','yellow','orange','red','blue','purple']
+
+HELI_X = 1/60
 HELI_Y = 1/2
-HELI_W = 1/10
+HELI_W = 1/12
 HELI_H = 1/20
 HELI_V = 0
 
-HELI_GRAVITY = 70/1e2 // h per sec per sec
+HELI_GRAVITY = 0.8 // h per sec per sec
 HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
 
 PAUSED = true
@@ -75,17 +84,22 @@ BAR_H_MIN = 1/30
 BAR_W = 1/8
 BAR_H = 1/10
 
+NAME_SCALE = 40
+TIME_LINE_SCALE = 100
+
 SCORE = 0
 SPACE = true
 SRVR_MAX_SCORE = 0
 MAX_SCORE = 0
 SRVR_WINNER = 'SRVR'
+PREV_SRVR_SCORE = 0
 
 START_TIME = 0
 THRUST_TIME = 0
 
 PLAYERS = []
 UPDATE_FREQ = 40
+TRAIL_WIDTH = 1
 
 MUL = (a,b) => a*b
 
@@ -103,16 +117,39 @@ GAME_TICK = () => {
   var dt = USR_IO_EVNTS.dt * 1e-3
   var w = wh[0]
   var h = wh[1]
+  SPACE_HAS_DOWN = USR_IO_KYS.hsDn[' '] || USR_IO_MWS.hsDn
+  SPACE_DOWN = USR_IO_KYS.isDn[' '] || USR_IO_MWS.isDn
+
+  var score_hight = h/TIME_LINE_SCALE
+  g.lineWidth = 6
+
+  for (var i = 0; i < COLORS.length; ++i) {
+    var x = i * w / COLORS.length
+    var color = COLORS[i]
+    PT.fillRect(g,[x,0],[w / COLORS.length,score_hight],color)
+  }
+  var score_line = SCORE * w / SRVR_MAX_SCORE
+  PT.drawLine(g,[score_line,0],[score_line,score_hight*2],'white')
 
   var heli = [HELI_X*w,HELI_Y*h]
   var heli_box = [HELI_W*w,HELI_H*h]
 
-  PT.fillRect(g,heli,heli_box,PAUSED?'grey':'white')
+  var heli = [HELI_X*w,HELI_Y*h]
   for (var i in PLAYERS) {
-    heli[1] = h * PLAYERS[i][0]
-    PT.fillRect(g,heli,heli_box,'grey')
+    var plr = PLAYERS[i]
+    heli[1] = h * plr[0]
+    var floor_score = Math.floor(plr[3] * COLORS.length / SRVR_MAX_SCORE)
+    if (floor_score > COLORS.length) floor_score = COLORS.length
+    COLOR = COLORS[floor_score]
+    PT.drawRect(g,heli,heli_box,COLOR)
+
+    g.fillStyle = COLOR
+    g.font = `bold ${Math.floor(w/NAME_SCALE)}px arial,serif`
+    g.fillText(plr[2],10,heli[1]+HELI_H*h*0.6)
   }
-  var acceleration = HELI_GRAVITY - (USR_IO_KYS.isDn[' '] ? HELI_LIFT : 0)
+  heli[1] = h * HELI_Y
+  PT.fillRect(g,heli,heli_box,PAUSED?'grey':'white')
+  var acceleration = HELI_GRAVITY - (SPACE_DOWN ? HELI_LIFT : 0)
 
   // var timer = Math.floor(USR_IO_EVNTS.nw * 1e-3 * BAR_FREQ)
   // if (timer != BAR_TIMER) {
@@ -124,6 +161,9 @@ GAME_TICK = () => {
   // }
 
   RESET = false
+  var floor_score = Math.floor(SCORE * COLORS.length / SRVR_MAX_SCORE)
+  if (floor_score > COLORS.length) floor_score = COLORS.length
+  COLOR = COLORS[floor_score]
 
   for (var i in BARS) {
     var bar = BARS[i]
@@ -142,13 +182,18 @@ GAME_TICK = () => {
 
       var p = PT.mat(bar[0],wh,MUL)
       var v = PT.mat(bar[1],wh,MUL)
-      PT.fillRect(g,p,v,PAUSED?'white':'red')
+      if (!PAUSED && SCORE > SRVR_MAX_SCORE - 4) {
+        PT.drawRect(g,p,v,'#808080')
+      }
+      else {
+        PT.fillRect(g,p,v,PAUSED?'white':COLOR)
+      }
 
       if (PT.hitbox(heli,heli_box,p,v)) RESET = true
     }
   }
 
-  if (USR_IO_KYS.hsDn[' ']) PAUSED = SPACE = false
+  if (SPACE_HAS_DOWN) PAUSED = SPACE = false
   if (USR_IO_KYS.hsDn['?']) SPACE = !SPACE
   if (USR_IO_KYS.hsDn['p']) PAUSED = RESET = true
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
@@ -166,12 +211,14 @@ GAME_TICK = () => {
     SCORE = 0
     THRUST_TIME = 0
     START_TIME = USR_IO_EVNTS.nw
+    // PREV_SRVR_SCORE = SRVR_MAX_SCORE
   }
 
 
-  if (!PAUSED && USR_IO_KYS.isDn[' ']) THRUST_TIME += dt
+  if (!PAUSED && SPACE_DOWN) THRUST_TIME += dt
 
   if (TRAILS) {
+    g.lineWidth = TRAIL_WIDTH
     var v1 = BAR_SPEED
     var v2 = HELI_V
     var h2 = HELI_Y
@@ -190,7 +237,9 @@ GAME_TICK = () => {
 
     var w1 = HELI_W * w
     var h1 = HELI_H * h
+    var w2 = HELI_X * w
 
+    p1 += w2; m1 += w2; l1 += w2
     draw_quad(g,p1,p2,m1,m2,l1,l2,'red')
     p1 += w1; m1 += w1; l1 += w1
     draw_quad(g,p1,p2,m1,m2,l1,l2,'red')
@@ -223,12 +272,13 @@ GAME_TICK = () => {
     draw_quad(g,p1,p2,m1,m2,l1,l2,'blue')
   }
 
+  g.textAlign = 'right'
   g.fillStyle = 'white'
   g.font = 'bold 20px arial,serif'
-  g.fillText(`Score ${SCORE}`,20,20)
-  g.fillText(`Hight Score ${MAX_SCORE}`,20,40)
-  g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,20,60)
-  g.fillText(`Champion ${SRVR_WINNER}`,20,80)
+  g.fillText(`Score ${SCORE}`,w-20,20)
+  g.fillText(`Hight Score ${MAX_SCORE}`,w-20,40)
+  g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,w-20,60)
+  g.fillText(`Champion ${SRVR_WINNER}`,w-20,80)
 
   var time = (USR_IO_EVNTS.nw - START_TIME) * 1e-3
   // g.fillText(`Thrust Time ${time/THRUST_TIME}`,20,110)
@@ -237,13 +287,16 @@ GAME_TICK = () => {
     g.font = 'bold 40px arial,serif'
     g.fillStyle = 'white'
     var offset = 140
-    g.fillText("Press SPACE to boost",20,offset)
-    g.fillText("Press P to pause",20,offset += 40)
-    g.fillText("Press T for trails",20,offset += 40)
-    g.fillText("Press R to restart",20,offset += 40)
-    g.fillText("Press ? for Instructions",20,offset += 40)
 
-    g.fillText("Press Space To Start",20,offset += 120)
+    g.fillText("Press SPACE to boost",w-20,offset)
+    g.fillText("Press P to pause",w-20,offset += 40)
+    g.fillText("Press T for trails",w-20,offset += 40)
+    g.fillText("Press R to restart",w-20,offset += 40)
+    g.fillText("Press ? for Instructions",w-20,offset += 40)
+
+    g.fillText("Press Space To Start",w-20,offset += 120)
   }
+
+
 
 }
