@@ -6,6 +6,14 @@ GAME_HIDE_CURSER = false
 
 GAME_MSG = (key, sndr, rcvr, msg) => {
   switch (key) {
+  case 'new_bar':
+    if (CLNT_ID != SRVR_CLNT_ID) BARS.push(msg)
+    break
+  case 'player_update':
+    if (sndr != CLNT_ID) {
+      PLAYERS[sndr] = [msg,2]
+    }
+    break
   case 'get_score':
     // log('get_score',SRVR_MAX_SCORE)
     HOST_MSG('clnt_score',[sndr],[SRVR_WINNER,SRVR_MAX_SCORE])
@@ -28,10 +36,21 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 
 GAME_SRVR_INIT = () => {
   log('init game srvr')
+  setInterval(() => {
+    HOST_MSG('new_bar',null,[
+      [11/10,Math.random()],
+      [BAR_W_MIN+BAR_W*Math.random(),BAR_H_MIN+BAR_H*Math.random()]
+    ])
+  },1e3/BAR_FREQ)
 }
 
 GAME_CLNT_INIT = () => {
   log('init game clnt')
+  START_TIME = USR_IO_EVNTS.nw
+  setInterval(() => {
+    if (!PAUSED) HOST_MSG('player_update',null,HELI_Y)
+    for (var i in PLAYERS) if (PLAYERS[i][1]-- < 0) delete PLAYERS[i]
+  },UPDATE_FREQ)
   HOST_MSG('get_score',[0])
 }
 
@@ -62,6 +81,12 @@ SRVR_MAX_SCORE = 0
 MAX_SCORE = 0
 SRVR_WINNER = 'SRVR'
 
+START_TIME = 0
+THRUST_TIME = 0
+
+PLAYERS = []
+UPDATE_FREQ = 40
+
 MUL = (a,b) => a*b
 
 function draw_quad(g,a1,a2,b1,b2,c1,c2,c) {
@@ -82,24 +107,28 @@ GAME_TICK = () => {
   var heli = [HELI_X*w,HELI_Y*h]
   var heli_box = [HELI_W*w,HELI_H*h]
 
-  PT.fillRect(g,heli,heli_box,'white')
+  PT.fillRect(g,heli,heli_box,PAUSED?'grey':'white')
+  for (var i in PLAYERS) {
+    heli[1] = h * PLAYERS[i][0]
+    PT.fillRect(g,heli,heli_box,'grey')
+  }
   var acceleration = HELI_GRAVITY - (USR_IO_KYS.isDn[' '] ? HELI_LIFT : 0)
 
-  var timer = Math.floor(USR_IO_EVNTS.nw * 1e-3 * BAR_FREQ)
-  if (!PAUSED && timer != BAR_TIMER) {
-    BARS.push([
-      [11/10,Math.random()],
-      [BAR_W_MIN+BAR_W*Math.random(),BAR_H_MIN+BAR_H*Math.random()]
-    ])
-    BAR_TIMER = timer
-  }
+  // var timer = Math.floor(USR_IO_EVNTS.nw * 1e-3 * BAR_FREQ)
+  // if (timer != BAR_TIMER) {
+  //   BARS.push([
+  //     [11/10,Math.random()],
+  //     [BAR_W_MIN+BAR_W*Math.random(),BAR_H_MIN+BAR_H*Math.random()]
+  //   ])
+  //   BAR_TIMER = timer
+  // }
 
   RESET = false
 
   for (var i in BARS) {
     var bar = BARS[i]
     if (bar[0][0] < -1/10) {
-      ++SCORE
+      if (!PAUSED) ++SCORE
       if (SCORE > MAX_SCORE) {
         MAX_SCORE = SCORE
         if (MAX_SCORE > SRVR_MAX_SCORE) {
@@ -109,10 +138,11 @@ GAME_TICK = () => {
       delete BARS[i]
     }
     else {
-      if (!PAUSED) bar[0][0] -= BAR_SPEED * dt
+      bar[0][0] -= BAR_SPEED * dt
+
       var p = PT.mat(bar[0],wh,MUL)
       var v = PT.mat(bar[1],wh,MUL)
-      PT.fillRect(g,p,v,'white')
+      PT.fillRect(g,p,v,PAUSED?'white':'red')
 
       if (PT.hitbox(heli,heli_box,p,v)) RESET = true
     }
@@ -120,10 +150,9 @@ GAME_TICK = () => {
 
   if (USR_IO_KYS.hsDn[' ']) PAUSED = SPACE = false
   if (USR_IO_KYS.hsDn['?']) SPACE = !SPACE
-  if (USR_IO_KYS.hsDn['p']) PAUSED = !PAUSED
+  if (USR_IO_KYS.hsDn['p']) PAUSED = RESET = true
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
   if (USR_IO_KYS.hsDn['r']) RESET = true
-
 
   if (!PAUSED) {
     HELI_V += dt * acceleration
@@ -133,10 +162,14 @@ GAME_TICK = () => {
   if (HELI_Y < 0 || 1 < HELI_Y  || RESET) {
     HELI_Y = 1/2
     HELI_V = 0
+    PAUSED = true
     SCORE = 0
-    BARS = []
+    THRUST_TIME = 0
+    START_TIME = USR_IO_EVNTS.nw
   }
 
+
+  if (!PAUSED && USR_IO_KYS.isDn[' ']) THRUST_TIME += dt
 
   if (TRAILS) {
     var v1 = BAR_SPEED
@@ -197,10 +230,13 @@ GAME_TICK = () => {
   g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,20,60)
   g.fillText(`Champion ${SRVR_WINNER}`,20,80)
 
+  var time = (USR_IO_EVNTS.nw - START_TIME) * 1e-3
+  // g.fillText(`Thrust Time ${time/THRUST_TIME}`,20,110)
+
   if (SPACE) {
     g.font = 'bold 40px arial,serif'
     g.fillStyle = 'white'
-    var offset = 120
+    var offset = 140
     g.fillText("Press SPACE to boost",20,offset)
     g.fillText("Press P to pause",20,offset += 40)
     g.fillText("Press T for trails",20,offset += 40)
