@@ -61,7 +61,7 @@ GAME_CLNT_INIT = () => {
   HOST_MSG('get_score',[0])
 }
 
-COLORS = ['green','yellow','orange','red','blue','purple']
+COLORS = ['green','yellow','orange','red','magenta','lightblue','blue','purple']
 
 HELI_X = 1/60
 HELI_Y = 1/2
@@ -69,7 +69,7 @@ HELI_W = 1/12
 HELI_H = 1/20
 HELI_V = 0
 
-HELI_GRAVITY = 0.8 // h per sec per sec
+HELI_GRAVITY = 1.1 // 0.8 // h per sec per sec
 HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
 
 PAUSED = true
