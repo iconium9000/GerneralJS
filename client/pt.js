@@ -37,7 +37,7 @@ PT.vecx = (a,b,l1,l2) => {
   var p = []
   l1 = l1 || (a.length > b.length ? a : b).length
   for (var i = 0; i < l1; ++i)
-    PT.vece(p,a[i],b[i])
+    PT.vece(p,a[i],b[i],l2)
   return p
 }
 
@@ -226,7 +226,7 @@ PT.equal = (a,b) => {
   return !FU.trueif((a.length > b.length ? a : b).length,
     i => a[i] != b[i] && !a[i] != !b[i])
 }
-// returns random vector of length l
+// returns random vector of length lf
 PT.rand = l => {
   var p = []
   FU.forlen(l, i => p[i] = Math.random())
@@ -242,6 +242,11 @@ PT.length = (p,l) => Math.sqrt(PT.suma(PT.mul(p,p,l)))
 PT.dist = (a,b) => PT.length(PT.sub(a,b))
 PT.invert = p => [-p[1] || 0, p[0] || 0]
 PT.tan2 = p => Math.atan2(p[1] || 0, p[0] || 0)
+PT.invert2x2 = m => {
+  var a = m[0][0], b = m[1][0], c = m[0][1], d = m[1][1]
+  var det = a*d-b*c
+  return [[d/det,-c/det],[-b/det,a/det]]
+}
 
 PT.cross = (a,b) => {
   var u2v3 = (a[1] * b[2]) || 0
