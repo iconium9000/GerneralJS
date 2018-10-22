@@ -26,6 +26,7 @@ SCALER = 1e6
 SHIP = {
   p: [200],
   v: [],
+  a: [],
   r: 5,
   c: 'white',
   lc: 'black',
@@ -39,17 +40,16 @@ SHIP = {
     if (USR_IO_KYS.isDn['d']) PT.sube(SHIP.a,hboost)
   }
 }
-EARTH_U = 6e5
+EARTH_U = 6e7
 MOON_R = 500
-VBOOST = 5e1
+VBOOST = 5e3
 PLANETS = [
   SHIP,
   {
     name: 'earth',
-    p: [],
-    v: [],
+    p: [], v: [], a: [],
     r: 150,
-    u: 6e5,
+    u: EARTH_U,
     soi: Infinity,
     c: 'white',
     lc: 'black'
@@ -58,8 +58,9 @@ PLANETS = [
     name: 'moon',
     p: [MOON_R],
     v: [0,Math.sqrt(EARTH_U/MOON_R)],
+    a: [],
     r: 50,
-    u: 1e5,
+    u: EARTH_U,
     soi: 200,
     c: 'lightblue',
     lc: 'darkblue'
@@ -68,7 +69,7 @@ PLANETS = [
 
 function get_proj(ship,body) {
   var wh = USR_IO_DSPLY.wh
-  var p1 = ship.p[0]||0, p2 = ship.p[1]||0, p3 = ship.r, p4 = (wh[1]||0) / 20
+  var p1 = ship.p[0]||0, p2 = ship.p[1]||0, p3 = ship.r, p4 = (wh[1]||0) / 4
   var k1 = body.p[0]||0, k2 = body.p[1]||0, k3 = body.r
   var f21 = p1 - k1, f22 = p2 - k2
   var f11 = f22, f12 = -f21
@@ -98,102 +99,99 @@ function fill_circle(proj,body) {
   }
   if (body.soi) PT.drawCircle(g,point,proj.r*body.soi,body.c)
 }
+function get_host(i,p) {
+  var sel_body = PLANETS[i]
+  var sel_body_p = sel_body[p]
+
+  var min_dist = Infinity
+  var ret_body = null
+  for (var j in PLANETS) {
+    if (j==i) continue
+    var body = PLANETS[j]
+
+    var dist = PT.dist(body[p],sel_body_p)
+    if (dist < body.soi && dist < min_dist) {
+      min_dist = dist
+      ret_body = body
+    }
+  }
+
+  return ret_body
+}
+function do_math(i,p,v,a,dt) {
+  var sel_body = PLANETS[i]
+  var sel_body_p = sel_body[p]
+  var sel_body_v = sel_body[v]
+  var sel_body_a = sel_body[a] = []
+  var host_body = sel_body.host_body
+  if (!host_body) return
+  var host_body_p = host_body[p]
+
+  var sub = PT.sub(sel_body_p, host_body_p)
+  var dist = PT.length(sub)
+  var unit = PT.divs(sub,dist)
+
+  if (sel_body.control) sel_body.control(unit)
+  PT.vece(sel_body_a,sub,-host_body.u/dist/dist/dist)
+  PT.vece(sel_body_v,sel_body_a,dt)
+  if (dist < sel_body.r + host_body.r) {
+    PT.set(sel_body_p,PT.vec(host_body_p,unit,sel_body.r + host_body.r))
+    PT.vece(sel_body_v,unit,-2*PT.dot(sel_body_v,unit))
+  }
+  PT.vece(sel_body_p,sel_body_v,dt)
+}
 
 
 GAME_TICK = () => {
-  var dt = 0.01//USR_IO_EVNTS.dt*1e-3
   var g = USR_IO_DSPLY.g
   var wh = USR_IO_DSPLY.wh
   var cntr = PT.divs(wh,2)
 
-  for (var i in PLANETS) {
-    var body = PLANETS[i]
-    var min_dist = Infinity
-    body.local_body = null
-    for (var j in PLANETS) {
-      if (i==j) continue
-      var temp_body = PLANETS[j]
-      var dist = PT.dist(body.p,temp_body.p)
-      if (dist <= temp_body.soi && dist <= min_dist) {
-        min_dist = dist
-        body.local_body = temp_body
-      }
+  var reps = 1e1
+  var dt = 1e-4 //USR_IO_EVNTS.dt*1e-3
+  for (var rep = 0; rep < reps; ++rep){
+    for (var i in PLANETS) {
+      var body = PLANETS[i]
+      body.host_body = get_host(i,'p')
+      do_math(i,'p','v','a',dt)
     }
   }
 
-  if (!SHIP.local_body) return
-  var proj = get_proj(SHIP,SHIP.local_body)
+  if (!SHIP.host_body) return
+  var proj = get_proj(SHIP,SHIP.host_body)
 
   for (var i in PLANETS) {
     var body = PLANETS[i]
     fill_circle(proj,body)
   }
 
-  fill_circle(proj,SHIP)
-
-  for (var i in PLANETS) {
-    var body = PLANETS[i]
-    if (!body.local_body) continue
-    var local_body = body.local_body
-    var sub = PT.sub(body.p,local_body.p)
-    var dist = PT.length(sub)
-    var unit = PT.divs(sub,dist)
-    if (dist < local_body.r + body.r) {
-      body.p = PT.vec(local_body.p,sub,(local_body.r + body.r)/dist)
-      PT.vece(body.v,unit,-2*PT.dot(body.v,unit))
-    }
-    body.a = []
-    if (body.control) body.control(unit)
-    PT.vece(body.a,sub,-local_body.u/dist/dist/dist)
-    PT.vece(body.v,body.a,dt)
-    PT.vece(body.p,body.v,dt)
-
-    // var rv = PT.dist(body.v,local_body.v)
-    // var ap = 1 / ( 2 / dist - rv*rv/local_body.u)
-    // g.fillStyle = 'white'
-    // g.fillText(`Ap: ${ap}`,20,20)
-    // g.fillText(`rv: ${rv}`,20,40)
-  }
-
-  var dt = 0.01
+  var trail = 1e3
   for (var i in PLANETS) {
     var body = PLANETS[i]
     body.tp = PT.copy(body.p)
     body.tv = PT.copy(body.v)
-    body.ptp = proj(PT.copy(body.tp))
+    body.ta = PT.copy(body.a)
+    if (!body.host_body) continue
+    body.ptp = proj(body.p)
   }
-  for (var t = 0; t < 1e4; ++t) {
-
+  for (var trep = 0; trep < trail; ++trep) {
+    for (var rep = 0; rep < reps; ++rep){
+      for (var i in PLANETS) {
+        var body = PLANETS[i]
+        body.host_body = get_host(i,'tp')
+        do_math(i,'tp','tv','ta',dt)
+      }
+    }
     for (var i in PLANETS) {
       var body = PLANETS[i]
-      var min_dist = Infinity
-      var local_body
-      for (var j in PLANETS) {
-        if (i==j) continue
-        var temp_body = PLANETS[j]
-        var dist = PT.dist(body.tp,temp_body.tp)
-        if (dist <= temp_body.soi && dist <= min_dist) {
-          min_dist = dist
-          local_body = temp_body
-        }
-      }
-
-      if (!local_body) continue
-      var sub = PT.sub(body.tp,local_body.tp)
-      var dist = PT.length(sub)
-      var unit = PT.divs(sub,dist)
-      if (dist < local_body.r + body.r) {
-        body.tp = PT.vec(local_body.tp,sub,(local_body.r + body.r)/dist)
-        PT.vece(body.tv,unit,-2*PT.dot(body.tv,unit))
-      }
-      body.ta = []
-      PT.vece(body.ta,sub,-local_body.u/dist/dist/dist)
-      PT.vece(body.tv,body.ta,dt)
-      PT.vece(body.tp,body.tv,dt)
+      if (!body.host_body) continue
       g.strokeStyle = body.c
-      var ptp = proj(body.tp)
+      var ptp = proj(PT.sum(body.host_body.p,PT.sub(body.tp,body.host_body.tp)))
       PT.drawLine(g,ptp,body.ptp)
       body.ptp = ptp
     }
   }
+
+  // g.fillStyle = 'white'
+  // g.fillText(`fps: ${1e3/USR_IO_EVNTS.dt}`,20,20)
 }
