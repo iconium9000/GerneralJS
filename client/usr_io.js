@@ -63,6 +63,19 @@ function USR_IO_SET_MWS() {
     USR_IO_MWS.hsUp = true
     USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
+  document.addEventListener('touchstart',e => {
+    setMouse(e)
+    USR_IO_MWS.hsDrgd = false
+    USR_IO_MWS.isDn = true
+    USR_IO_MWS.hsDn = true
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
+  }, false)
+  document.addEventListener('touchend',e => {
+    setMouse(e)
+    USR_IO_MWS.isDn = false
+    USR_IO_MWS.hsUp = true
+    USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
+  }, false)
 
   $(document).keypress(e => {
     var c = FU.etochar(e)

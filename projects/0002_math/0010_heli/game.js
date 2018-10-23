@@ -6,6 +6,13 @@ GAME_HIDE_CURSER = false
 
 GAME_MSG = (key, sndr, rcvr, msg) => {
   switch (key) {
+  case 'refresh':
+    location && location.reload()
+    break
+  case 'msg':
+    MSGS.push(msg)
+    if (MSGS.length > 5) MSGS = MSGS.slice(1,6)
+    break
   case 'new_bar':
     if (CLNT_ID != SRVR_CLNT_ID) {
       // var floor_score = Math.floor(plr[3] * COLORS.length / SRVR_MAX_SCORE)
@@ -69,7 +76,7 @@ HELI_W = 1/12
 HELI_H = 1/20
 HELI_V = 0
 
-HELI_GRAVITY = 1.1 // 0.8 // h per sec per sec
+HELI_GRAVITY = 0.9  // h per sec per sec (easy 1.1)
 HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
 
 PAUSED = true
@@ -100,6 +107,8 @@ THRUST_TIME = 0
 PLAYERS = []
 UPDATE_FREQ = 40
 TRAIL_WIDTH = 1
+
+MSGS = []
 
 MUL = (a,b) => a*b
 
@@ -297,6 +306,14 @@ GAME_TICK = () => {
     g.fillText("Press Space To Start",w-20,offset += 120)
   }
 
+
+  if (USR_IO_KYS.hsDn['m']) HOST_MSG('msg',null,`${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
+  var offset = wh[1]
+  g.font =  'bold 30px arial,serif'
+  for (var i = MSGS.length-1; i >= 0; --i) {
+    var msg = MSGS[i]
+    g.fillText(msg,wh[0]-10,offset -= 40)
+  }
 
 
 }

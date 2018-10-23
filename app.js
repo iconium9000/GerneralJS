@@ -7,6 +7,7 @@ var port = parseInt(process.argv[3]) || default_port
 var project = process.argv[2] || '0000_template'
 var do_socket = !process.argv[4]
 var fs = require('fs')
+location = null
 
 log('do', do_socket ? 'skt' : 'no_skt')
 
