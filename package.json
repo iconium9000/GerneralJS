@@ -4,6 +4,7 @@
   "description": "John FitzGerald\r General Purpose JavaScript Project",
   "main": "app.js",
   "scripts": {
+    "HELI": "node app 0002_math/0010_heli 8080",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,5 +20,6 @@
   "dependencies": {
     "express": "^4.16.4",
     "socket.io": "^2.1.1"
-  }
+  },
+  "devDependencies": {}
 }
