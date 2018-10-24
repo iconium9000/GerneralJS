@@ -3,6 +3,7 @@ log = console.log
 PROJECT_NAME = 'Helicopter Game'
 log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
+IS_MOBILE = false
 
 GAME_MSG = (key, sndr, rcvr, msg) => {
   switch (key) {
@@ -11,6 +12,7 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
     break
   case 'msg':
     MSGS.push(msg)
+    log(msg)
     if (MSGS.length > 5) MSGS = MSGS.slice(1,6)
     break
   case 'new_bar':
@@ -66,6 +68,8 @@ GAME_CLNT_INIT = () => {
     for (var i in PLAYERS) if (PLAYERS[i][1]-- < 0) delete PLAYERS[i]
   },UPDATE_FREQ)
   HOST_MSG('get_score',[0])
+
+  IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
 COLORS = ['green','yellow','orange','red','magenta','lightblue','blue','purple']
@@ -76,7 +80,8 @@ HELI_W = 1/12
 HELI_H = 1/20
 HELI_V = 0
 
-HELI_GRAVITY = 0.9  // h per sec per sec (easy 1.1)
+if (IS_MOBILE) HELI_GRAVITY = 0.9
+else HELI_GRAVITY = 0.8  // h per sec per sec (easy 1.1)
 HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
 
 PAUSED = true
@@ -301,6 +306,8 @@ GAME_TICK = () => {
     g.fillText("Press P to pause",w-20,offset += 40)
     g.fillText("Press T for trails",w-20,offset += 40)
     g.fillText("Press R to restart",w-20,offset += 40)
+    g.fillText("Press M to message",w-20,offset += 40)
+    g.fillText("Press C to clear messages",w-20,offset += 40)
     g.fillText("Press ? for Instructions",w-20,offset += 40)
 
     g.fillText("Press Space To Start",w-20,offset += 120)
@@ -308,6 +315,7 @@ GAME_TICK = () => {
 
 
   if (USR_IO_KYS.hsDn['m']) HOST_MSG('msg',null,`${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
+  if (USR_IO_KYS.hsDn['c']) MSGS = []
   var offset = wh[1]
   g.font =  'bold 30px arial,serif'
   for (var i = MSGS.length-1; i >= 0; --i) {

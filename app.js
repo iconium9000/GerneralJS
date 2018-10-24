@@ -85,7 +85,7 @@ SRVR_WRITE_FILE = (file_name,obj) => fs.writeFileSync(PROJ_PATH+file_name,
   JSON.stringify(obj), 'utf8',SRVR_WRITE_FILE_CALLBACK)
 SRVR_READ_FILE = file_name => JSON.parse(fs.readFileSync(PROJ_PATH+file_name))
 
-socket_io.sockets.on('connection', clnt_skt => {
+socket_io.on('connection', clnt_skt => {
   var clnt_id = ++SRVR_CLNT_IDX
   var clnt_key = clnt_skt.id
   var clnt_name = null
@@ -100,7 +100,7 @@ socket_io.sockets.on('connection', clnt_skt => {
 
   clnt_skt.on('disconnect', msg => {
     delete SRVR_CLNTS[clnt_id]
-    log('disconnect', clnt_id, clnt_skt.id)
+    log('disconnect', clnt_id, clnt_name, clnt_skt.id)
   })
   clnt_skt.on('msg', (key,rcvr,msg) => SRVR_MSG(key,clnt_id,rcvr,msg))
   clnt_skt.on('info', info => {
