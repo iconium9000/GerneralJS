@@ -79,11 +79,17 @@ process.openStdin().addListener('data', msg => {
   GAME_MSG(msg[0], CLNT_ID, [0], msg)
 })
 
-GAME_SRVR_INIT()
 SRVR_WRITE_FILE_CALLBACK = ()=>{}
 SRVR_WRITE_FILE = (file_name,obj) => fs.writeFileSync(PROJ_PATH+file_name,
   JSON.stringify(obj), 'utf8',SRVR_WRITE_FILE_CALLBACK)
 SRVR_READ_FILE = file_name => JSON.parse(fs.readFileSync(PROJ_PATH+file_name))
+ON_SRVR_KILL = ()=>{}
+GAME_SRVR_INIT()
+process.on('SIGINT', () => {
+  ON_SRVR_KILL()
+  log('Killing server...')
+  process.exit()
+})
 
 socket_io.on('connection', clnt_skt => {
   var clnt_id = ++SRVR_CLNT_IDX

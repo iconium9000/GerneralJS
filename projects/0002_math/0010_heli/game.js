@@ -7,6 +7,16 @@ IS_MOBILE = false
 
 GAME_MSG = (key, sndr, rcvr, msg) => {
   switch (key) {
+  case 'fun':
+    if (sndr == SRVR_CLNT_ID) {
+      try {
+        eval(msg)
+      }
+      catch (e) {
+        console.error(e)
+      }
+    }
+    break
   case 'refresh':
     location && location.reload()
     break
@@ -17,11 +27,7 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
     break
   case 'new_bar':
     if (CLNT_ID != SRVR_CLNT_ID) {
-      // var floor_score = Math.floor(plr[3] * COLORS.length / SRVR_MAX_SCORE)
-      // if (floor_score > COLORS.length) floor_score = COLORS.length
-      // var color = COLORS[floor_score]
-      // msg.push(color)
-
+      msg.score = ++BAR_SCORE / SRVR_MAX_SCORE
       BARS.push(msg)
     }
     break
@@ -33,12 +39,28 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
   case 'get_score':
     // log('get_score',SRVR_MAX_SCORE)
     HOST_MSG('clnt_score',[sndr],[SRVR_WINNER,SRVR_MAX_SCORE])
+    HOST_MSG('deaths',[sndr],DEATHS)
     break
   case 'srvr_score':
     SRVR_WINNER = msg[0]
     SRVR_MAX_SCORE = msg[1]
     HOST_MSG('clnt_score',null,msg)
     // log('srvr_score',msg)
+    break
+  case 'death':
+    var name = msg[0]
+    var score = msg[1]
+    if (score > 1000) score = 1000
+    if (score < 0) score = 0
+    if (isNaN(score)) break
+    // log(score)
+    if (DEATHS[score]) ++DEATHS[score]
+    else DEATHS[score] = 1
+    if (SAVE_GAME) SAVE_GAME()
+    log(`${name} died at ${score}`)
+    break
+  case 'deaths':
+    DEATHS = msg
     break
   case 'clnt_score':
     SRVR_WINNER = msg[0]
@@ -52,6 +74,13 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 
 GAME_SRVR_INIT = () => {
   log('init game srvr')
+  var save = SRVR_READ_FILE('save_file.txt')
+  SRVR_WINNER = save[0]
+  SRVR_MAX_SCORE = save[1]
+  DEATHS = {}//save[2]
+  log(save)
+  ON_SRVR_KILL = SAVE_GAME = () => SRVR_WRITE_FILE('save_file.txt',[SRVR_WINNER,SRVR_MAX_SCORE,DEATHS])
+  setInterval(SAVE_GAME,1e5)
   setInterval(() => {
     HOST_MSG('new_bar',null,[
       [11/10,Math.random()],
@@ -62,9 +91,10 @@ GAME_SRVR_INIT = () => {
 
 GAME_CLNT_INIT = () => {
   log('init game clnt')
+  SAVE_GAME = null
   START_TIME = USR_IO_EVNTS.nw
   setInterval(() => {
-    if (!PAUSED) HOST_MSG('player_update',null,[HELI_Y,2,CLNT_NAME.slice(0,8),SCORE])
+    if (!PAUSED) HOST_MSG('player_update',null,[HELI_Y,2,CLNT_NAME.slice(0,8),SCORE,ALL_SCORE/MY_DEATHS])
     for (var i in PLAYERS) if (PLAYERS[i][1]-- < 0) delete PLAYERS[i]
   },UPDATE_FREQ)
   HOST_MSG('get_score',[0])
@@ -87,6 +117,7 @@ HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
 PAUSED = true
 TRAILS = false
 
+LINE_WIDTH = 6
 BAR_FREQ = 4/1 // bar spawn per sec
 BAR_SPEED  = 2/3 // w per sec
 BAR_TIMER = 0
@@ -95,10 +126,15 @@ BAR_W_MIN = 1/30
 BAR_H_MIN = 1/30
 BAR_W = 1/8
 BAR_H = 1/10
+DEATHS = {}
+ALL_SCORE = 0
+MY_DEATHS = 1
 
 NAME_SCALE = 40
 TIME_LINE_SCALE = 100
+DEATH_LINE_SCALE = 200
 
+BAR_SCORE = 0
 SCORE = 0
 SPACE = true
 SRVR_MAX_SCORE = 0
@@ -135,15 +171,39 @@ GAME_TICK = () => {
   SPACE_DOWN = USR_IO_KYS.isDn[' '] || USR_IO_MWS.isDn
 
   var score_hight = h/TIME_LINE_SCALE
-  g.lineWidth = 6
+  g.lineWidth = LINE_WIDTH
+  var score = SCORE
+  var max_score = SRVR_MAX_SCORE
 
   for (var i = 0; i < COLORS.length; ++i) {
     var x = i * w / COLORS.length
     var color = COLORS[i]
     PT.fillRect(g,[x,0],[w / COLORS.length,score_hight],color)
   }
-  var score_line = SCORE * w / SRVR_MAX_SCORE
+  var score_line = score * w / max_score
   PT.drawLine(g,[score_line,0],[score_line,score_hight*2],'white')
+
+  var deaths = []
+  DEATHS_BAD = deaths
+  for (var i = 0; i < max_score; ++i) {
+    var j = Math.floor(i / max_score * w / LINE_WIDTH)
+    var d =  DEATHS[i]
+    if (!d) continue
+    if (deaths[j]) deaths[j] += d
+    else deaths[j] = d
+  }
+
+  var len = Math.floor(w/LINE_WIDTH)
+  var death_hight = h/DEATH_LINE_SCALE
+  for (var i = 2; i < len; ++i) {
+    var d = deaths[i]
+    if (!d) continue
+    var j = (i-2) / (len-2)//(i-1) / (deaths.length-1)
+    var c = Math.floor(j * COLORS.length)
+    var x = j * w
+    PT.drawLine(g,[x,h],[x,h-d*death_hight],COLORS[c])
+  }
+  // throw 'err'
 
   var heli = [HELI_X*w,HELI_Y*h]
   var heli_box = [HELI_W*w,HELI_H*h]
@@ -165,15 +225,6 @@ GAME_TICK = () => {
   PT.fillRect(g,heli,heli_box,PAUSED?'grey':'white')
   var acceleration = HELI_GRAVITY - (SPACE_DOWN ? HELI_LIFT : 0)
 
-  // var timer = Math.floor(USR_IO_EVNTS.nw * 1e-3 * BAR_FREQ)
-  // if (timer != BAR_TIMER) {
-  //   BARS.push([
-  //     [11/10,Math.random()],
-  //     [BAR_W_MIN+BAR_W*Math.random(),BAR_H_MIN+BAR_H*Math.random()]
-  //   ])
-  //   BAR_TIMER = timer
-  // }
-
   RESET = false
   var floor_score = Math.floor(SCORE * COLORS.length / SRVR_MAX_SCORE)
   if (floor_score > COLORS.length) floor_score = COLORS.length
@@ -182,11 +233,15 @@ GAME_TICK = () => {
   for (var i in BARS) {
     var bar = BARS[i]
     if (bar[0][0] < -1/10) {
-      if (!PAUSED) ++SCORE
+      if (!PAUSED) {
+        ++SCORE
+        ++ALL_SCORE
+      }
       if (SCORE > MAX_SCORE) {
         MAX_SCORE = SCORE
         if (MAX_SCORE > SRVR_MAX_SCORE) {
-          HOST_MSG('srvr_score',[0],[CLNT_NAME,MAX_SCORE])
+          HOST_MSG('srvr_score',[0],[CLNT_NAME,SCORE])
+          SRVR_MAX_SCORE = SCORE
         }
       }
       delete BARS[i]
@@ -196,11 +251,17 @@ GAME_TICK = () => {
 
       var p = PT.mat(bar[0],wh,MUL)
       var v = PT.mat(bar[1],wh,MUL)
-      if (!PAUSED && SCORE > SRVR_MAX_SCORE - 4) {
+      if (PAUSED) {
+        PT.fillRect(g,p,v,'white')
+      }
+      else if (bar.score > 1) {
         PT.drawRect(g,p,v,'#808080')
       }
       else {
-        PT.fillRect(g,p,v,PAUSED?'white':COLOR)
+        var floor_score = Math.floor(bar.score * COLORS.length)
+        if (floor_score > COLORS.length) floor_score = COLORS.length-1
+        var color = COLORS[floor_score]
+        PT.fillRect(g,p,v,color)
       }
 
       if (PT.hitbox(heli,heli_box,p,v)) RESET = true
@@ -222,10 +283,14 @@ GAME_TICK = () => {
     HELI_Y = 1/2
     HELI_V = 0
     PAUSED = true
-    SCORE = 0
+    if (SCORE > 0) {
+      HOST_MSG('death',null,[CLNT_NAME,SCORE])
+      ++MY_DEATHS
+      SCORE = 0
+    }
+    BAR_SCORE = 0
     THRUST_TIME = 0
     START_TIME = USR_IO_EVNTS.nw
-    // PREV_SRVR_SCORE = SRVR_MAX_SCORE
   }
 
 
@@ -289,10 +354,12 @@ GAME_TICK = () => {
   g.textAlign = 'right'
   g.fillStyle = 'white'
   g.font = 'bold 20px arial,serif'
-  g.fillText(`Score ${SCORE}`,w-20,20)
-  g.fillText(`Hight Score ${MAX_SCORE}`,w-20,40)
-  g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,w-20,60)
-  g.fillText(`Champion ${SRVR_WINNER}`,w-20,80)
+  var offset = 0
+  g.fillText(`Score ${SCORE}`,w-20,offset+=20)
+  g.fillText(`Blocks Per Run ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
+  g.fillText(`High Score ${MAX_SCORE}`,w-20,offset+=20)
+  g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,w-20,offset+=20)
+  g.fillText(`Champion ${SRVR_WINNER}`,w-20,offset+=20)
 
   var time = (USR_IO_EVNTS.nw - START_TIME) * 1e-3
   // g.fillText(`Thrust Time ${time/THRUST_TIME}`,20,110)
@@ -312,6 +379,22 @@ GAME_TICK = () => {
 
     g.fillText("Press Space To Start",w-20,offset += 120)
   }
+
+  var list = []
+  list.push([CLNT_NAME,ALL_SCORE/MY_DEATHS])
+  for (var i in PLAYERS) {
+    var plr = PLAYERS[i]
+    list.push([plr[2],plr[4]])
+  }
+  list.sort((a,b)=>a[1]-b[1])
+  var offset = h
+  g.fillStyle = 'white'
+  for (var i in list) {
+    var l = list[i]
+    g.fillText(`${l[0]}: ${Math.round(l[1])}`,w-20,offset-=20)
+  }
+
+
 
 
   if (USR_IO_KYS.hsDn['m']) HOST_MSG('msg',null,`${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
