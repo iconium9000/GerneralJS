@@ -61,6 +61,7 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
     break
   case 'deaths':
     DEATHS = msg
+    // log('deaths',msg)
     break
   case 'clnt_score':
     SRVR_WINNER = msg[0]
@@ -77,7 +78,7 @@ GAME_SRVR_INIT = () => {
   var save = SRVR_READ_FILE('save_file.txt')
   SRVR_WINNER = save[0]
   SRVR_MAX_SCORE = save[1]
-  DEATHS = {}//save[2]
+  DEATHS = save[2]
   log(save)
   ON_SRVR_KILL = SAVE_GAME = () => SRVR_WRITE_FILE('save_file.txt',[SRVR_WINNER,SRVR_MAX_SCORE,DEATHS])
   setInterval(SAVE_GAME,1e5)
@@ -230,6 +231,9 @@ GAME_TICK = () => {
   if (floor_score > COLORS.length) floor_score = COLORS.length
   COLOR = COLORS[floor_score]
 
+  var bar_points = []
+  var bars = []
+
   for (var i in BARS) {
     var bar = BARS[i]
     if (bar[0][0] < -1/10) {
@@ -251,6 +255,13 @@ GAME_TICK = () => {
 
       var p = PT.mat(bar[0],wh,MUL)
       var v = PT.mat(bar[1],wh,MUL)
+      bars.push([p,PT.sum(p,v)])
+      var p1 = p[0], p2 = p[1], v1 = v[0], v2 = v[1]
+      var c1 = (p1 + p1 + v1) / 2, c2 = (p2 + p2 + v2) / 2
+      bar_points.push([c1,c2],[c1,0],[c1,h],[w,c2])
+      // bar_points.push(p,PT.sum(p,v),[p1+v1,p2],[p1,p2+v2])
+      // bar_points.push([p1,0],[p1,h])//,[p1+v1,0],[p1+v1,h])
+
       if (PAUSED) {
         PT.fillRect(g,p,v,'white')
       }
@@ -267,6 +278,86 @@ GAME_TICK = () => {
       if (PT.hitbox(heli,heli_box,p,v)) RESET = true
     }
   }
+
+
+
+  // var bar_lines = []
+  // for (var i = 0; i < bar_points.length; ++i) {
+  //   for (var j = i+1; j < bar_points.length; ++j) {
+  //     bar_lines.push([bar_points[i],bar_points[j],PT.dist(bar_points[i],bar_points[j])])
+  //   }
+  // }
+  //
+  // g.lineWidth = 1
+  // bar_lines.sort((a,b)=>a[2]-b[2])
+  // for (var i = 0; i < bar_lines.length; ++i) {
+  //   var line_a = bar_lines[i]
+  //   for (var j = i+1; j < bar_lines.length; ++j) {
+  //     var line_b = bar_lines[j]
+  //     if (!line_b) continue
+  //     line_b[3] = line_b[3] || PT.lineCross(line_a[0],line_a[1],line_b[0],line_b[1])
+  //   }
+  // }
+  //
+  // var nodes = []
+  // for (var i in bar_lines) {
+  //   var line = bar_lines[i]
+  //   if (!line[3]) {
+  //     PT.drawLine(g,line[0],line[1],'#404040')
+  //     var node = PT.divs(PT.sum(line[0],line[1]),2)
+  //     if (node[1]>heli_box[1]&&node[1]<h-heli_box[1])
+  //       nodes.push(node)
+  //   }
+  // }
+  // nodes.push(PT.sum(heli,PT.divs(heli_box,2)))
+  // nodes.sort((a,b)=>a[0]-b[0])
+  // var node_lines = []
+  // for (var i = 0; i < nodes.length; ++i) {
+  //   var node_a = nodes[i]
+  //   for (var j = i+1; j < nodes.length; ++j) {
+  //     var node_b = nodes[j]
+  //
+  //     var q1 = node_a[0], q2 = node_a[1]
+  //     var u1 = node_b[0] - q1, u2 = node_b[1] - q2
+  //     var f1 = u1>0?1:-1, f2 = u2>0?1:-1
+  //     var qf1 = f1*q1, qf2 = f2*q2
+  //     var uf1 = f1*u1, uf2 = f2*u2
+  //     var flag = true
+  //
+  //     for (var k in bars) {
+  //       var bar = bars[k]
+  //       var a1 = f1*bar[0][0], a2 = f2*bar[0][1]
+  //       var b1 = f1*bar[1][0], b2 = f2*bar[1][1]
+  //
+  //       var af1 = a1>b1?b1:a1, af2 = a2>b2?b2:a2
+  //       var bf1 = a1<b1?b1:a1, bf2 = a2<b2?b2:a2
+  //
+  //       var m1 = (af1 - qf1) / uf1, m2 = (af2 - qf2) / uf2
+  //       var n1 = (bf1 - qf1) / uf1, n2 = (bf2 - qf2) / uf2
+  //
+  //       var m = m1>m2?m1:m2
+  //       var n = n1>n2?n2:n1
+  //
+  //       if ((m<n?1:0)*((n>0?1:0)*(1>n?1:0)+(m>0?1:0)*(1>m?1:0))) {
+  //         flag = false
+  //         break
+  //       }
+  //     }
+  //     if (flag) node_lines.push([node_a,node_b,PT.dist(node_a,node_b)])
+  //   }
+  // }
+  //
+  // for (var i in node_lines) {
+  //   var node_line = node_lines[i]
+  //   if (!node_line[3]) {
+  //     PT.drawLine(g,node_line[0],node_line[1],'white')
+  //   }
+  // }
+
+  // g.fillText(`num:${count}`,20,20)
+
+  // if (SCORE == 1) throw 'err'
+  g.lineWidth = LINE_WIDTH
 
   if (SPACE_HAS_DOWN) PAUSED = SPACE = false
   if (USR_IO_KYS.hsDn['?']) SPACE = !SPACE
