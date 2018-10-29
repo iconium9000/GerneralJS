@@ -15,7 +15,7 @@
 	CLNT_PATH = 'client/'
 </script>
 
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.js"></script>
 <script src="client/fu.js"></script>
 <script src="client/pt.js"></script>
 <script src="client/usr_io.js">
@@ -28,7 +28,11 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-CLNT_SKT = io()
+CLNT_SKT = io('https://iconium9000-blockade.appspot.com:8080')
+// , {
+//   // WARNING: in that case, there is no fallback to long-polling
+//   transports: [ 'websocket' ] // or [ 'websocket', 'polling' ], which is the same thing
+// })
 
 var reqFrame = FU.reqFrame()
 

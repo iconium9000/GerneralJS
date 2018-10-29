@@ -4,7 +4,8 @@
   "description": "John FitzGerald\r General Purpose JavaScript Project",
   "main": "app.js",
   "scripts": {
-    "HELI": "node app 0002_math/0010_heli 8080",
+    "start": "node app.js 0002_math/0010_heli 8080",
+    "deploy":"gcloud app deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
