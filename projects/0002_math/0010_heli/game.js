@@ -79,7 +79,7 @@ GAME_SRVR_INIT = () => {
   SRVR_WINNER = save[0]
   SRVR_MAX_SCORE = save[1]
   DEATHS = save[2]
-  log(save)
+  // log(save)
   ON_SRVR_KILL = SAVE_GAME = () => SRVR_WRITE_FILE('save_file.txt',[SRVR_WINNER,SRVR_MAX_SCORE,DEATHS])
   setInterval(SAVE_GAME,1e5)
   setInterval(() => {
