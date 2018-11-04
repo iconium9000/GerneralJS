@@ -1,6 +1,6 @@
 log = console.log
 
-PROJECT_NAME = 'Helicopter Game'
+PROJECT_NAME = 'Blockade'
 log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
 IS_MOBILE = false
@@ -111,9 +111,11 @@ HELI_W = 1/12
 HELI_H = 1/20
 HELI_V = 0
 
-if (IS_MOBILE) HELI_GRAVITY = 0.9
+if (IS_MOBILE) HELI_GRAVITY = 0.7
 else HELI_GRAVITY = 0.8  // h per sec per sec (easy 1.1)
 HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
+
+SHOW_STATS = true
 
 PAUSED = true
 TRAILS = false
@@ -176,33 +178,28 @@ GAME_TICK = () => {
   var score = SCORE
   var max_score = SRVR_MAX_SCORE
 
-  for (var i = 0; i < COLORS.length; ++i) {
-    var x = i * w / COLORS.length
-    var color = COLORS[i]
-    PT.fillRect(g,[x,0],[w / COLORS.length,score_hight],color)
-  }
-  var score_line = score * w / max_score
-  PT.drawLine(g,[score_line,0],[score_line,score_hight*2],'white')
+  if (SHOW_STATS) {
+    var deaths = []
+    DEATHS_BAD = deaths
+    for (var i = 0; i < max_score; ++i) {
+      var j = Math.floor(i / max_score * w / LINE_WIDTH)
+      var d =  DEATHS[i]
+      if (!d) continue
+      if (deaths[j]) deaths[j] += d
+      else deaths[j] = d
+    }
 
-  var deaths = []
-  DEATHS_BAD = deaths
-  for (var i = 0; i < max_score; ++i) {
-    var j = Math.floor(i / max_score * w / LINE_WIDTH)
-    var d =  DEATHS[i]
-    if (!d) continue
-    if (deaths[j]) deaths[j] += d
-    else deaths[j] = d
-  }
-
-  var len = Math.floor(w/LINE_WIDTH)
-  var death_hight = h/DEATH_LINE_SCALE
-  for (var i = 2; i < len; ++i) {
-    var d = deaths[i]
-    if (!d) continue
-    var j = (i-2) / (len-2)//(i-1) / (deaths.length-1)
-    var c = Math.floor(j * COLORS.length)
-    var x = j * w
-    PT.drawLine(g,[x,h],[x,h-d*death_hight],COLORS[c])
+    var len = Math.floor(w/LINE_WIDTH)
+    var death_hight = h/DEATH_LINE_SCALE
+    var offset = 0
+    for (var i = offset; i < len; ++i) {
+      var d = deaths[i]
+      if (!d) continue
+      var j = (i-offset) / (len-offset)//(i-1) / (deaths.length-1)
+      var c = Math.floor(j * COLORS.length)
+      var x = j * w
+      PT.drawLine(g,[x,h],[x,h-d*death_hight],COLORS[c])
+    }
   }
   // throw 'err'
 
@@ -222,6 +219,16 @@ GAME_TICK = () => {
     g.font = `bold ${Math.floor(w/NAME_SCALE)}px arial,serif`
     g.fillText(plr[2],10,heli[1]+HELI_H*h*0.6)
   }
+
+  PT.fillRect(g,[],wh,'#000000a0')
+  for (var i = 0; i < COLORS.length; ++i) {
+    var x = i * w / COLORS.length
+    var color = COLORS[i]
+    PT.fillRect(g,[x,0],[w / COLORS.length,score_hight],color)
+  }
+  var score_line = score * w / max_score
+  PT.drawLine(g,[score_line,0],[score_line,score_hight*2],'white')
+
   heli[1] = h * HELI_Y
   PT.fillRect(g,heli,heli_box,PAUSED?'grey':'white')
   var acceleration = HELI_GRAVITY - (SPACE_DOWN ? HELI_LIFT : 0)
@@ -364,6 +371,7 @@ GAME_TICK = () => {
   if (USR_IO_KYS.hsDn['p']) PAUSED = RESET = true
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
   if (USR_IO_KYS.hsDn['r']) RESET = true
+  if (USR_IO_KYS.hsDn['s']) SHOW_STATS = !SHOW_STATS
 
   if (!PAUSED) {
     HELI_V += dt * acceleration
@@ -466,6 +474,7 @@ GAME_TICK = () => {
     g.fillText("Press R to restart",w-20,offset += 40)
     g.fillText("Press M to message",w-20,offset += 40)
     g.fillText("Press C to clear messages",w-20,offset += 40)
+    g.fillText("Press S to toggle Stats",w-20,offset += 40)
     g.fillText("Press ? for Instructions",w-20,offset += 40)
 
     g.fillText("Press Space To Start",w-20,offset += 120)
@@ -484,9 +493,6 @@ GAME_TICK = () => {
     var l = list[i]
     g.fillText(`${l[0]}: ${Math.round(l[1])}`,w-20,offset-=20)
   }
-
-
-
 
   if (USR_IO_KYS.hsDn['m']) HOST_MSG('msg',null,`${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
   if (USR_IO_KYS.hsDn['c']) MSGS = []
