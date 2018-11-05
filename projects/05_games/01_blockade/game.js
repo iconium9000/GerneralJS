@@ -165,7 +165,7 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 
 GAME_SRVR_INIT = () => {
   log('init game srvr')
-  var save = SRVR_READ_FILE('save_file.txt')
+  var save = SRVR_READ_FILE('save_file.json')
   SRVR_WINNER = save[0]
   SRVR_MAX_SCORE = save[1]
   DEATHS = save[2]
@@ -341,6 +341,10 @@ function detect_death() {
 }
 
 function draw_trails() {
+  var g = USR_IO_DSPLY.g
+  var w = USR_IO_DSPLY.wh[0]
+  var h = USR_IO_DSPLY.wh[1]
+
   g.lineWidth = TRAIL_WIDTH
   var v1 = BAR_SPEED
   var v2 = HELI_V
