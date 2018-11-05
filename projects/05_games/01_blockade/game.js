@@ -77,7 +77,7 @@ function new_bar() {
 }
 
 function SAVE_GAME() {
-  SRVR_WRITE_FILE('save_file.txt',[SRVR_WINNER,SRVR_MAX_SCORE,DEATHS])
+  SRVR_WRITE_FILE('save_file.json',[SRVR_WINNER,SRVR_MAX_SCORE,DEATHS])
 }
 
 function draw_quad(g,a1,a2,b1,b2,c1,c2,c) {
