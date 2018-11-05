@@ -66,7 +66,9 @@ CLNT_SKT.on('info', info => {
 </script>
 <script>
   document.getElementById('title').innerHTML = PROJECT_NAME
-	CLNT_SKT && CLNT_SKT.on('msg', GAME_MSG)
+	CLNT_SKT && CLNT_SKT.on('msg', (key, sndr, rcvr, msg) => {
+		GAME_MSG(key, sndr, rcvr, msg)
+	})
 
 	GAME_HIDE_CURSER && $(canvas).css('cursor', 'none')
 	USR_IO_KYS()
@@ -81,7 +83,12 @@ CLNT_SKT.on('info', info => {
 
 	function index_tick() {
 		USR_IO_DSPLY()
-		GAME_TICK()
+		try {
+			GAME_TICK()
+		}
+		catch (e) {
+			err(e)
+		}
 		USR_IO_KYS()
 	  USR_IO_EVNTS()
 	  USR_IO_SET_MWS()

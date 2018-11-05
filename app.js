@@ -129,7 +129,14 @@ else {
       delete SRVR_CLNTS[clnt_id]
       log('disconnect', clnt_id, clnt_name, clnt_skt.id)
     })
-    clnt_skt.on('msg', (key,rcvr,msg) => SRVR_MSG(key,clnt_id,rcvr,msg))
+    clnt_skt.on('msg', (key,rcvr,msg) => {
+      try {
+        SRVR_MSG(key,clnt_id,rcvr,msg)
+      }
+      catch (e) {
+        err(e)
+      }
+    })
     clnt_skt.on('info', info => {
       if (clnt_name == info.name) return
 
