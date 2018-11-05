@@ -243,9 +243,10 @@ function draw_players() {
   for (var i in PLAYERS) {
     var plr = PLAYERS[i]
     HELI[1] = h * plr[0]
-    PT.drawRect(g,HELI,HELI_BOX,get_color(plr[3] / SRVR_MAX_SCORE))
+    var color = get_color(plr[3] / SRVR_MAX_SCORE)
+    PT.drawRect(g,HELI,HELI_BOX,color)
 
-    g.fillStyle = COLOR
+    g.fillStyle = color
     g.font = `bold ${Math.floor(w/NAME_SCALE)}px arial,serif`
     g.fillText(plr[2],10,HELI[1]+HELI_H*h*0.6)
   }
