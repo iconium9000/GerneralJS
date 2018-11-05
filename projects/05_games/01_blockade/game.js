@@ -274,7 +274,7 @@ function draw_bars() {
 
   for (var i in BARS) {
     var bar = BARS[i]
-    if (bar[0][0] < -1/10) {
+    if (bar[0][0] < -bar[1][0]) {
       if (!PAUSED) {
         ++SCORE
         ++ALL_SCORE
