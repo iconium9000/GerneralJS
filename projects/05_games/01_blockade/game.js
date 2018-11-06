@@ -205,8 +205,8 @@ function show_stats() {
   var h = USR_IO_DSPLY.wh[1]
 
   var deaths = []
-  for (var i = 0; i < MAX_SCORE; ++i) {
-    var j = Math.floor(i / MAX_SCORE * w / LINE_WIDTH)
+  for (var i = 0; i < TEMP_MAX_SCORE; ++i) {
+    var j = Math.floor(i / TEMP_MAX_SCORE * w / LINE_WIDTH)
     var d =  DEATHS[i]
     if (!d) continue
     if (deaths[j]) deaths[j] += d
@@ -243,7 +243,7 @@ function draw_players() {
   for (var i in PLAYERS) {
     var plr = PLAYERS[i]
     HELI[1] = h * plr[0]
-    var color = get_color(plr[3] / SRVR_MAX_SCORE)
+    var color = get_color(plr[3] / TEMP_MAX_SCORE)
     PT.drawRect(g,HELI,HELI_BOX,color)
 
     g.fillStyle = color
@@ -501,7 +501,7 @@ GAME_TICK = () => {
   SPACE_HAS_DOWN = USR_IO_KYS.hsDn[' '] || USR_IO_MWS.hsDn
   SPACE_DOWN = USR_IO_KYS.isDn[' '] || USR_IO_MWS.isDn
   SCORE_HIGHT = h/TIME_LINE_SCALE
-  MAX_SCORE = SRVR_MAX_SCORE
+  TEMP_MAX_SCORE = SRVR_MAX_SCORE
   HELI = [HELI_X*w,HELI_Y*h]
   HELI_BOX = [HELI_W*w,HELI_H*h]
 
