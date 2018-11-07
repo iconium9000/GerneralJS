@@ -53,6 +53,7 @@ TIME_LINE_SCALE = 100
 DEATH_LINE_SCALE = 200
 
 BAR_QUEUE = []
+MAX_BAR_QUEUE = 20
 BAR_SCORE = 0
 SCORE = 0
 SPACE = true
@@ -118,7 +119,7 @@ function rcv_msg(msg) {
   if (MSGS.length > 5) MSGS = MSGS.slice(1,6)
 }
 function rcv_new_bar(msg) {
-  if (CLNT_ID != SRVR_CLNT_ID) BAR_QUEUE.push(msg)
+  if (CLNT_ID != SRVR_CLNT_ID && BAR_QUEUE < MAX_BAR_QUEUE) BAR_QUEUE.push(msg)
 }
 function rcv_player_update(sndr,msg) {
   // log('rcv_player_update')
