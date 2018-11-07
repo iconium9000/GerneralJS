@@ -513,7 +513,7 @@ function check_keys() {
     HOST_MSG('msg',null, `${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
   if (USR_IO_KYS.hsDn['c']) MSGS = []
   if (USR_IO_KYS.hsDn['a']) {
-    ALL_SCORE = 0
+    ALL_SCORE = MAX_SCORE
     MY_DEATHS = 1
   }
   if (USR_IO_KYS.hsDn['p']) {
