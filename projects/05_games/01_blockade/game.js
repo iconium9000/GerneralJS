@@ -514,7 +514,7 @@ function check_keys() {
   if (USR_IO_KYS.hsDn['c']) MSGS = []
   if (USR_IO_KYS.hsDn['a']) {
     ALL_SCORE = MAX_SCORE
-    MY_DEATHS = 1
+    MY_DEATHS = 2
   }
   if (USR_IO_KYS.hsDn['p']) {
     HOLD = !HOLD
