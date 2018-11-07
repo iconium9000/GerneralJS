@@ -505,16 +505,20 @@ function check_keys() {
   var reset = false
   if (SPACE_HAS_DOWN) PAUSED = SPACE = false
   if (USR_IO_KYS.hsDn['?']) SPACE = !SPACE
-  if (USR_IO_KYS.hsDn['p']) PAUSED = reset = true
+  // if (USR_IO_KYS.hsDn['p']) PAUSED = reset = true
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
   if (USR_IO_KYS.hsDn['r']) reset = true
   if (USR_IO_KYS.hsDn['s']) SHOW_STATS = !SHOW_STATS
   if (USR_IO_KYS.hsDn['m'])
     HOST_MSG('msg',null, `${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
   if (USR_IO_KYS.hsDn['c']) MSGS = []
-  if (USR_IO_KYS.hsDn['h']) {
+  if (USR_IO_KYS.hsDn['a'] {
+    ALL_SCORE = 0
+    MY_DEATHS = 1
+  }
+  if (USR_IO_KYS.hsDn['p']) {
     HOLD = !HOLD
-    log('Hold',HOLD)
+    // log('Hold',HOLD)
   }
   return reset
 }
