@@ -320,7 +320,7 @@ function draw_black_frost() {
 function draw_player() {
   HELI[1] = USR_IO_DSPLY.wh[1] * HELI_Y
   var color = BAR_QUEUE.length>2?'red':PAUSED?'grey':'white'
-  PT.fillRect(USR_IO_DSPLY.g,HELI,HELI_BOX,)
+  PT.fillRect(USR_IO_DSPLY.g,HELI,HELI_BOX,color)
 }
 
 function draw_players() {
