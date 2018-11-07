@@ -10,7 +10,7 @@ log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
 IS_MOBILE = false
 
-COLORS = ['green','yellow','orange','red','purple','magenta','blue','lightblue']
+COLORS = ['green','yellow','orange','red','purple','magenta','lightblue','blue']
 
 HOLD = false
 
