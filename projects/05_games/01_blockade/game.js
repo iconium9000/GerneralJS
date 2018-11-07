@@ -555,7 +555,9 @@ function draw_score_list() {
 
   var offset = h
 
-  for (var i = 0; i < SCORE_BOARD.length && i < 10; ++i) {
+  var start = SCORE_BOARD.length - 10
+
+  for (var i = start < 0 ? 0 : start; i < SCORE_BOARD.length; ++i) {
     var score_board = SCORE_BOARD[i]
     var name = score_board.name
     var max_score = score_board.max_score
