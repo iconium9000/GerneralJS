@@ -1,4 +1,5 @@
 log = console.log
+err = console.error
 log('init fu.js')
 
 fu = FU = new Object

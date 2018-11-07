@@ -1,4 +1,5 @@
 log = console.log
+err = console.error
 SRVR_CLNT_ID = 0
 
 var default_port = 2000

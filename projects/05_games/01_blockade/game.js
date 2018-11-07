@@ -1,5 +1,5 @@
 log = console.log
-err = console.err
+err = console.error
 
 //----------------------------------------------------------------
 // GAME SETUP
@@ -12,6 +12,8 @@ IS_MOBILE = false
 
 COLORS = ['green','yellow','orange','red','magenta','lightblue','blue','purple']
 
+HOLD = false
+
 HELI_X = 1/60
 HELI_Y = 1/2
 HELI_W = 1/12
@@ -22,7 +24,9 @@ if (IS_MOBILE) HELI_GRAVITY = 0.7
 else HELI_GRAVITY = 0.8  // h per sec per sec (easy 1.1)
 HELI_LIFT = 2.5 * HELI_GRAVITY // h per sec per sec
 
-ON_SRVR_KILL = SAVE_GAME
+ON_SRVR_KILL = save_game
+
+SCORE_BOARD = []
 
 SHOW_STATS = true
 
@@ -31,8 +35,9 @@ TRAILS = false
 
 LINE_WIDTH = 6
 BAR_START = 1 + 0.1
-BAR_FREQ = 4/1 // bar spawn per sec
-BAR_SPEED  = 2/3 // w per sec
+BAR_FREQ = 4/1      // bar spawn per sec
+MAX_BAR_FREQ = 7/1
+BAR_SPEED  = 2/3    // w per sec
 BAR_TIMER = 0
 BARS = []
 BAR_W_MIN = 1/30
@@ -47,6 +52,7 @@ NAME_SCALE = 40
 TIME_LINE_SCALE = 100
 DEATH_LINE_SCALE = 200
 
+BAR_QUEUE = []
 BAR_SCORE = 0
 SCORE = 0
 SPACE = true
@@ -76,8 +82,9 @@ function new_bar() {
   HOST_MSG('new_bar',null,[[BAR_START, Math.random() * (1 - h)], [w,h]])
 }
 
-function SAVE_GAME() {
-  SRVR_WRITE_FILE('save_file.json',[SRVR_WINNER,SRVR_MAX_SCORE,DEATHS])
+function save_game() {
+  var data = [SCORE_BOARD,DEATHS]
+  SRVR_WRITE_FILE('save_file.json',data)
 }
 
 function draw_quad(g,a1,a2,b1,b2,c1,c2,c) {
@@ -111,26 +118,80 @@ function rcv_msg(msg) {
   if (MSGS.length > 5) MSGS = MSGS.slice(1,6)
 }
 function rcv_new_bar(msg) {
-  if (CLNT_ID != SRVR_CLNT_ID) {
-    msg.score = ++BAR_SCORE / SRVR_MAX_SCORE
-    BARS.push(msg)
-  }
+  if (CLNT_ID != SRVR_CLNT_ID) BAR_QUEUE.push(msg)
 }
 function rcv_player_update(sndr,msg) {
+  // log('rcv_player_update')
   if (sndr != CLNT_ID) {
     PLAYERS[sndr] = msg
   }
+
+  var name = msg[2]
+  var score = msg[3]
+  var all_score = msg[4]
+  var deaths = msg[5]
+  var max_score = msg[6]
+  // log('max_score',max_score)
+
+  if (max_score > SRVR_MAX_SCORE) {
+    SRVR_MAX_SCORE = max_score
+  }
+
+  var flag = true
+  for (var i in SCORE_BOARD) {
+    var score_board = SCORE_BOARD[i]
+    if (score_board.name == name) {
+      score_board.score = score
+      score_board.deaths = deaths
+      score_board.all_score = all_score
+      score_board.max_score = max_score
+      flag = false
+      break
+    }
+  }
+  if (flag) {
+    SCORE_BOARD.push({
+      name: name, score: score, deaths: deaths,
+      all_score: all_score, max_score: max_score,
+    })
+  }
+  SCORE_BOARD.sort((a,b)=>a.max_score-b.max_score)
+  if (SCORE_BOARD.length) {
+    var score_board = SCORE_BOARD[SCORE_BOARD.length-1]
+    SRVR_WINNER = score_board.name
+    SRVR_MAX_SCORE = score_board.max_score
+  }
 }
 function send_game_state(sndr) {
-  HOST_MSG('new_high_score',[sndr],[SRVR_WINNER,SRVR_MAX_SCORE])
-  HOST_MSG('send_game_state',[sndr],DEATHS)
+  var data = [SCORE_BOARD,DEATHS]
+  HOST_MSG('send_game_state',[sndr],data)
 }
 function rcv_game_state(msg) {
-  DEATHS = msg
-}
-function rcv_new_high_score(msg) {
-  SRVR_WINNER = msg[0]
-  SRVR_MAX_SCORE = msg[1]
+  SCORE_BOARD = msg[0]
+  DEATHS = msg[1]
+
+  for (var i in SCORE_BOARD) {
+    var score_board = SCORE_BOARD[i]
+
+    if (score_board.name == CLNT_NAME) {
+      MAX_SCORE = score_board.max_score
+      MY_DEATHS = score_board.deaths
+      ALL_SCORE = score_board.all_score
+      SCORE = 0
+      break
+    }
+  }
+
+  SCORE_BOARD.sort((a,b)=>a.max_score-b.max_score)
+  if (SCORE_BOARD.length) {
+    var score_board = SCORE_BOARD[SCORE_BOARD.length-1]
+    SRVR_WINNER = score_board.name
+    SRVR_MAX_SCORE = score_board.max_score
+  }
+  else {
+    SRVR_WINNER = 'SRVR'
+    SRVR_MAX_SCORE = 10
+  }
 }
 function on_death(msg) {
   var name = msg[0]
@@ -140,7 +201,7 @@ function on_death(msg) {
   if (isNaN(score)) return
   if (DEATHS[score]) ++DEATHS[score]
   else DEATHS[score] = 1
-  if (SRVR_CLNT_ID == CLNT_ID) SAVE_GAME()
+  if (SRVR_CLNT_ID == CLNT_ID) save_game()
   log(`${name} died at ${score}`)
 }
 
@@ -165,11 +226,15 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 
 GAME_SRVR_INIT = () => {
   log('init game srvr')
-  var save = SRVR_READ_FILE('save_file.json')
-  SRVR_WINNER = save[0]
-  SRVR_MAX_SCORE = save[1]
-  DEATHS = save[2]
-  setInterval(SAVE_GAME,1e5)
+  var save = []
+  try {
+    save = SRVR_READ_FILE('save_file.json')
+  }
+  catch (e) {}
+
+  rcv_game_state(save)
+
+  setInterval(save_game,1e5)
   setInterval(new_bar,1e3/BAR_FREQ)
 }
 
@@ -180,9 +245,19 @@ GAME_SRVR_INIT = () => {
 GAME_CLNT_INIT = () => {
   log('init game clnt')
   START_TIME = USR_IO_EVNTS.nw
+  BAR_TIMER = START_TIME * 1e-3 + 1/MAX_BAR_FREQ
   setInterval(() => {
+    // log('player_update')
     if (!PAUSED) HOST_MSG('player_update',null,
-      [HELI_Y,2,CLNT_NAME.slice(0,8),SCORE,ALL_SCORE/MY_DEATHS])
+      [
+        HELI_Y,               // 0
+        2,                    // 1
+        CLNT_NAME.slice(0,8), // 2
+        SCORE,                // 3
+        ALL_SCORE,            // 4
+        MY_DEATHS,            // 5
+        MAX_SCORE             // 6
+      ])
     for (var i in PLAYERS) if (PLAYERS[i][1]-- < 0) delete PLAYERS[i]
   },UPDATE_FREQ)
   HOST_MSG('rqst_game_state',[0])
@@ -193,9 +268,21 @@ GAME_CLNT_INIT = () => {
 // GAME_TICK
 //----------------------------------------------------------------
 
+function get_bar() {
+  var now = USR_IO_EVNTS.nw *1e-3
+
+  if (now > BAR_TIMER && BAR_QUEUE.length > 0 && !HOLD) {
+    var bar = BAR_QUEUE[0]
+    BAR_QUEUE = BAR_QUEUE.slice(1)
+    bar.score = ++BAR_SCORE / SRVR_MAX_SCORE
+    BARS.push(bar)
+    BAR_TIMER = now + 1/MAX_BAR_FREQ
+  }
+}
+
 function get_color(score) {
   var floor_score = Math.floor(score * COLORS.length)
-  if (floor_score > COLORS.length) floor_score = COLORS.length
+  if (floor_score >= COLORS.length) return 'white'
   return COLORS[floor_score]
 }
 
@@ -262,7 +349,7 @@ function draw_status_bar() {
     var color = COLORS[i]
     PT.fillRect(g,[x,0],[w / COLORS.length,SCORE_HIGHT],color)
   }
-  var score_line = SCORE * w / MAX_SCORE
+  var score_line = SCORE * w / TEMP_MAX_SCORE
   PT.drawLine(g,[score_line,0],[score_line,SCORE_HIGHT*2],'white')
 }
 
@@ -282,10 +369,6 @@ function draw_bars() {
       }
       if (SCORE > MAX_SCORE) {
         MAX_SCORE = SCORE
-        if (MAX_SCORE > SRVR_MAX_SCORE) {
-          HOST_MSG('new_high_score',[0],[CLNT_NAME,SCORE])
-          SRVR_MAX_SCORE = SCORE
-        }
       }
       delete BARS[i]
     }
@@ -412,10 +495,10 @@ function draw_info() {
   g.font = 'bold 20px arial,serif'
   var offset = 0
   g.fillText(`Score ${SCORE}`,w-20,offset+=20)
-  g.fillText(`Blocks Per Run ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
-  g.fillText(`High Score ${MAX_SCORE}`,w-20,offset+=20)
+  g.fillText(`Average Score ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
+  // g.fillText(`High Score ${MAX_SCORE}`,w-20,offset+=20)
   g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,w-20,offset+=20)
-  g.fillText(`Champion ${SRVR_WINNER}`,w-20,offset+=20)
+  // g.fillText(`Champion ${SRVR_WINNER}`,w-20,offset+=20)
 }
 
 function check_keys() {
@@ -429,6 +512,10 @@ function check_keys() {
   if (USR_IO_KYS.hsDn['m'])
     HOST_MSG('msg',null, `${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
   if (USR_IO_KYS.hsDn['c']) MSGS = []
+  if (USR_IO_KYS.hsDn['h']) {
+    HOLD = !HOLD
+    log('Hold',HOLD)
+  }
   return reset
 }
 
@@ -460,19 +547,32 @@ function draw_score_list() {
 
   g.font = 'bold 20px arial,serif'
 
-  var list = []
-  list.push([CLNT_NAME,ALL_SCORE/MY_DEATHS])
-  for (var i in PLAYERS) {
-    var plr = PLAYERS[i]
-    list.push([plr[2],plr[4]])
-  }
-  list.sort((a,b)=>a[1]-b[1])
   var offset = h
-  g.fillStyle = 'white'
-  for (var i in list) {
-    var l = list[i]
-    g.fillText(`${l[0]}: ${Math.round(l[1])}`,w-20,offset-=20)
+
+  for (var i = 0; i < SCORE_BOARD.length && i < 10; ++i) {
+    var score_board = SCORE_BOARD[i]
+    var name = score_board.name
+    var max_score = score_board.max_score
+    var score = score_board.score
+    var average = Math.round(score_board.all_score / score_board.deaths)
+    g.fillStyle = get_color(max_score/SRVR_MAX_SCORE)
+    var color = get_color(max_score/SRVR_MAX_SCORE)
+    g.fillText(`${name}: ${max_score} (${average})`,w-20,offset-=20)
   }
+
+  // var list = []
+  // list.push([CLNT_NAME,ALL_SCORE/MY_DEATHS])
+  // for (var i in PLAYERS) {
+  //   var plr = PLAYERS[i]
+  //   list.push([plr[2],plr[4]])
+  // }
+  // list.sort((a,b)=>a[1]-b[1])
+  // var offset = h
+  // g.fillStyle = 'white'
+  // for (var i in list) {
+  //   var l = list[i]
+  //   g.fillText(`${l[0]}: ${Math.round(l[1])}`,w-20,offset-=20)
+  // }
 }
 
 function draw_msgs() {
@@ -514,6 +614,8 @@ GAME_TICK = () => {
   draw_status_bar()
 
   draw_player()
+
+  get_bar()
 
   draw_bars()
 
