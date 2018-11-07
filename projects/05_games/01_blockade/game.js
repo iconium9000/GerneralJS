@@ -495,9 +495,9 @@ function draw_info() {
   g.font = 'bold 20px arial,serif'
   var offset = 0
   g.fillText(`Score ${SCORE}`,w-20,offset+=20)
-  g.fillText(`Average Score ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
+  // g.fillText(`Average Score ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
   // g.fillText(`High Score ${MAX_SCORE}`,w-20,offset+=20)
-  g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,w-20,offset+=20)
+  // g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,w-20,offset+=20)
   // g.fillText(`Champion ${SRVR_WINNER}`,w-20,offset+=20)
 }
 
@@ -539,6 +539,7 @@ function draw_instructions() {
   g.fillText("Press M to message",w-20,offset += 40)
   g.fillText("Press C to clear messages",w-20,offset += 40)
   g.fillText("Press S to toggle Stats",w-20,offset += 40)
+  g.fillText("Press A to reset Average Score",w-20,offset += 40)
   g.fillText("Press ? for Instructions",w-20,offset += 40)
 
   g.fillText("Press Space To Start",w-20,offset += 120)
