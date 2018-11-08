@@ -40,9 +40,44 @@ CLNT = {}
 CLNT_ID = null
 CLNT_KEY = null
 CLNT_NAME = document.cookie.length ?
-  document.cookie.split('=')[1] :
-  'Johnny Appleseed'
-CLNT_NAME = prompt('What is your name?', CLNT_NAME)
+  document.cookie.split('=')[1] : 'Wisely'
+
+var wisely_idx = 0
+var wisely_txt = [
+	[`Choose a name for the game.
+Choose wisely, as it can't be changed later.`,`Wisely`],
+	[`Ha-ha. Very funny`],
+	[`Please Choose a name for the game.
+Choose wisely, as it can't be changed later.`,`Changed Later`,],
+	[`It can't be changed later.
+Please type another name.`,`Another Name`,],
+	[`I'm getting sick of you.`]
+]
+while (true) {
+
+	var ary = wisely_txt[wisely_idx % wisely_txt.length]
+	var txt = ary[0]
+
+
+	if (ary.length == 1) {
+		alert(txt)
+		++wisely_idx
+		continue
+	}
+
+	var name = ary[1]
+
+	CLNT_NAME = prompt(txt, CLNT_NAME || name)
+	if (!CLNT_NAME) continue
+
+
+	if (CLNT_NAME.toLowerCase() == name.toLowerCase()) {
+		++wisely_idx
+		CLNT_NAME = null
+	}
+	else break
+}
+
 FU.setCookie('NAME', CLNT_NAME, 2)
 
 function HOST_MSG(key, rcvr, msg) {
