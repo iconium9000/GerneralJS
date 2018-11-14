@@ -167,7 +167,7 @@ function rcv_player_update(sndr,msg) {
   if (SCORE_BOARD.length) {
     var score_board = SCORE_BOARD[SCORE_BOARD.length-1]
     SRVR_WINNER = score_board.name
-    SRVR_MAX_SCORE = score_board.max_score
+    SRVR_MAX_SCORE = score_board.max_score || 1
   }
 }
 function send_game_state(sndr) {
