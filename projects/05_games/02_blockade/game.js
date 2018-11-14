@@ -29,14 +29,19 @@ ON_SRVR_KILL = save_game
 SCORE_BOARD = []
 
 SHOW_STATS = true
+SHOW_SCORES = true
 
 PAUSED = true
 TRAILS = false
 
 LINE_WIDTH = 6
 BAR_START = 1 + 0.1
-BAR_FREQ = 4/1      // bar spawn per sec
-MAX_BAR_FREQ = 7/1
+BAR_FREQ = 5      // bar spawn per sec
+START_BAR_FREQ = 1.5
+END_BAR_FREQ = 5
+
+MAX_BAR_FREQ = 7
+
 BAR_SPEED  = 2/3    // w per sec
 BAR_TIMER = 0
 BARS = []
@@ -119,7 +124,9 @@ function rcv_msg(msg) {
   if (MSGS.length > 5) MSGS = MSGS.slice(1,6)
 }
 function rcv_new_bar(msg) {
-  if (CLNT_ID != SRVR_CLNT_ID && BAR_QUEUE < MAX_BAR_QUEUE) BAR_QUEUE.push(msg)
+  if (CLNT_ID != SRVR_CLNT_ID && BAR_QUEUE < MAX_BAR_QUEUE) {
+    BAR_QUEUE.push(msg)
+  }
 }
 function rcv_player_update(sndr,msg) {
   // log('rcv_player_update')
@@ -263,6 +270,19 @@ GAME_CLNT_INIT = () => {
   },UPDATE_FREQ)
   HOST_MSG('rqst_game_state',[0])
   IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+  // var n_colors = COLORS.length-1
+  // var min = START_BAR_FREQ
+  // var max = END_BAR_FREQ
+  // var shift = END_BAR_FREQ - START_BAR_FREQ
+  // // log(min,max,shift)
+  // var arry = []
+  // for (var i = 0; i <= n_colors; ++i) {
+  //   var len = (min + i * shift / n_colors)
+  //
+  // }
+
+
 }
 
 //----------------------------------------------------------------
@@ -275,8 +295,15 @@ function get_bar() {
   if (now > BAR_TIMER && BAR_QUEUE.length > 0 && !HOLD) {
     var bar = BAR_QUEUE[0]
     BAR_QUEUE = BAR_QUEUE.slice(1)
-    bar.score = ++BAR_SCORE / SRVR_MAX_SCORE
-    BARS.push(bar)
+
+    var min = START_BAR_FREQ
+    var max = END_BAR_FREQ - START_BAR_FREQ
+    var rank = min + max * Math.floor(SCORE / SRVR_MAX_SCORE * 8) / 8
+    var prob = (END_BAR_FREQ - rank)/END_BAR_FREQ
+    if (Math.random() > prob) {
+      bar.score = ++BAR_SCORE / SRVR_MAX_SCORE
+      BARS.push(bar)
+    }
     BAR_TIMER = now + 1/MAX_BAR_FREQ
   }
 }
@@ -380,7 +407,8 @@ function draw_bars() {
       bar.p = PT.mat(bar[0],wh,MUL)
       bar.v = PT.mat(bar[1],wh,MUL)
 
-      if (PAUSED) {
+      if (bar.hidden);// PT.fillRect(g,bar.p,bar.v,'white')
+      else if (PAUSED) {
         PT.fillRect(g,bar.p,bar.v,'white')
       }
       else if (bar.score > 1) {
@@ -404,7 +432,7 @@ function move_player() {
 function check_hitbox() {
   for (var i in BARS) {
     var bar = BARS[i]
-    if (PT.hitbox(HELI,HELI_BOX,bar.p,bar.v)) {
+    if (!bar.hidden && PT.hitbox(HELI,HELI_BOX,bar.p,bar.v)) {
       return true
     }
   }
@@ -510,7 +538,10 @@ function check_keys() {
   // if (USR_IO_KYS.hsDn['p']) PAUSED = reset = true
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
   if (USR_IO_KYS.hsDn['r']) reset = true
-  if (USR_IO_KYS.hsDn['s']) SHOW_STATS = !SHOW_STATS
+  if (USR_IO_KYS.hsDn['s']) {
+    SHOW_STATS = !SHOW_STATS
+    SHOW_SCORES = !SHOW_SCORES
+  }
   if (USR_IO_KYS.hsDn['m'])
     HOST_MSG('msg',null, `${CLNT_NAME}: ${prompt('Group Msg','Hello World')}`)
   if (USR_IO_KYS.hsDn['c']) MSGS = []
@@ -568,6 +599,20 @@ function draw_score_list() {
     var color = get_color(max_score/SRVR_MAX_SCORE)
     g.fillText(`${name}: ${max_score} (${average})`,w-20,offset-=20)
   }
+
+  // var list = []
+  // list.push([CLNT_NAME,ALL_SCORE/MY_DEATHS])
+  // for (var i in PLAYERS) {
+  //   var plr = PLAYERS[i]
+  //   list.push([plr[2],plr[4]])
+  // }
+  // list.sort((a,b)=>a[1]-b[1])
+  // var offset = h
+  // g.fillStyle = 'white'
+  // for (var i in list) {
+  //   var l = list[i]
+  //   g.fillText(`${l[0]}: ${Math.round(l[1])}`,w-20,offset-=20)
+  // }
 }
 
 function draw_msgs() {
