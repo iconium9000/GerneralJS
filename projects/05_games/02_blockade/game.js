@@ -529,7 +529,7 @@ function draw_info() {
   var min = START_BAR_FREQ + dif * MAX_SCORE/SRVR_MAX_SCORE*MAX_SCORE_SCALER
   var max = END_BAR_FREQ - min
   var rank = min + max * Math.floor(SCORE / SRVR_MAX_SCORE * 8) / 8
-  g.fillText(`Rate ${Math.round(rank,0.01)}`,w-20,offset+=20)
+  g.fillText(`Rate ${Math.round(rank*100)/100}`,w-20,offset+=20)
 
   // g.fillText(`Average Score ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
   // g.fillText(`High Score ${MAX_SCORE}`,w-20,offset+=20)
