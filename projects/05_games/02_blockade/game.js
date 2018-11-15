@@ -63,6 +63,7 @@ BAR_SCORE = 0
 SCORE = 0
 SPACE = true
 MIN_SRVR_MAX_SCORE = 200
+MAX_SCORE_SCALER = 0.3
 SRVR_MAX_SCORE = MIN_SRVR_MAX_SCORE
 MAX_SCORE = 0
 PREV_SRVR_SCORE = 0
@@ -293,8 +294,9 @@ function get_bar() {
     var bar = BAR_QUEUE[0]
     BAR_QUEUE = BAR_QUEUE.slice(1)
 
-    var min = START_BAR_FREQ
-    var max = END_BAR_FREQ - START_BAR_FREQ
+    var dif = (END_BAR_FREQ - START_BAR_FREQ)
+    var min = START_BAR_FREQ + dif * MAX_SCORE/SRVR_MAX_SCORE*MAX_SCORE_SCALER
+    var max = END_BAR_FREQ - min
     var rank = min + max * Math.floor(SCORE / SRVR_MAX_SCORE * 8) / 8
     var prob = (END_BAR_FREQ - rank)/END_BAR_FREQ
     if (Math.random() > prob) {
@@ -522,6 +524,13 @@ function draw_info() {
   g.font = 'bold 20px arial,serif'
   var offset = 0
   g.fillText(`Score ${SCORE}`,w-20,offset+=20)
+
+  var dif = (END_BAR_FREQ - START_BAR_FREQ)
+  var min = START_BAR_FREQ + dif * MAX_SCORE/SRVR_MAX_SCORE*MAX_SCORE_SCALER
+  var max = END_BAR_FREQ - min
+  var rank = min + max * Math.floor(SCORE / SRVR_MAX_SCORE * 8) / 8
+  g.fillText(`Rank ${rank}`,w-20,offset+=20)
+
   // g.fillText(`Average Score ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
   // g.fillText(`High Score ${MAX_SCORE}`,w-20,offset+=20)
   // g.fillText(`Server High Score ${SRVR_MAX_SCORE}`,w-20,offset+=20)
