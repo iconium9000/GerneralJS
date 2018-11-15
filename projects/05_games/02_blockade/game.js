@@ -292,7 +292,7 @@ function get_rate() {
   var score = Math.floor(SCORE / SRVR_MAX_SCORE * num) / num
   var max_score = Math.floor(MAX_SCORE / SRVR_MAX_SCORE * num) / num
   var dif = (END_BAR_FREQ - START_BAR_FREQ)
-  var min = START_BAR_FREQ + dif * max_score/SRVR_MAX_SCORE*MAX_SCORE_SCALER
+  var min = START_BAR_FREQ + dif * max_score*MAX_SCORE_SCALER
   var max = END_BAR_FREQ - min
   return min + max * score
 }
@@ -304,9 +304,7 @@ function get_bar() {
     var bar = BAR_QUEUE[0]
     BAR_QUEUE = BAR_QUEUE.slice(1)
 
-
-    var rank = get_rate()
-    var prob = (END_BAR_FREQ - rank)/END_BAR_FREQ
+    var prob = (END_BAR_FREQ - get_rate())/END_BAR_FREQ
     if (Math.random() > prob) {
       bar.score = ++BAR_SCORE / SRVR_MAX_SCORE
       BARS.push(bar)
