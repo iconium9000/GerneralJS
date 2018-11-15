@@ -287,6 +287,16 @@ GAME_CLNT_INIT = () => {
 // GAME_TICK
 //----------------------------------------------------------------
 
+function get_rate() {
+  var num = COLORS.length
+  var score = Math.floor(SCORE / SRVR_MAX_SCORE * num) / num
+  var max_score = Math.floor(MAX_SCORE / SRVR_MAX_SCORE * num) / num
+  var dif = (END_BAR_FREQ - START_BAR_FREQ)
+  var min = START_BAR_FREQ + dif * max_score/SRVR_MAX_SCORE*MAX_SCORE_SCALER
+  var max = END_BAR_FREQ - min
+  return min + max * score
+}
+
 function get_bar() {
   var now = USR_IO_EVNTS.nw *1e-3
 
@@ -294,10 +304,8 @@ function get_bar() {
     var bar = BAR_QUEUE[0]
     BAR_QUEUE = BAR_QUEUE.slice(1)
 
-    var dif = (END_BAR_FREQ - START_BAR_FREQ)
-    var min = START_BAR_FREQ + dif * MAX_SCORE/SRVR_MAX_SCORE*MAX_SCORE_SCALER
-    var max = END_BAR_FREQ - min
-    var rank = min + max * Math.floor(SCORE / SRVR_MAX_SCORE * 8) / 8
+
+    var rank = get_rate()
     var prob = (END_BAR_FREQ - rank)/END_BAR_FREQ
     if (Math.random() > prob) {
       bar.score = ++BAR_SCORE / SRVR_MAX_SCORE
@@ -525,11 +533,8 @@ function draw_info() {
   var offset = 0
   g.fillText(`Score ${SCORE}`,w-20,offset+=20)
 
-  var dif = (END_BAR_FREQ - START_BAR_FREQ)
-  var min = START_BAR_FREQ + dif * MAX_SCORE/SRVR_MAX_SCORE*MAX_SCORE_SCALER
-  var max = END_BAR_FREQ - min
-  var rank = min + max * Math.floor(SCORE / SRVR_MAX_SCORE * 8) / 8
-  g.fillText(`Rate ${Math.round(rank*100)/100}`,w-20,offset+=20)
+
+  g.fillText(`Rate ${Math.round(get_rate()*100)/100}`,w-20,offset+=20)
 
   // g.fillText(`Average Score ${Math.round(ALL_SCORE/MY_DEATHS)}`,w-20,offset+=20)
   // g.fillText(`High Score ${MAX_SCORE}`,w-20,offset+=20)
