@@ -62,9 +62,9 @@ MAX_BAR_QUEUE = 20
 BAR_SCORE = 0
 SCORE = 0
 SPACE = true
-SRVR_MAX_SCORE = 1
+MIN_SRVR_MAX_SCORE = 200
+SRVR_MAX_SCORE = MIN_SRVR_MAX_SCORE
 MAX_SCORE = 0
-SRVR_WINNER = 'SRVR'
 PREV_SRVR_SCORE = 0
 
 START_TIME = 0
@@ -166,9 +166,9 @@ function rcv_player_update(sndr,msg) {
   SCORE_BOARD.sort((a,b)=>a.max_score-b.max_score)
   if (SCORE_BOARD.length) {
     var score_board = SCORE_BOARD[SCORE_BOARD.length-1]
-    SRVR_WINNER = score_board.name
-    SRVR_MAX_SCORE = score_board.max_score || 1
+    SRVR_MAX_SCORE = score_board.max_score
   }
+  if (SRVR_MAX_SCORE < MIN_SRVR_MAX_SCORE) SRVR_MAX_SCORE = MIN_SRVR_MAX_SCORE
 }
 function send_game_state(sndr) {
   var data = [SCORE_BOARD,DEATHS]
@@ -193,13 +193,10 @@ function rcv_game_state(msg) {
   SCORE_BOARD.sort((a,b)=>a.max_score-b.max_score)
   if (SCORE_BOARD.length) {
     var score_board = SCORE_BOARD[SCORE_BOARD.length-1]
-    SRVR_WINNER = score_board.name
     SRVR_MAX_SCORE = score_board.max_score
   }
-  else {
-    SRVR_WINNER = 'SRVR'
-    SRVR_MAX_SCORE = 10
-  }
+  if (SRVR_MAX_SCORE < MIN_SRVR_MAX_SCORE) SRVR_MAX_SCORE = MIN_SRVR_MAX_SCORE
+
 }
 function on_death(msg) {
   var name = msg[0]
