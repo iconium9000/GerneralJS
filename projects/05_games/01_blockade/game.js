@@ -62,6 +62,8 @@ MAX_SCORE = 0
 SRVR_WINNER = 'SRVR'
 PREV_SRVR_SCORE = 0
 
+MOUSE_COM = false
+
 START_TIME = 0
 THRUST_TIME = 0
 
@@ -509,6 +511,7 @@ function check_keys() {
   if (USR_IO_KYS.hsDn['?']) SPACE = !SPACE
   // if (USR_IO_KYS.hsDn['p']) PAUSED = reset = true
   if (USR_IO_KYS.hsDn['t']) TRAILS = !TRAILS
+  if (USR_IO_KYS.hsDn['y']) MOUSE_COM = !MOUSE_COM
   if (USR_IO_KYS.hsDn['r']) reset = true
   if (USR_IO_KYS.hsDn['s']) SHOW_STATS = !SHOW_STATS
   if (USR_IO_KYS.hsDn['m'])
@@ -542,6 +545,7 @@ function draw_instructions() {
   g.fillText("Press C to clear messages",w-20,offset += 40)
   g.fillText("Press S to toggle Stats",w-20,offset += 40)
   g.fillText("Press A to reset Average Score",w-20,offset += 40)
+  g.fillText("Press Y to toggle mouse control",w-20,offset += 40)
   g.fillText("Press ? for Instructions",w-20,offset += 40)
 
   g.fillText("Press Space To Start",w-20,offset += 120)
@@ -594,11 +598,14 @@ GAME_TICK = () => {
   g.lineWidth = LINE_WIDTH
 
   SPACE_HAS_DOWN = USR_IO_KYS.hsDn[' '] || USR_IO_MWS.hsDn
-  SPACE_DOWN = USR_IO_KYS.isDn[' '] || USR_IO_MWS.isDn
+
   SCORE_HIGHT = h/TIME_LINE_SCALE
   TEMP_MAX_SCORE = SRVR_MAX_SCORE
   HELI = [HELI_X*w,HELI_Y*h]
   HELI_BOX = [HELI_W*w,HELI_H*h]
+
+  SPACE_DOWN = !MOUSE_COM ?
+    (USR_IO_KYS.isDn[' '] || USR_IO_MWS.isDn) : (HELI[1] > USR_IO_MWS[1])
 
   if (SHOW_STATS) show_stats()
 
