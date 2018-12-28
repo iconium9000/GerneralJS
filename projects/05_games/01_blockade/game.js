@@ -170,8 +170,8 @@ function send_game_state(sndr) {
   HOST_MSG('send_game_state',[sndr],data)
 }
 function rcv_game_state(msg) {
-  SCORE_BOARD = msg[0]
-  DEATHS = msg[1]
+  SCORE_BOARD = msg[0] || []
+  DEATHS = msg[1] || {}
 
   for (var i in SCORE_BOARD) {
     var score_board = SCORE_BOARD[i]
