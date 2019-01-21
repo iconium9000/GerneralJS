@@ -6,6 +6,8 @@ err = console.error
 srfy = JSON.stringify
 log('init pt.js')
 
+PI2 = 2 * Math.PI
+
 pt = PT = {}
 
 PT.shuffle = input => {
@@ -328,10 +330,58 @@ PT.color = p => PT.suma(PT.mats(p, 1, c => {
   c = Math.floor(c * 255).toString(16)
   c = ('0' + c).slice(-2)
   return c
-}, 4), '#')
+}, 3), '#')
+
+
+/**
+  @param loc: [x,y] location on canvas
+  @param  size:  [width, height] size of imaga in pixels
+  @param  f:   [x (0,1), y (0,1)] => hue (0,1)
+*/
+PT.porkchop = (g,loc,size,f) => {
+  var imageData = new ImageData(size[0],size[1])
+  var w = size[0], h = size[1]
+  for (var i = 0; i < w; ++i) {
+    for (var j = 0; j < h; ++j) {
+      var idx = j * (w * 4) + i * 4
+      var hue = f([i/w,j/h])
+      hue = hue > 1 ? 1 : hue < 0 ? 0 : hue
+      hue = hue * 5
+      imageData.data[idx] = (Math.abs(hue - 3) - 1) * 0xff
+      imageData.data[idx + 1] = (2 - Math.abs(hue - 2)) * 0xff
+      imageData.data[idx + 2] = (2 - Math.abs(hue - 4)) * 0xff
+      imageData.data[idx + 3] = 0xff
+    }
+  }
+  g.putImageData(imageData, loc[0]||0, loc[1]||0)
+}
 
 PT_UNIQUE_KEYS = {}
 PT.unique_key = l => PT.matlse(l,'',(n,s)=>s+FU.rand_char())
+
+/**
+  @theta rotates around the y axis from the x axis to the x axis
+  @phi rotates around the normal of the plane defined by theta from
+    the positive end y axis to the xz plane to the negative y axis
+  @radius is the radius of the vector
+*/
+
+PT.cart_to_sphere = ([x,y,z]) => {
+  x = x || 0; y = y || 0; z = z || 0
+  var xz = PT.length([x,z])
+  var theta = PT.tan2([z,x])
+  var phi = PT.tan2([xz,y])
+  var radius = PT.length([x,y,z])
+  return [theta,phi,radius]
+}
+PT.sphere_to_cart = ([theta,phi,radius]) => {
+  theta = theta || 0; phi = phi || 0; radius = radius || 0
+  var sin_phi = Math.sin(phi)
+  var x = radius * Math.cos(theta) * sin_phi
+  var y = radius * Math.cos(phi)
+  var z = radius * Math.sin(theta) * sin_phi
+  return [x,y,z]
+}
 
 PT.drawLine = (g,a,b,c) => {
   if (c) g.strokeStyle = c
@@ -357,6 +407,7 @@ PT.fillCircle = (g, p, r, c) => {
   g.arc(p[0] || 0, p[1] || 0, r, 0, 2 * Math.PI)
   g.fill()
 }
+
 PT.drawSquare = (g, p, r, c) => {
   if (c) g.strokeStyle = c
 

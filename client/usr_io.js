@@ -1,12 +1,68 @@
-// requires: INDEX_CANVAS
-// requires: FU
-// requires: PT
+/**
+@required
+  @FU
+  @PT
+  @INDEX_CANVAS
 
+@USR_IO
+
+  @USR_IO_KYS       function
+    @isDn   []
+    @hsDn   []
+    @hsUp   []
+
+  @USR_IO_EVNTS     function
+    @nw
+    @dt
+    @lst
+    @tk
+
+  @USR_IO_DSPLY     function
+    @cnvs
+    @g
+    @w
+    @h
+    @wh
+
+  @USR_IO_MWS       []
+    @prv
+      @isDn
+    @hsDrgd
+    @isDn
+    @hsUp
+    @hsDn
+      @Shift
+    @shftDn
+    @hsWl
+    @wlPt
+    @isRt
+    @hsRt
+*/
+
+err = console.error
 log = console.log
 log('init io.js')
 
-USR_IO_KYS()
-USR_IO_EVNTS()
+function USR_IO_TICK(f) {
+  USR_IO_DSPLY()
+  try {
+    f()
+  }
+  catch (e) {
+    err(e)
+  }
+  USR_IO_KYS()
+  USR_IO_EVNTS()
+  USR_IO_SET_MWS()
+}
+
+function USR_IO_INIT() {
+  USR_IO_MWS = []
+  USR_IO_KYS()
+  USR_IO_EVNTS()
+  USR_IO_SET_MWS()
+	USR_IO_DSPLY()
+}
 
 function USR_IO_KYS() {
   USR_IO_KYS.isDn = USR_IO_KYS.isDn || {}
@@ -31,11 +87,13 @@ function USR_IO_DSPLY() {
   d.wh = [d.w,d.h]
 }
 
-USR_IO_MWS = []
 function USR_IO_SET_MWS() {
   USR_IO_MWS.hsDn = USR_IO_MWS.hsDrgd = USR_IO_MWS.hsUp = false
   USR_IO_MWS.prv = PT.copy(USR_IO_MWS)
   USR_IO_MWS.prv.isDn = USR_IO_MWS.isDn
+  USR_IO_MWS.hsRt = false
+  USR_IO_MWS.hsWl = false
+  USR_IO_MWS.wlPt = []
 }
 
 // non-global functions
@@ -53,13 +111,13 @@ function USR_IO_SET_MWS() {
   $(document).mousedown(e => {
     setMouse(e)
     USR_IO_MWS.hsDrgd = false
-    USR_IO_MWS.isDn = true
-    USR_IO_MWS.hsDn = true
+    USR_IO_MWS.isDn = USR_IO_MWS.hsDn = e.button != 2
+    USR_IO_MWS.isRt = USR_IO_MWS.hsRt = e.button == 2
     USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
   $(document).mouseup(e => {
     setMouse(e)
-    USR_IO_MWS.isDn = false
+    USR_IO_MWS.isRt = USR_IO_MWS.isDn = false
     USR_IO_MWS.hsUp = true
     USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
@@ -76,6 +134,16 @@ function USR_IO_SET_MWS() {
     USR_IO_MWS.hsUp = true
     USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   }, false)
+
+  INDEX_CANVAS.addEventListener('mousewheel', e => {
+    PT.sume(USR_IO_MWS.wlPt,[e.wheelDeltaX,e.wheelDeltaY])
+    USR_IO_MWS.hsWl = true
+  }, false);
+  INDEX_CANVAS.addEventListener('contextmenu', e => {
+    if (e.button == 2) {
+      e.preventDefault();
+    }
+  })
 
   $(document).keypress(e => {
     var c = FU.etochar(e)

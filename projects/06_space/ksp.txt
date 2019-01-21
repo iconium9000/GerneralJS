@@ -1,0 +1,36 @@
+CONSTANTS = {
+  gravitational:    6.6740831e-11,        // m3 / kg s2
+  light_speed:      299792458,            // m / s
+  magnetic:         1.25663706144e-6,     // N / A2
+  electric:         8.8541878176e-12,     // F / m
+  vac_impedance:    376.730313461,        // Ω
+  coulombs:         8.9875517873681764e9, // kg m3 / s4 A2
+}
+
+KERBOL = new_body({
+  radius: 	2.616e8,                      // m
+  density:  234.23818,                    // kg / m3
+  soi:      Infinity,                     // m
+  atomo:    6e5,                          // m
+
+  semi_major_axis: 	13599840256,          // m
+  apoapsis:         13599840256,
+  periapsis:        13599840256,
+
+  eccentricity:               0,
+  inclination:                0,
+  periapsis_augment:          0,
+  ascending_node_longitude:   0,
+  mean_anomaly:               3.14,
+})
+
+JOOL = new_body({
+  host:     KERBOL,
+  radius:   6e6,          // m
+  density:  4678.7273,    // kg / m3
+  soi:      2.4559852e9,  // m
+})
+
+function new_body(info) {
+  return info
+}
