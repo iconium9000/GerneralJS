@@ -107,6 +107,7 @@ else {
   SRVR_READ_FILE = file_name => JSON.parse(fs.readFileSync(PROJ_PATH+file_name))
   ON_SRVR_KILL = ()=>{}
   GAME_SRVR_INIT()
+  
   process.on('SIGINT', () => {
     ON_SRVR_KILL()
     log('Killing server...')
