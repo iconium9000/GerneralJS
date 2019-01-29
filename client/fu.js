@@ -19,7 +19,16 @@ FU.setCookie = (cname, cvalue, exdays) => {
 
 FU.mod = (x,y) => x < 0 ? y + (x%y) : x%y
 FU.flr = (x,y) => y * Math.floor(x / y)
-
+FU.rand = (min,max) => (max-min) * Math.random() + min
+FU.prand = ([min,max]) => (max-min) * Math.random() + min
+FU.max_length = ary_ary => {
+  var max = 0
+  for (var i in ary_ary) {
+    var len = ary_ary[i].length
+    if (len > max) max = len
+  }
+  return max
+}
 FU.trueif = (l,f) => {
   for (var i = 0; i < l; ++i) if (f(i,l)) return true
   return false

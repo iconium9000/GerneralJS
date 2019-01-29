@@ -6,7 +6,8 @@ err = console.error
 srfy = JSON.stringify
 log('init pt.js')
 
-PI2 = 2 * Math.PI
+PI = Math.PI
+PI2 = 2 * PI
 
 pt = PT = {}
 
@@ -300,13 +301,21 @@ PT.lineDist = (p,a,b) => {
   return Math.abs(PT.dot(pa, PT.unit(PT.cross(ba,cross_pb))))
 }
 
-PT.dot = (a,b) => PT.suma(PT.mul(a,b))
+PT.dot = (a,b,l) => PT.suma(PT.mul(a,b,l),l)
 PT.cat = function() {
   var a = []
   FU.forEach(arguments, i => a = a.concat(i))
   return a
 }
 
+PT.bound = (p,min,max,l) => {
+  l = l || FU.max_length([p,min,max])
+  for (var i = 0; i < l; ++i) {
+    var x = p[i] || 0, a = min[i] || 0, b = max[i] || 0
+    p[i] = x < a ? a : x > b ? b : x
+  }
+  return p
+}
 PT.find = (p,f,l) => {
   l = l || p.length
   for (var i = 0; i < l; ++i) if (f(p[i] || 0, i, p, l)) return i
@@ -331,7 +340,12 @@ PT.color = p => PT.suma(PT.mats(p, 1, c => {
   c = ('0' + c).slice(-2)
   return c
 }, 3), '#')
-
+PT.crand = (p,r) => {
+  var t = PI2 * Math.random()
+  var u = Math.random() + Math.random()
+  var r = r * (u > 1 ? 2 - u : u)
+  return PT.sum(p,PT.circle(t,r))
+}
 
 /**
   @param loc: [x,y] location on canvas

@@ -226,18 +226,18 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 
 function view_manip() {
   var mws_dif = PT.sub(USR_IO_MWS,USR_IO_MWS.prv,2)
-  if (USR_IO_MWS.isRt) {
-    var dif = 0.005
+  if (USR_IO_MWS.isDn) {
+    var dif = camera.drag / camera.scale
     var rot = PT.vecx(camera.axis,mws_dif)
     PT.vece(camera.offset,rot,dif)
     camera.offset = PT.unit(camera.offset)
     camera.axis = lookat(camera.normal,camera.offset)
     camera.center = CNTR
   }
-  if (USR_IO_MWS.isDn) {
-    var dif = -camera.drag / camera.scale
-    PT.vece(camera.focus,camera.axis[0],mws_dif[0] * dif)
-    PT.vece(camera.focus,camera.axis[1],mws_dif[1] * dif)
+  if (USR_IO_MWS.isRt) {
+    var dif = -camera.scale
+    PT.vece(camera.focus,camera.axis[0],mws_dif[0] / dif)
+    PT.vece(camera.focus,camera.axis[1],mws_dif[1] / dif)
   }
   if (USR_IO_KYS.hsDn['z']) {
     camera.focus = []
@@ -258,7 +258,7 @@ var camera = {
   scale: 60,
   min_scale: 1,
   max_scale: Infinity,
-  drag: 1,
+  drag: 1e-1,
   wheel: 1e1,
 }
 // camera.offset = PT.sphere_to_cart(camera.rotation)
