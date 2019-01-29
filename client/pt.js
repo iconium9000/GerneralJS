@@ -316,6 +316,14 @@ PT.bound = (p,min,max,l) => {
   }
   return p
 }
+PT.inbound = (p,min,max,l) => {
+  l = l || FU.max_length([p,min,max])
+  for (var i = 0; i < l; ++i) {
+    var x = p[i] || 0, a = min[i] || 0, b = max[i] || 0
+    if (x < a || x > b) return false
+  }
+  return true
+}
 PT.find = (p,f,l) => {
   l = l || p.length
   for (var i = 0; i < l; ++i) if (f(p[i] || 0, i, p, l)) return i

@@ -17,6 +17,8 @@ FU.setCookie = (cname, cvalue, exdays) => {
   document.cookie = `${cname}=${cvalue};expires=${d.toUTCString()};path=/`
 }
 
+FU.sqr = x => x*x
+FU.cub = x => x*x*x
 FU.mod = (x,y) => x < 0 ? y + (x%y) : x%y
 FU.flr = (x,y) => y * Math.floor(x / y)
 FU.rand = (min,max) => (max-min) * Math.random() + min
