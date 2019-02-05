@@ -20,36 +20,30 @@ GAME_CLNT_INIT = () => {
 // GAME
 // -----------------------------------------------------------------------------
 
-PLAYER = {
-  normal: [1,0,0], // y
-  position: [0,0,1], // z
-  speed: 1,
-  _scale: 1e1,
-  get lens() { return PT.mats(this.xyz,3,PT.length)},
-  get scale() { return this._scale * this._scale },
-  get xyz() { return [this.cross,this.normal,this.position] },
-  get xy() { return [this.cross,this.normal] },
-  get yx() { return [this.normal,this.cross] },
-  get yz() { return [this.normal,this.position] },
-  get zx() { return [this.position,this.cross] },
-  get zy() { return [this.position,this.normal] },
+function get_orbit({
+  std_grav,     // standard gravitational parameter
+  normal,       // unit vector in any direction
+  periapsis,    // vector defining the periapsis
+                // note: redefined to be orthogonal to normal (by subtraction)
+  ecc,          // orbital eccentricity
+  angle,        // angle about the normal from the periapsis
+}) {
+  std_grav = Math.abs(std_grav)
+  ecc = Math.abs(ecc)
+  periapsis = PT.vec(periapsis,normal,-PT.dot(normal,periapsis))
+
+  var cos = Math.cos(angle), sin = Math.sin(angle)
+  cross = PT.cross(periapsis,normal)
+  var position = PT.circle(angle, (1 + ecc) / (1 + ecc * cos))
+  var plen3_1_ecc = Math.pow(PT.length(periapsis),3) * (1 + ecc)
+  var velocity = PT.mats([-sin, ecc + cos], Math.sqrt(std_grav / plen3_1_ecc))
+
+  var plane = [periapsis,cross]
+  return {
+    position: PT.vecx(plane,position),   // position relative to host body
+    velocity: PT.vecx(plane,velocity)    // velocity relative to hsot body
+  }
 }
-PLAYER.cross = PT.cross(PLAYER.position,PLAYER.normal)
-
-DIRS = {
-  a: [-1], d: [1],
-  w: [0,1], s: [0,-1],
-  q: [0,0,1], e: [0,0,-1]
-}
-
-
-POINTS = []
-
-FU.forlen(3e2, i => {
-  var theta = PI2 * Math.random()
-  var phi = Math.acos( 2 * Math.random() - 1)
-  POINTS.push(PT.sphere_to_cart([theta,phi,1]))
-})
 
 // -----------------------------------------------------------------------------
 // TICK
@@ -60,38 +54,9 @@ GAME_TICK = () => {
   CNTR = PT.divs(USR_IO_DSPLY.wh,2)
   DT = USR_IO_EVNTS.dt * 1e-3
   if (isNaN(DT) || DT > 1) DT = 5e-3
+  move_camera()
 
 
-  G.fillStyle = 'white'
-  POINTS.forEach(p => draw_circle(p,0.01,'white'))
-
-  var dir = []
-  FU.forEach(DIRS,(p,d) => USR_IO_KYS.isDn[d] && PT.sume(dir,p))
-  PT.mulse(dir,DT*PLAYER.speed,3)
-
-  if (PT.length(dir)) {
-    PLAYER.position = PT.vecx(PLAYER.zx,PT.circle(dir[0],1))
-    PLAYER.cross = PT.cross(PLAYER.position,PLAYER.normal)
-
-    PLAYER.normal = PT.vecx(PLAYER.yz,PT.circle(dir[1],1))
-    PLAYER.position = PT.cross(PLAYER.normal,PLAYER.cross)
-
-    // PLAYER.position = PT.unit(PLAYER.position)
-    // PLAYER.cross = PT.unit(PLAYER.cross)
-    // PLAYER.normal = PT.unit(PLAYER.normal)
-  }
-
-  G.fillText(PLAYER.cross,20,20)
-  G.fillText(PLAYER.normal,20,40)
-  G.fillText(PLAYER.position,20,60)
-  G.fillText(PLAYER.lens,20,80)
-  G.fillText([
-    PT.length(PT.cross(PLAYER.normal,PLAYER.cross)),
-    PT.length(PT.cross(PLAYER.cross,PLAYER.position)),
-    PT.length(PT.cross(PLAYER.position,PLAYER.normal)),
-  ],20,100)
-
-  draw_circle([],1,'white')
 }
 
 // -----------------------------------------------------------------------------
@@ -109,20 +74,52 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 // VIEW
 // -----------------------------------------------------------------------------
 
-// var plr_proj = p => {
-//   // var z =
-// }
-
-// var rev_proj = p => rev_proj.hlpr(PLAYER.position,CNTR,p,PLAYER.scale)
-// rev_proj.hlpr = PT.vcc('vvvs',(r,c,p,s)=>(p-c)/s+r,2)
-// var draw_rect = (p,d,c) => PT.drawRect(G,plr_proj(p),PT.muls(d,PLAYER.scale),c)
-// var fill_rect = (p,d,c) => PT.fillRect(G,plr_proj(p),PT.muls(d,PLAYER.scale),c)
-var draw_circle = (p,r,c) => {
-  var dot = PT.dot(p,PLAYER.position)
-  if (dot < 0) return
-  var u = PT.mats(PLAYER.xy,p,PT.dot)
-  var v = PT.vec(CNTR,u,PLAYER.scale)
-  PT.drawCircle(G,v,r*PLAYER.scale,c)
+CAMERA = {
+  origin: [],
+  normal: [1,0,0], // y
+  position: [0,0,1], // z
+  speed: 1,
+  _scale: 2e1,
+  get scale() { return this._scale * this._scale },
 }
-// var fill_circle = (p,r,c) => PT.fillCircle(G,plr_proj(p),r*PLAYER.scale,c)
-// var draw_line = (a,b,c) => PT.drawLine(G,plr_proj(a),plr_proj(b),c)
+CAMERA.cross = PT.cross(CAMERA.position,CAMERA.normal)
+
+DIRS = {
+  a: [-1], d: [1],
+  w: [0,1], s: [0,-1],
+  q: [0,0,1], e: [0,0,-1]
+}
+
+function move_camera() {
+  var dir = []
+  FU.forEach(DIRS,(p,d) => USR_IO_KYS.isDn[d] && PT.sume(dir,p))
+  PT.mulse(dir,DT*CAMERA.speed,3)
+
+  if (PT.length(dir)) {
+    var x0 = CAMERA.position
+    var y0 = CAMERA.cross
+    var z0 = CAMERA.normal
+    var x1 = PT.circle_vec(x0,y0,dir[0])
+    var y1 = PT.circle_vec(x0,y0,dir[0] + PI/2)
+    var z1 = z0
+    var z2 = PT.circle_vec(z1,x1,dir[1])
+    var x2 = PT.circle_vec(z1,x1,dir[1] + PI/2)
+    var y2 = y1
+
+    var y3 = PT.circle_vec(y2,z2,-dir[2])
+    var z3 = PT.circle_vec(y2,z2,-dir[2] + PI/2)
+    var x3 = x2
+
+    CAMERA.position = PT.unit(x3)
+    CAMERA.cross = PT.unit(y3)
+    CAMERA.normal = PT.unit(z3)
+  }
+}
+
+var draw_circle = (p,r,c) => {
+  p = PT.sub(p,CAMERA.origin)
+  var dot = PT.dot(p,CAMERA.position)
+  var u = [PT.dot(CAMERA.cross,p),PT.dot(CAMERA.normal,p)]
+  var v = PT.vec(CNTR,u,CAMERA.scale)
+  PT.drawCircle(G,v,r*CAMERA.scale,c)
+}

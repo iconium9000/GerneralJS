@@ -43,6 +43,7 @@ PT.vecx = (a,b,l1,l2) => {
     PT.vece(p,a[i],b[i],l2)
   return p
 }
+PT.circle_vec = (x,y,a) => PT.vecx([x,y],PT.circle(a,1))
 
 
 // c = mat a b
@@ -404,6 +405,10 @@ PT.sphere_to_cart = ([theta,phi,radius]) => {
   var z = radius * Math.sin(theta) * sin_phi
   return [x,y,z]
 }
+PT.rand_sphere = () => PT.sphere_to_cart([
+  PI2 * Math.random(),
+  Math.acos( 2 * Math.random() - 1),1
+])
 
 PT.drawLine = (g,a,b,c) => {
   if (c) g.strokeStyle = c
