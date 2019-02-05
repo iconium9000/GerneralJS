@@ -4,8 +4,14 @@ PROJECT_NAME = 'Circle Factory'
 log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
 
-GRAV = 1e5
+GRAV = 4e1
 MAX_DT = 0.001
+MIN_RADIUS = 3
+MAX_TRAIL_LENGTH = 3e3
+
+TRAIL_STYLE = [
+
+]
 
 // -----------------------------------------------------------------------------
 // INIT
@@ -34,7 +40,6 @@ function get_orbit({
   stdg = Math.abs(stdg)
   ecc = Math.abs(ecc)
   periapsis = PT.vec(periapsis,normal,-PT.dot(normal,periapsis))
-  // log(PT.dot(normal,periapsis))
 
   var cos = Math.cos(angle), sin = Math.sin(angle)
   cross = PT.cross(periapsis,normal)
@@ -60,7 +65,8 @@ function super_position(body) {
 }
 function clear_host(body) {
   if (body.host) {
-    body.host.sub_bodies.splice(body.idx)
+    var sub_bodies = body.host.sub_bodies
+    sub_bodies.splice(sub_bodies.indexOf(body),1)
     body.host = null
   }
 }
@@ -68,31 +74,34 @@ function set_null_host(body) {
   clear_host(body)
   body.soi = Infinity
   body.sma = 0
+  body.period = 0
   body.position = []
   body.velocity = []
   return body
 }
 function set_sma_soi(body) {
-  var r = PT.length(body.position)
+  var r = body.distance = PT.length(body.position)
   var v = body.velocity
   var vv = PT.dot(v,v)
-  body.sma = 1 / (2 / r - vv / body.host.stdg)
-  body.soi = Math.abs(body.sma) * Math.pow(body.mass / body.host.mass, 0.4)
+  var u = body.host.stdg
+  var a = body.sma = 1 / (2 / r - vv / u)
+  body.period = PI2 * Math.sqrt(a * a * a / u)
+  body.soi = Math.abs(a) * Math.pow(body.mass / u, 0.4)
   return body
 }
 function set_host(host, body) {
   clear_host(body)
-  body.idx = host.sub_bodies.push(body) - 1
+  host.sub_bodies.push(body)
   body.host = host
-  return set_sma_soi(body)
+  set_sma_soi(body)
+  return body.host
 }
 function set_host_host(body) {
   if (body.host) {
     if (body.host.host) {
       PT.sume(body.position, body.host.position)
       PT.sume(body.velocity, body.host.velocity)
-      set_host(body.host.host,body)
-      return body.host.host
+      return set_host(body.host.host,body)
     }
     else {
       set_sub_host(body, body.host)
@@ -125,56 +134,77 @@ function place_body(host, new_body) {
   return super_host(host || new_body)
 }
 function check_host(host) {
-  // log('check_host')
-  // for (var i in host.sub_bodies) {
-  //   var sub_body = host.sub_bodies[i]
-  //   var dist = PT.length(sub_body.position)
-  //   // if (host.name == 'Moon') log(dist)
-  //   if (dist > host.soi || sub_body.mass > host.mass) {
-  //     var new_host = check_host(set_host_host(sub_body))
-  //     if (new_host.host) throw new_host
-  //     else return new_host
-  //   }
-  // }
-  //
-  // for (var i = 0; i < host.sub_bodies.length; ++i) {
-  //   var body_a = host.sub_bodies[i]
-  //   for (var j = i + 1; j < host.sub_bodies.length; ++j) {
-  //     var body_b = host.sub_bodies[j]
-  //     var dist = PT.dist(body_a.position, body_b.position)
-  //
-  //     if (body_a.soi > dist || body_b.soi > dist) {
-  //       if (body_a.mass > body_b.mass) {
-  //         set_sub_host(body_a, body_b)
-  //         --j
-  //       }
-  //       else {
-  //         set_sub_host(body_b, body_a)
-  //         --i
-  //         break
-  //       }
-  //     }
-  //   }
-  // }
-  // for (var i in host.sub_bodies) {
-  //   var sub_body = host.sub_bodies[i]
-  //   try {
-  //     check_host(sub_body)
-  //   }
-  //   catch (new_host) {
-  //     return new_host
-  //   }
-  // }
+  ++check_host.count
+  for (var i in host.sub_bodies) {
+    var sub_body = host.sub_bodies[i]
+    var dist = sub_body.distance
+
+    if (dist > host.soi || sub_body.mass > host.mass) {
+      set_host_host(sub_body)
+    }
+  }
+
+  for (var i = 0; i < host.sub_bodies.length; ++i) {
+    var body_a = host.sub_bodies[i]
+    for (var j = i + 1; j < host.sub_bodies.length; ++j) {
+      var body_b = host.sub_bodies[j]
+      var dist = PT.dist(body_a.position, body_b.position)
+
+      if (body_a.soi > dist || body_b.soi > dist) {
+        if (body_a.mass > body_b.mass) {
+          set_sub_host(body_a, body_b)
+          --j
+        }
+        else {
+          set_sub_host(body_b, body_a)
+          --i
+          break
+        }
+      }
+    }
+  }
+
+  for (var i in host.sub_bodies) {
+    var sub_body = host.sub_bodies[i]
+    check_host(sub_body)
+  }
+
   return host
 }
+
 function move_body(body, dt) {
   if (body.host) {
-    var r = PT.length(body.position)
+    var r = body.distance
     PT.vece(body.velocity, body.position, -dt * body.host.stdg / r / r / r)
     PT.vece(body.position, body.velocity, dt)
+    body.distance = PT.length(body.position)
   }
   FU.forEach(body.sub_bodies, sub_body => move_body(sub_body, dt))
   return body
+}
+function leave_trail(body,dt) {
+  var trail = {
+    host: body.host,
+    body: body,
+    color: body.color,
+    position: PT.copy(body.position),
+    tail: PT.vec(body.position,body.velocity,dt),
+    sub_bodies: []
+  }
+  for (var i in body.sub_bodies) {
+    trail.sub_bodies.push(leave_trail(body.sub_bodies[i],dt))
+  }
+  return trail
+}
+function get_trail(trail, body) {
+  if (trail.body == body) return trail
+
+  for (var i in trail.sub_bodies) {
+    var sub_trail = get_trail(trail.sub_bodies[i],body)
+    if (sub_trail) return sub_trail
+  }
+
+  return null
 }
 
 BODY_QUEUE = []
@@ -191,43 +221,46 @@ SUN = place_body(null,SUN = {
 SUN = place_body(SUN,EARTH = get_orbit({
   stdg: SUN.stdg,
   normal: [0,0,1],
-  periapsis: [1e3,0,0],
+  periapsis: [1e4,0,0],
   ecc: 0.1,
   angle: 0
 },{
   name: 'Earth',
   color: 'blue',
-  mass: 1e3,
+  mass: 1e4,
   radius: 10
 }))
 
 SUN = place_body(EARTH,MOON = get_orbit({
   stdg: EARTH.stdg,
   normal: [0,0,1],
-  periapsis: [1e2,0,0],
+  periapsis: [5e2,0,0],
   ecc: 0.1,
   angle: PI/3
 },{
   name: 'Moon',
   color: 'grey',
-  mass: 1e2,
+  mass: 9e3,
   radius: 2
 }))
 
 SUN = place_body(EARTH, get_orbit({
   stdg: EARTH.stdg,
   normal: [0,0,1],
-  periapsis: [1e2,0,0],
-  ecc: 0.8,
+  periapsis: [4e2,0,0],
+  ecc: 0.3,
   angle: PI/4
 },{
-  name: 'Other Moon',
+  name: 'Minmus',
   color: 'purple',
-  mass: 5e1,
+  mass: 1e2,
   radius: 1
 }))
 
 SEL_BODY = SUN
+
+SUN = check_host(SUN)
+TRAILS = []
 
 // -----------------------------------------------------------------------------
 // TICK
@@ -240,18 +273,25 @@ GAME_TICK = () => {
   if (isNaN(DT) || DT > 1) DT = 5e-3
   move_camera()
   draw_bodies(SUN)
+  TRAILS.forEach(draw_trail)
 
   var soft_reps = DT / MAX_DT
   var hard_reps = Math.ceil(soft_reps)
   var soft_dt = DT / hard_reps
 
+  check_host.count = 0
   for (var i = 0; i < hard_reps; ++i) {
     SUN = check_host(SUN)
     SUN = move_body(SUN, soft_dt)
   }
+  TRAILS.push(leave_trail(SUN,DT))
+  TRAILS.splice(0,TRAILS.length - MAX_TRAIL_LENGTH)
 
-  G.fillStyle = SOI_COLOR
+  G.fillStyle = 'white'
   G.fillText(hard_reps, 20, 20)
+  G.fillText(check_host.count, 20, 40)
+
+  draw_axis()
 }
 
 // -----------------------------------------------------------------------------
@@ -280,6 +320,8 @@ CAMERA = {
     var sqr = this._scale > 1 ? this._scale : 1 / (this._scale - 2)
     return sqr * sqr
   },
+  ax: [[1,0,0],[0,1,0],[0,0,1]],
+  ax_c: ['red','blue','green'],
 }
 CAMERA.cross = PT.cross(CAMERA.position,CAMERA.normal)
 
@@ -287,6 +329,24 @@ DIRS = {
   a: [-1], d: [1],
   w: [0,1], s: [0,-1],
   q: [0,0,1], e: [0,0,-1]
+}
+
+function draw_axis() {
+  var size = 50
+  var half = size/2
+  var wh = [USR_IO_DSPLY.w - size, 0]
+  var cntr = PT.sum(wh,[half,half])
+
+  PT.fillRect(G,wh,[size,size],'black')
+  for (var i in CAMERA.ax) {
+    var ax = CAMERA.ax[i]
+    var c = CAMERA.ax_c[i]
+
+    var dot = PT.dot(ax,CAMERA.position)
+    var u = [PT.dot(CAMERA.cross,ax),PT.dot(CAMERA.normal,ax)]
+    var p = PT.vec(cntr,u,half)
+    PT.drawLine(G,p,cntr,c)
+  }
 }
 
 function move_camera() {
@@ -319,10 +379,9 @@ function move_camera() {
   }
 
   if (USR_IO_KYS.hsDn['.']) {
-    var body = BODY_QUEUE.pop() || SUN
-    CAMERA.origin = body
-    // log(CAMERA.focus)
-    BODY_QUEUE = body.sub_bodies.concat(BODY_QUEUE)
+    SEL_BODY = BODY_QUEUE.pop() || SUN
+    CAMERA.origin = SEL_BODY
+    BODY_QUEUE = SEL_BODY.sub_bodies.concat(BODY_QUEUE)
   }
 
   CAMERA.focus = super_position(CAMERA.origin)
@@ -330,25 +389,52 @@ function move_camera() {
 
 var proj_point = p => {
   p = PT.sub(p,CAMERA.focus)
-  var dot = PT.dot(p,CAMERA.position)
+  // var dot = PT.dot(p,CAMERA.position)
   var u = [PT.dot(CAMERA.cross,p),PT.dot(CAMERA.normal,p)]
   return PT.vec(CNTR,u,CAMERA.scale)
 }
 var draw_circle = (p,r,c) => {
   PT.drawCircle(G,proj_point(p),r*CAMERA.scale,c)
 }
-function draw_bodies(body,point) {
-  var sub_point = PT.sum(body.position, point || [])
-  var proj = proj_point(sub_point)
-  PT.drawCircle(G, proj, body.radius * CAMERA.scale, body.color)
-  if (body.host) {
-    PT.drawLine(G, proj, proj_point(point),'white')
+function draw_bodies(body,host_point,host_proj) {
+  if (body.host && body.distance * CAMERA.scale < MIN_RADIUS) {
+    return
   }
-  if (isFinite(body.soi)) {
-    PT.drawCircle(G, proj, body.soi * CAMERA.scale, SOI_COLOR)
-  }
+
+  var sub_point = PT.sum(body.position, host_point || [])
+  var sub_proj = proj_point(sub_point)
+  var r = body.radius * CAMERA.scale
+
   for (var i in body.sub_bodies) {
     var sub_body = body.sub_bodies[i]
-    draw_bodies(sub_body, sub_point)
+    draw_bodies(sub_body, sub_point, sub_proj)
   }
+  if (isFinite(body.soi)) {
+    PT.drawCircle(G, sub_proj, body.soi * CAMERA.scale, SOI_COLOR)
+  }
+  if (body.host) {
+    PT.drawLine(G, sub_proj, host_proj, SOI_COLOR)
+  }
+  PT.fillCircle(G, sub_proj, r < MIN_RADIUS ? MIN_RADIUS : r, body.color)
+}
+function draw_trail(trail) {
+  var point = []
+  var offset = []
+  var sel_trail = get_trail(trail, SEL_BODY)
+  if (sel_trail) {
+    
+  }
+  draw_trail_helper(trail, point || [], offset)
+}
+function draw_trail_helper(trail,host_point,offset) {
+  var sub_point = PT.sum(trail.position,host_point || [])
+  var sub_proj = proj_point(PT.sum(sub_point,offset))
+  if (trail.host) {
+    var tail_proj = proj_point(PT.sum(trail.tail,host_point))
+    PT.drawLine(G,sub_proj,tail_proj,trail.color)
+  }
+  var real_point = super_position(trail.body)
+  trail.sub_bodies.forEach(sub_body => {
+    draw_trail_helper(sub_body, real_point, offset)
+  })
 }
