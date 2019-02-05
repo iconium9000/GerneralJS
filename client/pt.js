@@ -25,7 +25,7 @@ PT.shuffle = input => {
 
 PT.vec = (a,b,s,l) => {
   var p = []
-  if (!s) return []
+  if (!s) return a
   FU.forlen(l || (a.length > b.length ? a : b).length,
     i => p[i] = (a[i] || 0) + s * (b[i] || 0))
   return p
