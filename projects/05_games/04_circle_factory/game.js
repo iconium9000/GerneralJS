@@ -192,6 +192,7 @@ function move_body(body, dt) {
 }
 function leave_trail(body,dt) {
   var trail = {
+    dt: dt,
     host: body.host,
     body: body,
     color: body.color,
@@ -435,7 +436,7 @@ function draw_bodies(body,host_proj) {
 function draw_trail(trail) {
   var sel_trail = get_trail(trail, SEL_BODY)
   var offset = PT.sub(sel_trail.body.super_position, sel_trail.super_position)
-  var tail_offset = sel_trail.tail
+  var tail_offset = sel_trail.tail // PT.muls(SEL_BODY.velocity,sel_trail.dt)
   draw_trail_helper(trail, offset, tail_offset)
 }
 var flag = 1e3
