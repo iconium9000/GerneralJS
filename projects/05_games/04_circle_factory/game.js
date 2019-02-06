@@ -4,10 +4,11 @@ PROJECT_NAME = 'Circle Factory'
 log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
 
+TIME_SCALE = 5e2
 GRAV = 4e1
-MAX_DT = 0.001
+MAX_DT = TIME_SCALE * 0.001
 MIN_RADIUS = 3
-MAX_TRAIL_LENGTH = 3e3
+MAX_TRAIL_LENGTH = 1e3
 
 TRAIL_STYLE = [
 
@@ -63,6 +64,13 @@ function super_position(body) {
   var sp = super_position
   return body.host ? PT.sum(body.position, sp(body.host)) : body.position
 }
+function set_super_position(body, point) {
+  body.super_position = PT.sum(body.position, point || [])
+  for (var i in body.sub_bodies) {
+    set_super_position(body.sub_bodies[i], body.super_position)
+  }
+}
+
 function clear_host(body) {
   if (body.host) {
     var sub_bodies = body.host.sub_bodies
@@ -85,7 +93,7 @@ function set_sma_soi(body) {
   var vv = PT.dot(v,v)
   var u = body.host.stdg
   var a = body.sma = 1 / (2 / r - vv / u)
-  body.period = PI2 * Math.sqrt(a * a * a / u)
+  body.period = PI2 * Math.sqrt(a * a * a / u) / TIME_SCALE
   body.soi = Math.abs(a) * Math.pow(body.mass / u, 0.4)
   return body
 }
@@ -188,7 +196,8 @@ function leave_trail(body,dt) {
     body: body,
     color: body.color,
     position: PT.copy(body.position),
-    tail: PT.vec(body.position,body.velocity,dt),
+    super_position: body.super_position,
+    tail: PT.muls(body.velocity,dt),
     sub_bodies: []
   }
   for (var i in body.sub_bodies) {
@@ -221,7 +230,7 @@ SUN = place_body(null,SUN = {
 SUN = place_body(SUN,EARTH = get_orbit({
   stdg: SUN.stdg,
   normal: [0,0,1],
-  periapsis: [1e4,0,0],
+  periapsis: [1e5,0,0],
   ecc: 0.1,
   angle: 0
 },{
@@ -234,26 +243,26 @@ SUN = place_body(SUN,EARTH = get_orbit({
 SUN = place_body(EARTH,MOON = get_orbit({
   stdg: EARTH.stdg,
   normal: [0,0,1],
-  periapsis: [5e2,0,0],
+  periapsis: [8e3,0,0],
   ecc: 0.1,
   angle: PI/3
 },{
   name: 'Moon',
   color: 'grey',
-  mass: 9e3,
+  mass: 1e2,
   radius: 2
 }))
 
-SUN = place_body(EARTH, get_orbit({
+SUN = place_body(EARTH, MINMUS = get_orbit({
   stdg: EARTH.stdg,
   normal: [0,0,1],
-  periapsis: [4e2,0,0],
-  ecc: 0.3,
-  angle: PI/4
+  periapsis: [4e3,0,0],
+  ecc: 0.4,
+  angle: PI* 0.75
 },{
   name: 'Minmus',
   color: 'purple',
-  mass: 1e2,
+  mass: 1e1,
   radius: 1
 }))
 
@@ -261,6 +270,8 @@ SEL_BODY = SUN
 
 SUN = check_host(SUN)
 TRAILS = []
+
+set_super_position(SUN)
 
 // -----------------------------------------------------------------------------
 // TICK
@@ -272,6 +283,8 @@ GAME_TICK = () => {
   DT = USR_IO_EVNTS.dt * 1e-3
   if (isNaN(DT) || DT > 1) DT = 5e-3
   move_camera()
+  DT *= TIME_SCALE
+  set_super_position(SUN)
   draw_bodies(SUN)
   TRAILS.forEach(draw_trail)
 
@@ -382,6 +395,8 @@ function move_camera() {
     SEL_BODY = BODY_QUEUE.pop() || SUN
     CAMERA.origin = SEL_BODY
     BODY_QUEUE = SEL_BODY.sub_bodies.concat(BODY_QUEUE)
+
+    flag = 1e3
   }
 
   CAMERA.focus = super_position(CAMERA.origin)
@@ -396,18 +411,18 @@ var proj_point = p => {
 var draw_circle = (p,r,c) => {
   PT.drawCircle(G,proj_point(p),r*CAMERA.scale,c)
 }
-function draw_bodies(body,host_point,host_proj) {
+function draw_bodies(body,host_proj) {
   if (body.host && body.distance * CAMERA.scale < MIN_RADIUS) {
     return
   }
 
-  var sub_point = PT.sum(body.position, host_point || [])
+  var sub_point = body.super_position
   var sub_proj = proj_point(sub_point)
   var r = body.radius * CAMERA.scale
 
   for (var i in body.sub_bodies) {
     var sub_body = body.sub_bodies[i]
-    draw_bodies(sub_body, sub_point, sub_proj)
+    draw_bodies(sub_body, sub_proj)
   }
   if (isFinite(body.soi)) {
     PT.drawCircle(G, sub_proj, body.soi * CAMERA.scale, SOI_COLOR)
@@ -418,23 +433,23 @@ function draw_bodies(body,host_point,host_proj) {
   PT.fillCircle(G, sub_proj, r < MIN_RADIUS ? MIN_RADIUS : r, body.color)
 }
 function draw_trail(trail) {
-  var point = []
-  var offset = []
   var sel_trail = get_trail(trail, SEL_BODY)
-  if (sel_trail) {
-    
-  }
-  draw_trail_helper(trail, point || [], offset)
+  var offset = PT.sub(sel_trail.body.super_position, sel_trail.super_position)
+  var tail_offset = sel_trail.tail
+  draw_trail_helper(trail, offset, tail_offset)
 }
-function draw_trail_helper(trail,host_point,offset) {
-  var sub_point = PT.sum(trail.position,host_point || [])
-  var sub_proj = proj_point(PT.sum(sub_point,offset))
-  if (trail.host) {
-    var tail_proj = proj_point(PT.sum(trail.tail,host_point))
-    PT.drawLine(G,sub_proj,tail_proj,trail.color)
+var flag = 1e3
+function draw_trail_helper(trail, offset, tail_offset) {
+  // var host_point = trail.host ? trail.host.super_position : []
+  // var point = PT.sum(trail.position, host_point)
+  var point = trail.super_position
+  point = PT.sum(point, offset)
+  var proj = proj_point(point)
+  var tail = proj_point(PT.sub(PT.sum(point,trail.tail), tail_offset))
+  PT.drawLine(G,proj,tail,trail.color)
+
+  for (var i in trail.sub_bodies) {
+    var sub_trail = trail.sub_bodies[i]
+    draw_trail_helper(sub_trail, offset, tail_offset)
   }
-  var real_point = super_position(trail.body)
-  trail.sub_bodies.forEach(sub_body => {
-    draw_trail_helper(sub_body, real_point, offset)
-  })
 }
