@@ -3,15 +3,23 @@ log = console.log
 PROJECT_NAME = 'Circle Factory'
 log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
+DEG = PI2 / 360
 
-TIME_SCALE = 5e2
-GRAV = 4e1
-MAX_DT = TIME_SCALE * 0.001
+TIME_SCALE = 5e4
+GRAV = 6.67408e-11
+MAX_DT = TIME_SCALE * 1e-4
 MIN_RADIUS = 3
-MAX_TRAIL_LENGTH = 1e3
+MAX_TRAIL_LENGTH = 5e2
+ZOOM_SPEED = 1e-2
 
-TRAIL_STYLE = [
+RADIUS_SCALE = 40
 
+TRAIL_STYLE_IDX = 0
+TRAIL_STYLE_NAMES = [
+  'soi',
+  'soi_offset',
+  'super',
+  'super_offset'
 ]
 
 // -----------------------------------------------------------------------------
@@ -32,21 +40,49 @@ GAME_CLNT_INIT = () => {
 
 function get_orbit({
   stdg,         // standard gravitational parameter
+
+  // either normal and periapsis...
   normal,       // unit vector in any direction
   periapsis,    // vector defining the periapsis
                 // note: redefined to be orthogonal to normal (by subtraction)
+  // or inclination and longitude of ascending node and argument of periapsis
+  inclination,  // inclination relative to x,z plane
+  long_as_node, // longitude of ascending node
+  arg_of_praps, // argument of periapsis
+
+  mean_anomaly, // mean_anomaly about the normal from the periapsis
+
+
+  // orbital characteristics will be def by the 1st of the following parameters
   ecc,          // orbital eccentricity
-  angle,        // angle about the normal from the periapsis
+  period,       // orbital period
+  sma,          // semi-major-axis
+  apoapsis,     // apoapsis
+
 }, sample_body) {
   stdg = Math.abs(stdg)
-  ecc = Math.abs(ecc)
   periapsis = PT.vec(periapsis,normal,-PT.dot(normal,periapsis))
+  var periapsis_len = PT.length(periapsis)
+  if (isFinite(ecc)) {
+    ecc = Math.abs(ecc)
+  }
+  else if (isFinite(period)) {
+    var sma = Math.pow(stdg * FU.sqr(period / PI2), 1/3)
+    ecc = 1 - periapsis_len / sma
+    log(sma,periapsis_len,ecc)
+  }
+  else if (isFinite(sma)) {
+    ecc = 1 - periapsis_len / sma
+  }
+  else if (isFinite(apoapsis)) {
+    ecc = (apoapsis - periapsis) / (apoapsis + periapsis)
+  }
 
-  var cos = Math.cos(angle), sin = Math.sin(angle)
+  var cos = Math.cos(mean_anomaly), sin = Math.sin(mean_anomaly)
   cross = PT.cross(periapsis,normal)
 
-  var position = PT.circle(angle, (1 + ecc) / (1 + ecc * cos))
-  var plen3_1_ecc = Math.pow(PT.length(periapsis),3) * (1 + ecc)
+  var position = PT.circle(mean_anomaly, (1 + ecc) / (1 + ecc * cos))
+  var plen3_1_ecc = Math.pow(periapsis_len,3) * (1 + ecc)
   var velocity = PT.muls([-sin, ecc + cos], Math.sqrt(stdg / plen3_1_ecc))
 
   var plane = [periapsis,cross]
@@ -56,7 +92,6 @@ function get_orbit({
   return sample_body
 }
 
-
 function super_host(body) {
   return body.host ? super_host(body.host) : body
 }
@@ -64,10 +99,11 @@ function super_position(body) {
   var sp = super_position
   return body.host ? PT.sum(body.position, sp(body.host)) : body.position
 }
-function set_super_position(body, point) {
-  body.super_position = PT.sum(body.position, point || [])
+function set_super_position(body, position, velocity) {
+  var p = body.super_position = PT.sum(body.position, position || [])
+  var v = body.super_velocity = PT.sum(body.velocity, velocity || [])
   for (var i in body.sub_bodies) {
-    set_super_position(body.sub_bodies[i], body.super_position)
+    set_super_position(body.sub_bodies[i], p, v)
   }
 }
 
@@ -94,7 +130,7 @@ function set_sma_soi(body) {
   var u = body.host.stdg
   var a = body.sma = 1 / (2 / r - vv / u)
   body.period = PI2 * Math.sqrt(a * a * a / u) / TIME_SCALE
-  body.soi = Math.abs(a) * Math.pow(body.mass / u, 0.4)
+  body.soi = Math.abs(a) * Math.pow(body.mass / body.host.mass, 0.4)
   return body
 }
 function set_host(host, body) {
@@ -179,7 +215,30 @@ function check_host(host) {
 
   return host
 }
+function sort_bodies(body) {
+  body.sub_bodies.sort((a,b)=>b.sma - a.sma)
+  body.sub_bodies.forEach(sort_bodies)
+  return body
+}
+function setup_bodyframe(bodyframe, host) {
+  eval(`${bodyframe.body.name.toUpperCase()} = bodyframe.body`)
 
+  var sun = null
+  if (host) {
+    bodyframe.stdg = host.stdg
+    bodyframe.body = get_orbit(bodyframe, bodyframe.body)
+    sun = place_body(host, bodyframe.body)
+  }
+  else {
+    sun = place_body(null, bodyframe.body)
+  }
+
+  for (var i in bodyframe.orbits) {
+    sun = setup_bodyframe(bodyframe.orbits[i], bodyframe.body)
+  }
+
+  return sun
+}
 function move_body(body, dt) {
   if (body.host) {
     var r = body.distance
@@ -190,19 +249,22 @@ function move_body(body, dt) {
   FU.forEach(body.sub_bodies, sub_body => move_body(sub_body, dt))
   return body
 }
-function leave_trail(body,dt) {
+function leave_trail(body,dt,host_trail) {
   var trail = {
     dt: dt,
+    host_trail: host_trail,
     host: body.host,
     body: body,
     color: body.color,
+    distance: body.distance,
     position: PT.copy(body.position),
     super_position: body.super_position,
-    tail: PT.muls(body.velocity,dt),
+    velocity: body.velocity,
+    super_velocity: body.super_velocity,
     sub_bodies: []
   }
   for (var i in body.sub_bodies) {
-    trail.sub_bodies.push(leave_trail(body.sub_bodies[i],dt))
+    trail.sub_bodies.push(leave_trail(body.sub_bodies[i],dt,trail))
   }
   return trail
 }
@@ -221,57 +283,470 @@ BODY_QUEUE = []
 SOI_COLOR = '#202020'
 MASSES = []
 
-SUN = place_body(null,SUN = {
-  name: 'Sun',
-  mass: 1e5,
-  color: 'yellow',
-  radius: 20
-})
+var kerbal_bodyframe = {
+  body: {
+    name: 'Kerbol',
+    mass: 1.7565459e28,
+    radius: 2.616e8,
+    color: 'yellow',
+  },
+  orbits: [
+    // moho
+    {
+      normal: [0,0,1],
+      periapsis: [4210510628,0,0],
+      ecc: 0.2,
+      mean_anomaly: 0,
+      body: {
+        name: 'Moho',
+        mass: 2.5263314e21,
+        radius: 2.5e5,
+        color: '#593001',
+      },
+      orbits: []
+    },
+    // eve
+    {
+      normal: [0,0,1],
+      periapsis: [9734357701,0,0],
+      ecc: 0.01,
+      mean_anomaly: 0,
+      body: {
+        name: 'Eve',
+        mass: 1.2243980e23,
+        radius: 7e5,
+        color: 'purple'
+      },
+      orbits: [
+        {
+          normal: [0,0,1],
+          periapsis: [14175000],
+          ecc: 0.55,
+          mean_anomaly: 0.9,
+          body: {
+            name: 'Gilly',
+            mass: 1.2420363e17,
+            radius: 13e3,
+            color: '#bc7625'
+          },
+          orbits: []
+        }
+      ]
+    },
+    // kerbin
+    {
+      normal: [0,0,1],
+      periapsis: [13599840256],
+      ecc: 0,
+      mean_anomaly: PI,
+      body: {
+        name: 'Kerbin',
+        mass: 5.2915158e22,
+        radius: 6e5,
+        color: 'blue'
+      },
+      orbits: [
+        {
+          normal: [0,0,1],
+          periapsis: [12e6],
+          ecc: 0,
+          mean_anomaly: 1.7,
+          body: {
+            name: 'Mun',
+            mass: 9.7599066e20,
+            radius: 2e5,
+            color: 'grey'
+          },
+          orbits: []
+        },
+        {
+          normal: [0,0,1],
+          periapsis: [47e6],
+          ecc: 0,
+          mean_anomaly: 0.9,
+          body: {
+            name: 'Minmus',
+            mass: 2.6457580e19,
+            radius: 6e4,
+            color: '#1de55d'
+          },
+          orbits: []
+        }
+      ]
+    },
+    // duna
+    {
+      normal: [0,0,1],
+      periapsis: [19669121365],
+      ecc: 0.051,
+      mean_anomaly: PI,
+      body: {
+        name: 'Duna',
+        mass: 4.5154270e21,
+        radius: 32e4,
+        color: '#9e070f'
+      },
+      orbits: [
+        {
+          normal: [0,0,1],
+          periapsis: [3104e3],
+          ecc: 0.03,
+          mean_anomaly: PI,
+          body: {
+            name: 'Ike',
+            mass: 	2.7821615e20,
+            radius: 13e4,
+            color: '#c6999b'
+          },
+          orbits: []
+        }
+      ]},
+    // dres
+    {
+      normal: [0,0,1],
+      periapsis: [34917642714],
+      ecc: 0.145,
+      mean_anomaly: PI,
+      body: {
+        name: 'Dres',
+        mass: 3.2190937e20,
+        radius: 138e3,
+        color: '#808786'
+      },
+    },
+    // jool
+    {
+      normal: [0,0,1],
+      periapsis: [65334882253],
+      ecc: 0.05,
+      mean_anomaly: PI,
+      body: {
+        name: 'Jool',
+        mass: 4.2332127e24,
+        radius: 6e6,
+        color: '#10b707'
+      },
+      orbits: [
+        // laythe
+        {
+          normal: [0,0,1],
+          periapsis: [27184e3],
+          ecc: 0,
+          mean_anomaly: PI,
+          body: {
+            name: 'Laythe',
+            mass: 2.9397311e22,
+            radius: 5e5,
+            color: '#07b764'
+          },
+        },
+        // vall
+        {
+          normal: [0,0,1],
+          periapsis: [43152e3],
+          ecc: 0,
+          mean_anomaly: PI,
+          body: {
+            name: 'Vall',
+            mass: 3.1087655e21,
+            radius: 3e5,
+            color: '#6cbbfc'
+          },
+        },
+        // tylo
+        {
+          normal: [0,0,1],
+          periapsis: [685e5],
+          ecc: 0,
+          mean_anomaly: PI,
+          body: {
+            name: 'Tylo',
+            mass: 	4.2332127e22,
+            radius: 6e5,
+            color: '#a38066'
+          },
+        },
+        // bop
+        {
+          normal: [0,0,1],
+          periapsis: [98302500],
+          ecc: 0.235,
+          mean_anomaly: PI,
+          body: {
+            name: 'Bop',
+            mass: 3.7261090e19,
+            radius: 65e3,
+            color: '#725139'
+          },
+        },
+        // pol
+        {
+          normal: [0,0,1],
+          periapsis: [149155794],
+          ecc: 0.235,
+          mean_anomaly: PI,
+          body: {
+            name: 'Pol',
+            mass: 1.0813507e19,
+            radius: 44e3,
+            color: '#767a49'
+          },
+        },
+      ]
+    },
+    // eeloo
+    {
+      normal: [0,0,1],
+      periapsis: [66687926800],
+      ecc: 0.26,
+      mean_anomaly: PI,
+      body: {
+        name: 'Eeloo',
+        mass: 1.1149224e21,
+        radius: 21e4,
+        color: '#ffbc99'
+      },
+    }
+  ]
+}
+var real_scale_bodyframe = {
+  body: {
+    name: 'Sun',
+    mass: 1.9885e30,
+    radius: 6957e5,
+    color: '#ffff1c'
+  },
+  orbits: [
+    // mercury
+    {
+      normal: [0,0,1],
+      periapsis: [460012e5],
+      ecc: 0.205630,
+      mean_anomaly: DEG * 174.796,
+      // inclination: DEG * 3.38,
+      // long_as_node: DEG * 48.331,
+      // arg_of_praps: DEG * 29.124
+      body: {
+        name: 'Mercury',
+        mass: 3.3011e23,
+        radius: 2439.7e3,
+        color: '#cece96'
+      },
+    },
+    // venus
+    {
+      normal: [0,0,1],
+      periapsis: [107477e6],
+      // ecc: 0.006772,
+      sma: 108208e6,
+      mean_anomaly: DEG * 50.115,
+      // inclination: DEG * 3.86,
+      // long_as_node: DEG * 76.680,
+      // arg_of_praps: DEG * 54.884,
+      body: {
+        name: 'Venus',
+        mass: 4.8675e24,
+        radius: 6051.8e3,
+        color: '#e0823a'
+      },
+    },
+    // earth
+    {
+      normal: [0,0,1],
+      periapsis: [147095e6],
+      sma: 149598023e3,
+      // ecc: 0.0167086,
+      mean_anomaly: DEG * 358.617,
+      // inclination: DEG * 7.155,
+      // long_as_node: DEG * -11.26064,
+      // arg_of_praps: DEG * 114.20783,
 
-SUN = place_body(SUN,EARTH = get_orbit({
-  stdg: SUN.stdg,
-  normal: [0,0,1],
-  periapsis: [1e5,0,0],
-  ecc: 0.1,
-  angle: 0
-},{
-  name: 'Earth',
-  color: 'blue',
-  mass: 1e4,
-  radius: 10
-}))
+      body: {
+        name: 'Earth',
+        mass: 5.97237e24,
+        radius: 6371e3,
+        color: '#39a8e0'
+      },
+      orbits: [
+        {
+          normal: [0,0,1],
+          periapsis: [362600e3],
+          sma: 384.399e6,
+          // ecc: 0.0549,
+          mean_anomaly: 0, // veries
 
-SUN = place_body(EARTH,MOON = get_orbit({
-  stdg: EARTH.stdg,
-  normal: [0,0,1],
-  periapsis: [8e3,0,0],
-  ecc: 0.1,
-  angle: PI/3
-},{
-  name: 'Moon',
-  color: 'grey',
-  mass: 1e2,
-  radius: 2
-}))
+          body: {
+            name: 'Moon',
+            mass: 7.342e22,
+            radius: 1737.1e3,
+            color: '#c5d3db'
+          },
+        }
+      ]
+    },
+    // mars
+    {
+      normal: [0,0,1],
+      periapsis: [2.067e11],
+      sma: 2.279392e11,
+      // ecc: 0.0934,
+      mean_anomaly: DEG * 358.617,
+      // inclination: DEG * 5.65,
+      // long_as_node: DEG * 49.558,
+      // arg_of_praps: DEG * 286.502,
 
-SUN = place_body(EARTH, MINMUS = get_orbit({
-  stdg: EARTH.stdg,
-  normal: [0,0,1],
-  periapsis: [4e3,0,0],
-  ecc: 0.4,
-  angle: PI* 0.75
-},{
-  name: 'Minmus',
-  color: 'purple',
-  mass: 1e1,
-  radius: 1
-}))
+      body: {
+        name: 'Mars',
+        mass: 6.4171e23,
+        radius: 3389.5e3,
+        color: '#ff603d'
+      },
+      orbits: [
 
+        // phobos
+        {
+          normal: [0,0,1],
+          periapsis: [9.23442e6],
+          sma: 9.376e6,
+          // ecc: 0.0151,
+          mean_anomaly: DEG * 358.617,
+          // inclination: DEG * 1.093 (mars equator),
+          // long_as_node: null,
+          // arg_of_praps:  null,
+
+          body: {
+            name: 'Phobos',
+            mass: 1.0659e16,
+            radius: 1.12667e4,
+            color: '#ffc8bc'
+          },
+        },
+        // deimos
+        {
+          normal: [0,0,1],
+          periapsis: [2.34555e7],
+          sma: 2.34632e7,
+          // ecc: 0.00033,
+          mean_anomaly: DEG * 358.617,
+          // inclination: DEG * 0.93 (mars equator),
+          // long_as_node: null,
+          // arg_of_praps:  null,
+
+          body: {
+            name: 'Deimos',
+            mass: 1.4762e15,
+            radius: 6.2e3,
+            color: '#ffc8bc'
+          },
+        }
+      ]
+    },
+    // jupiter
+    {
+      normal: [0,0,1],
+      periapsis: [7.4052e11],
+      sma: 7.7857e11,
+      // ecc: 0.0489,
+      mean_anomaly: DEG * 20.020,
+      // inclination: DEG * 6.09,
+      // long_as_node: DEG * 100.464,
+      // arg_of_praps: DEG * 273.867,
+
+      body: {
+        name: 'Jupiter',
+        mass: 1.8982e27,
+        radius: 6.9911e7,
+        color: '#f76e38'
+      },
+      orbits: [
+        {
+          normal: [0,0,1],
+          periapsis: [4.2e8],
+          sma: 4.217e8,
+          // ecc: 0.0041,
+          mean_anomaly: 0,
+          // inclination: DEG * 0.05 (jupiter equator),
+          // long_as_node: null,
+          // arg_of_praps: null,
+          body: {
+            name: 'Io',
+            mass: 8.931938e22,
+            radius: 1.8216e6,
+            color: '#bca821'
+          },
+        }
+      ]
+    },
+    // saturn
+    {
+      normal: [0,0,1],
+      periapsis: [1.35255e12],
+      sma: 1.43353e12,
+      // ecc: 0.0565,
+      mean_anomaly: DEG * 317.020,
+      // inclination: DEG * 5.51,
+      // long_as_node: DEG * 113.665,
+      // arg_of_praps: DEG * 339.392,
+
+      body: {
+        name: 'Saturn',
+        mass: 5.6834e26,
+        radius: 6.0268e7,
+        color: '#ffc038'
+      },
+      orbits: [
+
+      ]
+    },
+    // uranus
+    {
+      normal: [0,0,1],
+      periapsis: [2.742e12],
+      sma: 2.87504e12,
+      // ecc: 0.0565,
+      mean_anomaly: DEG * 142.2386,
+      // inclination: DEG * 6.48,
+      // long_as_node: DEG * 74.006,
+      // arg_of_praps: DEG * 96.998857,
+
+      body: {
+        name: 'Uranus',
+        mass: 8.6810e25,
+        radius: 2.5362e7,
+        color: '#8fb4ef'
+      },
+      orbits: [
+
+      ]
+    },
+    // neptune
+    {
+      normal: [0,0,1],
+      periapsis: [4.46e12],
+      sma: 4.50e12,
+      // ecc: 0.009456,
+      mean_anomaly: DEG * 256.228,
+      // inclination: DEG * 6.43,
+      // long_as_node: DEG * 131.784,
+      // arg_of_praps: DEG * 276.336,
+
+      body: {
+        name: 'Neptune',
+        mass: 1.02413e26,
+        radius: 2.4622e7,
+        color: '#1e417a'
+      },
+      orbits: [
+
+      ]
+    },
+  ]
+}
+SUN = setup_bodyframe(kerbal_bodyframe)
 SEL_BODY = SUN
 
-SUN = check_host(SUN)
+SUN = sort_bodies(check_host(SUN))
 TRAILS = []
-
 set_super_position(SUN)
 
 // -----------------------------------------------------------------------------
@@ -325,19 +800,23 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
 
 CAMERA = {
   origin: SUN,
-  normal: [1,0,0], // y
-  position: [0,0,1], // z
   speed: 1,
-  zoom_speed: 5e-3,
-  _scale: 0.2,
+  zoom_speed: ZOOM_SPEED,
+  _scale: 1,
   get scale() {
     var sqr = this._scale > 1 ? this._scale : 1 / (this._scale - 2)
-    return sqr * sqr
+    // sqr *= origin.radius
+    return sqr * sqr * RADIUS_SCALE / SUN.radius
   },
   ax: [[1,0,0],[0,1,0],[0,0,1]],
   ax_c: ['red','blue','green'],
 }
-CAMERA.cross = PT.cross(CAMERA.position,CAMERA.normal)
+function center_camera() {
+  CAMERA.normal = [1,0,0]
+  CAMERA.position = [0,0,1]
+  CAMERA.cross = PT.cross(CAMERA.position,CAMERA.normal)
+}
+center_camera()
 
 DIRS = {
   a: [-1], d: [1],
@@ -365,6 +844,10 @@ function draw_axis() {
 
 function move_camera() {
   var dir = []
+
+  if (USR_IO_MWS.isDn) {
+    PT.vece(dir, PT.sub(USR_IO_MWS.prv, USR_IO_MWS), 1)
+  }
   FU.forEach(DIRS,(p,d) => USR_IO_KYS.isDn[d] && PT.sume(dir,p))
   PT.mulse(dir,DT*CAMERA.speed,3)
 
@@ -395,10 +878,17 @@ function move_camera() {
   if (USR_IO_KYS.hsDn['.']) {
     SEL_BODY = BODY_QUEUE.pop() || SUN
     CAMERA.origin = SEL_BODY
-    BODY_QUEUE = SEL_BODY.sub_bodies.concat(BODY_QUEUE)
+    BODY_QUEUE = BODY_QUEUE.concat(SEL_BODY.sub_bodies)
 
     flag = 1e3
   }
+
+  if (USR_IO_KYS.hsDn['=']) {
+    TRAIL_STYLE_IDX = (TRAIL_STYLE_IDX + 1) % TRAIL_STYLE_NAMES.length
+    log('trail style',TRAIL_STYLE_IDX,TRAIL_STYLE_NAMES[TRAIL_STYLE_IDX])
+  }
+
+  if (USR_IO_KYS.hsDn['z']) center_camera()
 
   CAMERA.focus = super_position(CAMERA.origin)
 }
@@ -435,18 +925,26 @@ function draw_bodies(body,host_proj) {
 }
 function draw_trail(trail) {
   var sel_trail = get_trail(trail, SEL_BODY)
+  var offset = []
+  var tail_offset = []
   var offset = PT.sub(sel_trail.body.super_position, sel_trail.super_position)
-  var tail_offset = sel_trail.tail // PT.muls(SEL_BODY.velocity,sel_trail.dt)
+  var tail_offset = PT.muls(sel_trail.super_velocity,sel_trail.dt)
   draw_trail_helper(trail, offset, tail_offset)
 }
 var flag = 1e3
 function draw_trail_helper(trail, offset, tail_offset) {
+  var scale_distance = trail.distance * CAMERA.scale
+  if (isFinite(scale_distance) && scale_distance < MIN_RADIUS) return
+
   // var host_point = trail.host ? trail.host.super_position : []
+  // var true_tail_offset = trail.host ? trail.host_trail.super_velocity : []
   // var point = PT.sum(trail.position, host_point)
+  var true_tail_offset = tail_offset
   var point = trail.super_position
   point = PT.sum(point, offset)
+  var tail = PT.vec(point,trail.super_velocity,trail.dt)
   var proj = proj_point(point)
-  var tail = proj_point(PT.sub(PT.sum(point,trail.tail), tail_offset))
+  var tail = proj_point(PT.sub(tail, true_tail_offset))
   PT.drawLine(G,proj,tail,trail.color)
 
   for (var i in trail.sub_bodies) {
