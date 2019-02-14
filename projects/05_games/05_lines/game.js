@@ -163,6 +163,8 @@ GAME_CLNT_INIT = () => {
 
 MODE = 'node'
 SEL_NODE = null
+FOUNTAIN_COLOR = NODE_COLOR
+KNIFE_COLOR = 'black'
 
 GAME = {
   nodes: [],
@@ -174,8 +176,9 @@ GAME = {
 function new_node(position) {
   var node = {
     idx: GAME.nodes.length,
-    position: position,
-    links: {}
+    position: PT.copy(position),
+    links: {},
+    color: NODE_COLOR
   }
   GAME.nodes.push(node)
   return node
@@ -190,8 +193,18 @@ function new_link(node_a, node_b) {
     node_b: node_b
   }
   node_a.links[node_b.idx] = link
-  node_b.links[node_b.idx] = link
+  node_b.links[node_a.idx] = link
   GAME.links.push(link)
+}
+function splitlink(link, point, color) {
+  delete GAME.links[link.idx]
+  delete link.node_a.links[link.node_b.idx]
+  delete link.node_b.links[link.node_a.idx]
+
+  var node = new_node(point)
+  new_link(link.node_a, node)
+  new_link(link.node_b, node)
+  set_fountain(node, color)
 }
 
 function closest_node(position) {
@@ -205,7 +218,109 @@ function closest_node(position) {
 }
 
 function no_link_cross(position_a, position_b) {
+  for (var i in GAME.links) {
+    var link = GAME.links[i]
+    var p1 = link.node_a.position
+    var p2 = link.node_b.position
 
+    if (PT.lineCross(position_a,position_b,p1,p2)) {
+      return false
+    }
+  }
+  return true
+}
+
+function set_fountain(node, color) {
+  node.color = color
+}
+
+// -----------------------------------------------------------------------------
+// DISPLAY GAME
+// -----------------------------------------------------------------------------
+
+function draw_links() {
+  for (var i in GAME.links) {
+    var link = GAME.links[i]
+    PT.drawLine(G, link.node_a.position, link.node_b.position, NODE_COLOR)
+  }
+}
+
+function draw_nodes() {
+  for (var i in GAME.nodes) {
+    var node = GAME.nodes[i]
+    PT.fillCircle(G, node.position, NODE_RADIUS, node.color)
+    if (node.color == KNIFE_COLOR) {
+      PT.drawCircle(G, node.position, NODE_RADIUS, NODE_COLOR)
+    }
+  }
+}
+
+function node_mode(node) {
+  if (USR_IO_MWS.hsDn) {
+    if (node) {
+      // TODO
+    } else {
+      new_node(USR_IO_MWS)
+    }
+  }
+}
+
+function link_mode(node) {
+  if (SEL_NODE) {
+    var position_a = SEL_NODE.position
+    var position_b = USR_IO_MWS
+    var no_cross = node && no_link_cross(position_a, position_b)
+    G.setLineDash(no_cross ? [] : [NODE_RADIUS,2 * LINE_WIDTH])
+    PT.drawLine(G, position_a, position_b, NODE_COLOR)
+    G.setLineDash([])
+  }
+
+  if (USR_IO_MWS.hsDn) {
+    if (SEL_NODE && node) {
+      new_link(node, SEL_NODE)
+    }
+    SEL_NODE = node
+  }
+}
+
+function split_mode(node, color) {
+  if (node) {
+    if (node.color == NODE_COLOR) {
+      PT.fillCircle(G, node.position, NODE_RADIUS, color)
+      if (color == KNIFE_COLOR) {
+        PT.drawCircle(G, node.position, NODE_RADIUS, NODE_COLOR)
+      }
+      if (USR_IO_MWS.hsDn) {
+        set_fountain(node, color)
+      }
+    }
+  }
+  else {
+    var closest_points = []
+    for (var i in GAME.links) {
+      var link = GAME.links[i]
+      var p1 = link.node_a.position
+      var p2 = link.node_b.position
+
+      var point = PT.closest_point_on_line(USR_IO_MWS, p1, p2)
+      if (point && PT.dist(USR_IO_MWS, point) < NODE_RADIUS) {
+        closest_points.push([link, point])
+      }
+    }
+
+    var link_point = closest_points.pop()
+    if (link_point && !closest_points.length) {
+      var link = link_point[0], point = link_point[1]
+      PT.fillCircle(G, point, NODE_RADIUS, color)
+      if (color == KNIFE_COLOR) {
+        PT.drawCircle(G, point, NODE_RADIUS, NODE_COLOR)
+      }
+
+      if (USR_IO_MWS.hsDn) {
+        splitlink(link, point, color)
+      }
+    }
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -229,44 +344,45 @@ GAME_TICK = () => {
     MODE = prompt('set mode')
     SEL_NODE = null
   }
-
-  for (var i in GAME.nodes) {
-    var node = GAME.nodes[i]
-    PT.drawCircle(G, node.position, NODE_RADIUS, NODE_COLOR)
+  if (USR_IO_KYS.hsDn['n']) {
+    MODE = 'node'
+    log('mode switched to node')
+  }
+  if (USR_IO_KYS.hsDn['l']) {
+    MODE = 'link'
+    log('mode switched to link')
+  }
+  if (USR_IO_KYS.hsDn['f']) {
+    MODE = 'fountain'
+    log('mode switched to fountain')
+  }
+  if (USR_IO_KYS.hsDn['k']) {
+    MODE = 'knife'
+    log('mode switched to knife')
+  }
+  if (USR_IO_KYS.hsDn['q'] && SEL_NODE) {
+    SEL_NODE = null
+    log('cleared selected node')
+  }
+  if (USR_IO_KYS.hsDn['c']) {
+    FOUNTAIN_COLOR = prompt('FOUNTAIN_COLOR')
   }
 
-  for (var i in GAME.links) {
-    var link = GAME.links[i]
-    PT.drawLine(G, link.position_a, link.position_b, NODE_COLOR)
-  }
+  draw_links()
+  draw_nodes()
 
   var node = closest_node(USR_IO_MWS)
-
+  //
   if (MODE == 'node') {
-    if (USR_IO_MWS.hsDn) {
-      if (node) {
-        // TODO
-      } else {
-        new_node(USR_IO_MWS)
-      }
-    }
+    node_mode(node)
   }
   else if (MODE == 'link') {
-    if (SEL_NODE) {
-      var position_a = SEL_NODE.position
-      var position_b = USR_IO_MWS
-      var no_cross = node && no_link_cross(position_a, position_b)
-      PT.drawLine(G, position_a, position_b, no_cross ? 'white' : 'red')
-    }
-
-    if (USR_IO_MWS.hsDn) {
-      if (SEL_NODE && node) {
-        new_link(node, SEL_NODE)
-      }
-      SEL_NODE = node
-    }
+    link_mode(node)
   }
-
+  else if (MODE == 'fountain' || MODE == 'knife') {
+    var color = MODE == 'knife' ? KNIFE_COLOR : FOUNTAIN_COLOR
+    split_mode(node, color)
+  }
 }
 
 // -----------------------------------------------------------------------------

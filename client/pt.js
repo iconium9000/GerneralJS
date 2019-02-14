@@ -301,6 +301,14 @@ PT.lineDist = (p,a,b) => {
 
   return Math.abs(PT.dot(pa, PT.unit(PT.cross(ba,cross_pb))))
 }
+PT.closest_point_on_line = (p,a,b) => {
+  var ba = PT.sub(b,a)
+  var pa = PT.sub(p,a)
+  var pa_dot_ba = PT.dot(pa,ba)
+  var ba_len2 = PT.dot(ba,ba)
+  var mult = pa_dot_ba / ba_len2
+  return 1 > mult && mult > 0 ? PT.vec(a, ba, mult) : null
+}
 
 PT.dot = (a,b,l) => PT.suma(PT.mul(a,b,l),l)
 PT.cat = function() {
