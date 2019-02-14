@@ -1,6 +1,6 @@
 log = console.log
 
-PROJECT_NAME = 'Circle Factory'
+PROJECT_NAME = 'Space Sim'
 log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
 DEG = PI2 / 360
