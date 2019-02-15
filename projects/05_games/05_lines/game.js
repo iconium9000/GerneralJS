@@ -168,9 +168,7 @@ KNIFE_COLOR = 'black'
 
 GAME = {
   nodes: [],
-  links: [],
-  fountains: [],
-  knives: []
+  links: []
 }
 
 function new_node(position) {
@@ -183,30 +181,30 @@ function new_node(position) {
   GAME.nodes.push(node)
   return node
 }
-function new_link(node_a, node_b) {
-  if (node_a == node_b || node_a.links[node_b.idx]) return
-  if (!no_link_cross(node_a, node_b)) return
+function new_link(node1, node2) {
+  if (node1 == node2 || node1.links[node2.idx]) return
+  if (!no_link_cross(node1, node2)) return
 
   var link = {
     idx: GAME.links.length,
-    node_a: node_a,
-    node_b: node_b
+    node1: node1,
+    node2: node2,
+    length: PT.dist(node1.position, node2.position)
   }
-  node_a.links[node_b.idx] = link
-  node_b.links[node_a.idx] = link
+  node1.links[node2.idx] = {link: link, node: node2, side: 1}
+  node2.links[node1.idx] = {link: link, node: node1, side: 2}
   GAME.links.push(link)
 }
 function splitlink(link, point, color) {
   delete GAME.links[link.idx]
-  delete link.node_a.links[link.node_b.idx]
-  delete link.node_b.links[link.node_a.idx]
+  delete link.node1.links[link.node2.idx]
+  delete link.node2.links[link.node1.idx]
 
   var node = new_node(point)
-  new_link(link.node_a, node)
-  new_link(link.node_b, node)
+  new_link(link.node1, node)
+  new_link(link.node2, node)
   set_fountain(node, color)
 }
-
 function closest_node(position) {
   for (var i in GAME.nodes) {
     var node = GAME.nodes[i]
@@ -216,12 +214,11 @@ function closest_node(position) {
   }
   return null
 }
-
 function no_link_cross(position_a, position_b) {
   for (var i in GAME.links) {
     var link = GAME.links[i]
-    var p1 = link.node_a.position
-    var p2 = link.node_b.position
+    var p1 = link.node1.position
+    var p2 = link.node2.position
 
     if (PT.lineCross(position_a,position_b,p1,p2)) {
       return false
@@ -229,9 +226,78 @@ function no_link_cross(position_a, position_b) {
   }
   return true
 }
-
 function set_fountain(node, color) {
   node.color = color
+}
+
+function get_spread() {
+  var color = {
+    nodes: [],
+    links: []
+  }
+  for (var i in GAME.nodes) {
+    var node = GAME.nodes[i]
+    color.nodes[i] = node.color
+  }
+  for (var i in GAME.links) {
+    var link = GAME.links[i]
+    color.links[i] = {
+      1: { idx: link.node1.idx, length: 0, color: link.node1.color },
+      2: { idx: link.node2.idx, length: 0, color: link.node2.color },
+      length: link.length
+    }
+  }
+
+  return color
+}
+function copy_spread(spread) {
+  return JSON.parse(JSON.stringify(spread))
+}
+
+function solve_events() {
+  var spread = get_spread()
+
+  
+
+}
+
+function save_game(game) {
+  var nodes = []
+  for (var i in game.nodes) {
+    var node = game.nodes[i]
+    nodes.push([node.position, node.color])
+  }
+  var links = []
+  for (var i in game.links) {
+    var link = game.links[i]
+    links.push([link.node1.idx, link.node2.idx])
+  }
+
+  return JSON.stringify([nodes, links])
+}
+function read_game(txt) {
+  var save = JSON.parse(txt)
+  GAME = {
+    nodes: [],
+    links: []
+  }
+
+  var save_nodes = save[0]
+  for (var i in save_nodes) {
+    var position = save_nodes[i][0]
+    var color = save_nodes[i][1]
+
+    var node = new_node(position)
+    set_fountain(node, color)
+  }
+
+  var save_links = save[1]
+  for (var i in save_links) {
+    var node1 = GAME.nodes[save_links[i][0]]
+    var node2 = GAME.nodes[save_links[i][1]]
+    new_link(node1, node2)
+  }
+  return GAME
 }
 
 // -----------------------------------------------------------------------------
@@ -241,10 +307,9 @@ function set_fountain(node, color) {
 function draw_links() {
   for (var i in GAME.links) {
     var link = GAME.links[i]
-    PT.drawLine(G, link.node_a.position, link.node_b.position, NODE_COLOR)
+    PT.drawLine(G, link.node1.position, link.node2.position, NODE_COLOR)
   }
 }
-
 function draw_nodes() {
   for (var i in GAME.nodes) {
     var node = GAME.nodes[i]
@@ -254,7 +319,6 @@ function draw_nodes() {
     }
   }
 }
-
 function node_mode(node) {
   if (USR_IO_MWS.hsDn) {
     if (node) {
@@ -264,7 +328,6 @@ function node_mode(node) {
     }
   }
 }
-
 function link_mode(node) {
   if (SEL_NODE) {
     var position_a = SEL_NODE.position
@@ -282,7 +345,6 @@ function link_mode(node) {
     SEL_NODE = node
   }
 }
-
 function split_mode(node, color) {
   if (node) {
     if (node.color == NODE_COLOR) {
@@ -299,8 +361,8 @@ function split_mode(node, color) {
     var closest_points = []
     for (var i in GAME.links) {
       var link = GAME.links[i]
-      var p1 = link.node_a.position
-      var p2 = link.node_b.position
+      var p1 = link.node1.position
+      var p2 = link.node2.position
 
       var point = PT.closest_point_on_line(USR_IO_MWS, p1, p2)
       if (point && PT.dist(USR_IO_MWS, point) < NODE_RADIUS) {
@@ -372,7 +434,6 @@ GAME_TICK = () => {
   draw_nodes()
 
   var node = closest_node(USR_IO_MWS)
-  //
   if (MODE == 'node') {
     node_mode(node)
   }
