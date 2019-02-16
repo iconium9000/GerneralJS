@@ -9,6 +9,8 @@ NODE_RADIUS = 20
 NODE_COLOR = 'white'
 SANITY = 1e3
 
+NEW_GAME_POLL_TIMEOUT = 20e3
+
 
 
 // -----------------------------------------------------------------------------
@@ -51,21 +53,44 @@ function get_color() {
 }
 
 function check_player_turn(login, turn_type) {
-  return true
+  var mode = get_mode()
+  var stat_name = FU.lookup(PLAYER_STATS, mode)
+  if (mode && stat_name && mode == TURN_TYPE_MODE[turn_type]) {
+    var player = GAME.players[login.color]
+    var stat = player[stat_name]
+    return stat > 0
+  }
+  else {
+    return false
+  }
 }
 function do_player_turn(login, turn_type, arg) {
   var color = turn_type.slice(0,5) == 'knife' ? KNIFE_COLOR : login.color
+  var player = GAME.players[login.color]
+  if (!player) return
 
   switch (turn_type){
   case 'new_node':
     var point = arg
     var node = closest_node(point, 2 * NODE_RADIUS)
-    if (!node) new_node(point)
+    if (node) {
+      log(`${login.name} node to close`)
+    } else {
+      new_node(point)
+      --player.n_nodes
+    }
     break
   case 'new_link':
     var node1 = GAME.nodes[arg[0]], node2 = GAME.nodes[arg[1]]
+    var link = null
     if (node1 && node2) {
-      new_link(node1, node2)
+      link = new_link(node1, node2)
+    }
+    if (link) {
+      --player.n_links
+    }
+    else {
+      log(`${login.name} bad link`)
     }
     break
   case 'knife_node':
@@ -73,6 +98,7 @@ function do_player_turn(login, turn_type, arg) {
     var node = GAME.nodes[arg]
     if (node && node.color == NODE_COLOR) {
       set_fountain(node, color)
+      --player[turn_type == 'knife_node' ? 'n_knives' : 'n_fountains']
     }
     break
   case 'knife_split':
@@ -80,11 +106,75 @@ function do_player_turn(login, turn_type, arg) {
     var link_point = get_link_point(arg)
     if (link_point) {
       split_link(link_point[0], link_point[1], color)
+      --player[turn_type == 'knife_split' ? 'n_knives' : 'n_fountains']
     }
     break
   }
 
+  log(`do_player_turn: '${login.name}' '${turn_type}'`)
   SECURITY_FUN.srvr_update_map()
+}
+
+function start_new_game() {
+  if (GAME.poll) {
+    return
+  }
+
+  GAME = new_game(true, setTimeout(end_new_game_poll, NEW_GAME_POLL_TIMEOUT))
+  HOST_MSG('clnt_join_game', null)
+
+  log('starting new game')
+}
+function end_new_game_poll() {
+  if (GAME.poll) {
+    clearTimeout(GAME.timout)
+    GAME.poll = false
+    delete GAME.timeout
+
+    var n_players = FU.count(GAME.players)
+    if (n_players == 0) {
+      GAME.over = true
+      return
+    }
+    var n_nodes = 3
+    var n_links = n_players < 6 ? n_players + 1 : 6
+    var n_fountains = 2
+    var n_knives = 2
+
+    for (var color in GAME.players) {
+      var login = LOGIN_COLOR[color]
+      if (login) {
+        GAME.players[color] = {
+          name: login.name,
+          n_nodes: n_nodes,
+          n_links: n_links,
+          n_fountains: n_fountains,
+          n_knives: n_knives,
+        }
+      }
+      else {
+        delete GAME.players[color]
+      }
+    }
+
+    log(`new game with ${n_players} player(s)`)
+    SECURITY_FUN.srvr_update_map()
+  }
+}
+function player_join_game(login) {
+  GAME.players[login.color] = true
+  if (check_all_clnts_in_game()) {
+    end_new_game_poll()
+  }
+}
+function check_all_clnts_in_game() {
+  for (var i in SRVR_CLNTS) {
+    var login = LOGIN_ID[i]
+    if (login && !GAME.players[login.color]) {
+      return false
+    }
+  }
+  return true
 }
 
 // msg start 'srvr' rcv by srvr, start 'clnt' rcv by clnt
@@ -105,6 +195,7 @@ SECURITY_FUN = {
       }
       else {
         HOST_MSG('clnt_rqst_login', [sndr], BAD_LOGIN_TXT)
+        log(`${msg.name} (${sndr}) bad login (srvr_rqst_login)`)
       }
     }
     else {
@@ -114,14 +205,15 @@ SECURITY_FUN = {
       LOGIN_ID[sndr] = msg
       LOGIN_COLOR[login.color] = login
       HOST_MSG('clnt_good_login', [sndr], login.color)
-    }
 
-    // log(sndr, LOGIN_NAME, LOGIN_ID, LOGIN_COLOR)
+      log(`new login: ${login.name} (${sndr}, ${login.color})`)
+    }
   },
   clnt_good_login: ({msg}) => {
     alert(`you are now logged in as '${CLNT_NAME}'`)
     FOUNTAIN_COLOR = msg
     HOST_MSG('srvr_update_map', [SRVR_CLNT_ID])
+    HOST_MSG('srvr_join_game', [SRVR_CLNT_ID], true)
   },
   srvr_game_edit: ({sndr, msg}) => {
     var login = LOGIN_ID[sndr]
@@ -129,20 +221,71 @@ SECURITY_FUN = {
       if (check_player_turn(login, msg[0])) {
         do_player_turn(login, msg[0], msg[1])
       }
+      else {
+        log(`${login.name} bad turn ${msg[0]}`)
+      }
     }
     else {
       HOST_MSG('clnt_rqst_login', [sndr], BAD_LOGIN_TXT)
+      log(`${sndr} bad login (srvr_game_edit)`, sndr)
     }
   },
   srvr_update_map: () => {
     HOST_MSG('clnt_update_map', null, save_game(GAME))
+    log('srvr_update_map')
   },
   clnt_update_map: ({sndr, msg}) => {
     if (sndr == SRVR_CLNT_ID && CLNT_ID != sndr) {
       read_game(msg)
       SEL_NODE = null
-      SEL_SPREADS = solve_spread()
-      SPREAD_START = USR_IO_EVNTS.nw
+      SEL_PROPS = solve_prop()
+      PROP_START = USR_IO_EVNTS.nw
+      log('clnt_update_map')
+    }
+  },
+  clnt_join_game: ({sndr}) => {
+    if (sndr == SRVR_CLNT_ID && CLNT_ID != sndr) {
+      HOST_MSG('srvr_join_game', [sndr], confirm('Want to join the game?'))
+    }
+  },
+  srvr_join_game: ({sndr, msg}) => {
+    var login = LOGIN_ID[sndr]
+    if (login) {
+      if (GAME.players[login.color]) {
+        log(`${login.name} (${sndr}) already in game`)
+      }
+      else if (GAME.poll) {
+        player_join_game(login)
+        log(`${login.name} (${sndr}) joined game`)
+      } else {
+        HOST_MSG('clnt_bad_join_game', [sndr])
+        log(login.name, 'bad_join_game')
+      }
+    }
+    else {
+      HOST_MSG('clnt_rqst_login', [sndr], BAD_LOGIN_TXT)
+      log(`${sndr} bad login (srvr_join_game)`, sndr)
+    }
+  },
+  clnt_bad_join_game: ({sndr}) => {
+    if (sndr == SRVR_CLNT_ID && sndr != CLNT_ID) {
+      var rqst_new_game = confirm('Cannot join ongoing game\nRequest new Game?')
+      if (rqst_new_game) {
+        HOST_MSG('srvr_rqst_new_game', [sndr])
+      }
+    }
+  },
+  srvr_rqst_new_game: ({sndr}) => {
+    var login = LOGIN_ID[sndr]
+    if (login) {
+      // TODO: check for GAME.over???
+      start_new_game()
+
+      log(`${login.name} (${sndr}) srvr_rqst_new_game`)
+    }
+    else {
+      HOST_MSG('clnt_rqst_login', [sndr], BAD_LOGIN_TXT)
+      log(`${sndr} bad login (srvr_rqst_new_game)`, sndr)
     }
   }
 }
@@ -162,14 +305,35 @@ MODE = 'node'
 SEL_NODE = null
 FOUNTAIN_COLOR = NODE_COLOR
 KNIFE_COLOR = 'black'
-SEL_SPREAD = null
-SEL_SPREADS = null
-SPREAD_START = null
-SPREAD_SPEED = 5e-2
+SEL_PROP = null
+SEL_PROPS = null
+PROP_START = null
+PROP_SPEED = 5e-2
 
-GAME = {
-  nodes: [],
-  links: []
+GAME = new_game(false, Infinity)
+function new_game(poll, timeout) {
+  return {
+    players: {},
+    poll: poll,
+    over: false,
+    timeout: timeout,
+    nodes: [],
+    links: []
+  }
+}
+PLAYER_STATS = {
+  n_nodes: 'node',
+  n_links: 'link',
+  n_fountains: 'fountain',
+  n_knives: 'knife',
+}
+TURN_TYPE_MODE = {
+  new_node: 'node',
+  new_link: 'link',
+  knife_node: 'knife',
+  color_node: 'fountain',
+  knife_split: 'knife',
+  color_split: 'fountain',
 }
 
 function new_node(position) {
@@ -259,8 +423,8 @@ function set_fountain(node, color) {
   node.color = color
 }
 
-function get_spread() {
-  var spread = {
+function get_prop() {
+  var prop = {
     node_color: [],
     node_stop: [],
     links: []
@@ -268,26 +432,26 @@ function get_spread() {
   for (var i in GAME.nodes) {
     var node = GAME.nodes[i]
     var color = node.color
-    spread.node_color[i] = color
+    prop.node_color[i] = color
   }
-  set_node_stop(spread)
+  set_node_stop(prop)
   for (var i in GAME.links) {
     var link = GAME.links[i]
-    spread.links[i] = {
+    prop.links[i] = {
       1: { idx: link.node1.idx, length: 0 },
       2: { idx: link.node2.idx, length: 0 },
       length: link.length
     }
   }
-  return spread
+  return prop
 }
 function set_node_stop({node_color, node_stop}) {
   node_color.forEach((c,i) => node_stop[i] = c==NODE_COLOR || c==KNIFE_COLOR)
 }
-function copy_spread(spread) {
-  return JSON.parse(JSON.stringify(spread))
+function copy_prop(prop) {
+  return JSON.parse(JSON.stringify(prop))
 }
-function min_spread_length({node_stop, links}) {
+function min_prop_length({node_stop, links}) {
   var min = Infinity
   for (var i in links) {
     var link = links[i]
@@ -307,25 +471,25 @@ function min_spread_length({node_stop, links}) {
   }
   return min
 }
-function do_spread({node_color, node_stop, links}, spread_length) {
+function do_prop({node_color, node_stop, links}, prop_length) {
 
   var over_nodes = []
-  // log('spread_length', spread_length)
-  links.forEach((spread_link, link_idx) => {
-    if (spread_link.locked) return
+  // log('prop_length', prop_length)
+  links.forEach((prop_link, link_idx) => {
+    if (prop_link.locked) return
 
-    var l1 = spread_link[1], l2 = spread_link[2], length = spread_link.length
+    var l1 = prop_link[1], l2 = prop_link[2], length = prop_link.length
     var c1 = node_color[l1.idx], c2 = node_color[l2.idx]
     var f1 = !node_stop[l1.idx], f2 = !node_stop[l2.idx]
 
     // log('l1,l2,len', l1.length, l2.length, length)
-    if (f1) l1.length += spread_length
-    if (f2) l2.length += spread_length
+    if (f1) l1.length += prop_length
+    if (f2) l2.length += prop_length
 
     var over = (l1.length + l2.length - length)
     if (over >= 0) {
       // log('over,l1,l2,lnk', over, l1.idx, l2.idx, link_idx)
-      spread_link.locked = true
+      prop_link.locked = true
 
       if (f1 && f2) {
         l1.length -= over / 2
@@ -349,24 +513,24 @@ function do_spread({node_color, node_stop, links}, spread_length) {
   }
 }
 
-function solve_spread() {
-  var spread = get_spread()
-  var length = 0, spread_length = 0
-  var spreads = [[length, spread]]
+function solve_prop() {
+  var prop = get_prop()
+  var length = 0, prop_length = 0
+  var props = [[length, prop]]
 
   var sanity = SANITY
-  while(isFinite(spread_length = min_spread_length(spread)) && --sanity > 0) {
-    spread = copy_spread(spread)
-    do_spread(spread, spread_length)
-    set_node_stop(spread)
-    spreads.push([length += spread_length, spread])
+  while(isFinite(prop_length = min_prop_length(prop)) && --sanity > 0) {
+    prop = copy_prop(prop)
+    do_prop(prop, prop_length)
+    set_node_stop(prop)
+    props.push([length += prop_length, prop])
   }
 
   if (sanity == 0) log('SANITY')
 
   // return null
 
-  return spreads
+  return props
 }
 
 function save_game(game) {
@@ -411,13 +575,24 @@ function read_game(txt) {
 function get_scores({node_color, links}) {
   var colors = {}
   for (var i in links) {
-    var spread_link = links[i]
-    var l1 = spread_link[1], l2 = spread_link[2], length = spread_link.length
+    var prop_link = links[i]
+    var l1 = prop_link[1], l2 = prop_link[2], length = prop_link.length
     var c1 = node_color[l1.idx], c2 = node_color[l2.idx]
     colors[c1] = l1.length + (colors[c1] || 0)
     colors[c2] = l2.length + (colors[c2] || 0)
   }
   return colors
+}
+
+function get_mode() {
+  for (var state_name in PLAYER_STATS) {
+    for (var color in GAME.players) {
+      var player = GAME.players[color]
+      if (player[state_name]) {
+        return PLAYER_STATS[state_name]
+      }
+    }
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -428,16 +603,16 @@ function draw_links() {
   for (var i in GAME.links) {
     var link = GAME.links[i]
     var p1 = link.node1.position, p2 = link.node2.position
-    if (SEL_SPREAD) {
-      draw_spread_link(SEL_SPREAD, p1, p2, SEL_SPREAD.links[i])
+    if (SEL_PROP) {
+      draw_prop_link(SEL_PROP, p1, p2, SEL_PROP.links[i])
     }
     else {
       PT.drawLine(G, p1, p2, NODE_COLOR)
     }
   }
 }
-function draw_spread_link({node_color, links}, p1, p2, spread_link) {
-  var l1 = spread_link[1], l2 = spread_link[2], length = spread_link.length
+function draw_prop_link({node_color, links}, p1, p2, prop_link) {
+  var l1 = prop_link[1], l2 = prop_link[2], length = prop_link.length
   var c1 = node_color[l1.idx], c2 = node_color[l2.idx]
 
   var pa = PT.vec(p1, PT.unit(PT.sub(p2, p1)), l1.length)
@@ -455,7 +630,7 @@ function draw_spread_link({node_color, links}, p1, p2, spread_link) {
 function draw_nodes() {
   for (var i in GAME.nodes) {
     var node = GAME.nodes[i]
-    var color = SEL_SPREAD ? SEL_SPREAD.node_color[i] : node.color
+    var color = SEL_PROP ? SEL_PROP.node_color[i] : node.color
     PT.fillCircle(G, node.position, NODE_RADIUS, color)
     if (color == KNIFE_COLOR) {
       PT.drawCircle(G, node.position, NODE_RADIUS, NODE_COLOR)
@@ -531,25 +706,25 @@ function split_mode(node, color) {
   }
 }
 
-function draw_spread() {
-  if (SEL_SPREADS && SEL_SPREADS.length) {
+function draw_prop() {
+  if (SEL_PROPS && SEL_PROPS.length) {
     try {
-      var max_length = SEL_SPREADS[SEL_SPREADS.length-1][0]
-      var spread_length = (USR_IO_EVNTS.nw - SPREAD_START) * SPREAD_SPEED
-      if (spread_length > max_length) spread_length = max_length
-      // log(SEL_SPREADS, spread_length)
+      var max_length = SEL_PROPS[SEL_PROPS.length-1][0]
+      var prop_length = (USR_IO_EVNTS.nw - PROP_START) * PROP_SPEED
+      if (prop_length > max_length) prop_length = max_length
+      // log(SEL_PROPS, prop_length)
 
-      var temp_spread = null
-      for (var i in SEL_SPREADS) {
-        var sel_spread = SEL_SPREADS[i]
-        if (spread_length >= sel_spread[0]) {
-          temp_spread = sel_spread
+      var temp_prop = null
+      for (var i in SEL_PROPS) {
+        var sel_prop = SEL_PROPS[i]
+        if (prop_length >= sel_prop[0]) {
+          temp_prop = sel_prop
         }
       }
 
-      if (temp_spread) {
-        SEL_SPREAD = copy_spread(temp_spread[1])
-        do_spread(SEL_SPREAD, spread_length - temp_spread[0])
+      if (temp_prop) {
+        SEL_PROP = copy_prop(temp_prop[1])
+        do_prop(SEL_PROP, prop_length - temp_prop[0])
       }
       else {
         throw 'error'
@@ -557,8 +732,31 @@ function draw_spread() {
     }
     catch (e) {
       console.error(e)
-      SEL_SPREAD = SEL_SPREADS = null
+      SEL_PROP = SEL_PROPS = null
     }
+  }
+}
+function draw_scores() {
+  if (SEL_PROP) {
+    var scores = get_scores(SEL_PROP)
+    var score_array = []
+    for (var color in GAME.players) {
+      var score = scores[color]
+      score_array.push([color,isNaN(score) ? 0 : score])
+    }
+    score_array.sort((a,b)=>b[1]-a[1])
+
+    var stat = FU.lookup(PLAYER_STATS, MODE)
+    for (var i = 0; i < score_array.length; ++i) {
+      var color = score_array[i][0]
+      var player = GAME.players[color]
+      var score = Math.round(score_array[i][1])
+      G.fillStyle = color
+      var pscore = `(Score ${score})`
+      var pstat = stat ? `(Number of ${MODE}(s) ${player[stat]})` : ''
+      G.fillText(`${player.name} ${pscore} ${pstat}`, 20, 20 * (3 + i))
+    }
+    G.fillText(score_array.length, WH[0] - 40, 20)
   }
 }
 
@@ -580,56 +778,41 @@ GAME_TICK = () => {
   G.lineWidth = LINE_WIDTH
 
 
-  draw_spread()
+  MODE = get_mode()
 
-  if (USR_IO_KYS.hsDn['m']) {
-    MODE = prompt('set mode')
-    SEL_NODE = null
-  }
-  if (USR_IO_KYS.hsDn['n']) {
-    MODE = 'node'
-    log('mode switched to node')
-  }
-  if (USR_IO_KYS.hsDn['l']) {
-    MODE = 'link'
-    log('mode switched to link')
-  }
-  if (USR_IO_KYS.hsDn['f']) {
-    MODE = 'fountain'
-    log('mode switched to fountain')
-  }
-  if (USR_IO_KYS.hsDn['k']) {
-    MODE = 'knife'
-    log('mode switched to knife')
-  }
+  draw_prop()
+
+  // if (USR_IO_KYS.hsDn['m']) {
+  //   MODE = prompt('set mode')
+  //   SEL_NODE = null
+  // }
+  // if (USR_IO_KYS.hsDn['n']) {
+  //   MODE = 'node'
+  //   log('mode switched to node')
+  // }
+  // if (USR_IO_KYS.hsDn['l']) {
+  //   MODE = 'link'
+  //   log('mode switched to link')
+  // }
+  // if (USR_IO_KYS.hsDn['f']) {
+  //   MODE = 'fountain'
+  //   log('mode switched to fountain')
+  // }
+  // if (USR_IO_KYS.hsDn['k']) {
+  //   MODE = 'knife'
+  //   log('mode switched to knife')
+  // }
   if (USR_IO_KYS.hsDn['q'] && SEL_NODE) {
     SEL_NODE = null
     log('cleared selected node')
   }
-  if (USR_IO_KYS.hsDn['c']) {
-    FOUNTAIN_COLOR = prompt('FOUNTAIN_COLOR')
-  }
+  // if (USR_IO_KYS.hsDn['c']) {
+  //   FOUNTAIN_COLOR = prompt('FOUNTAIN_COLOR')
+  // }
 
   draw_nodes()
   draw_links()
-  if (SEL_SPREAD) {
-    var scores = get_scores(SEL_SPREAD)
-    var score_array = []
-    for (var c in scores) {
-      var score = scores[c]
-      if (score) {
-        score_array.push([c,score])
-      }
-    }
-    score_array.sort((a,b)=>b[1]-a[1])
-
-    for (var i = 0; i < score_array.length; ++i) {
-      var color = score_array[i][0]
-      var score = Math.round(score_array[i][1])
-      G.fillStyle = color
-      G.fillText(score, 20, 20 * (1 + i))
-    }
-  }
+  draw_scores()
 
   var node = closest_node(USR_IO_MWS, NODE_RADIUS)
   if (MODE == 'node') {

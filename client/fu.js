@@ -52,6 +52,10 @@ FU.count = o => {
   for (var i in o) ++c
   return c
 }
+FU.lookup = (a,o) => {
+  for (var i in a) if (a[i] == o) return i
+  return null
+}
 FU.forlen = (l,f) => {
   for (var i = 0; i < l; ++i) {
     f(i,l)
