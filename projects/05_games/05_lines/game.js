@@ -809,6 +809,9 @@ GAME_TICK = () => {
   // if (USR_IO_KYS.hsDn['c']) {
   //   FOUNTAIN_COLOR = prompt('FOUNTAIN_COLOR')
   // }
+  if (USR_IO_KYS.hsDn['r']) {
+    HOST_MSG('srvr_rqst_new_game', [SRVR_CLNT_ID])
+  }
 
   draw_nodes()
   draw_links()
