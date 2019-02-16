@@ -7,7 +7,9 @@ log('init game.js', PROJECT_NAME)
 LINE_WIDTH = 5
 NODE_RADIUS = 20
 NODE_COLOR = 'white'
-SANITY = 1e4
+SANITY = 1e3
+
+
 
 // -----------------------------------------------------------------------------
 // INIT
@@ -35,6 +37,7 @@ GAME_CLNT_INIT = () => {
 // -----------------------------------------------------------------------------
 
 DEFAULT_PASS = 'password'
+BAD_LOGIN_TXT = 'Incorrect Password\n'
 COLORS = ['crimson','blue','green','tan','turquoise',
   'burlywood','coral','cyan', 'orange', 'violet', 'purple', 'skyblue']
 function get_color() {
@@ -45,6 +48,43 @@ function get_color() {
     }
   }
   return 'white'
+}
+
+function check_player_turn(login, turn_type) {
+  return true
+}
+function do_player_turn(login, turn_type, arg) {
+  var color = turn_type.slice(0,5) == 'knife' ? KNIFE_COLOR : login.color
+
+  switch (turn_type){
+  case 'new_node':
+    var point = arg
+    var node = closest_node(point, 2 * NODE_RADIUS)
+    if (!node) new_node(point)
+    break
+  case 'new_link':
+    var node1 = GAME.nodes[arg[0]], node2 = GAME.nodes[arg[1]]
+    if (node1 && node2) {
+      new_link(node1, node2)
+    }
+    break
+  case 'knife_node':
+  case 'color_node':
+    var node = GAME.nodes[arg]
+    if (node && node.color == NODE_COLOR) {
+      set_fountain(node, color)
+    }
+    break
+  case 'knife_split':
+  case 'color_split':
+    var link_point = get_link_point(arg)
+    if (link_point) {
+      split_link(link_point[0], link_point[1], color)
+    }
+    break
+  }
+
+  SECURITY_FUN.srvr_update_map()
 }
 
 // msg start 'srvr' rcv by srvr, start 'clnt' rcv by clnt
@@ -60,10 +100,11 @@ SECURITY_FUN = {
     var login = LOGIN_NAME[msg.name]
     if (login) {
       if (login.pass == msg.pass) {
+        LOGIN_ID[sndr] = login
         HOST_MSG('clnt_good_login', [sndr], login.color)
       }
       else {
-        HOST_MSG('clnt_rqst_login', [sndr], 'Incorrect Password\n')
+        HOST_MSG('clnt_rqst_login', [sndr], BAD_LOGIN_TXT)
       }
     }
     else {
@@ -74,11 +115,36 @@ SECURITY_FUN = {
       LOGIN_COLOR[login.color] = login
       HOST_MSG('clnt_good_login', [sndr], login.color)
     }
+
+    // log(sndr, LOGIN_NAME, LOGIN_ID, LOGIN_COLOR)
   },
   clnt_good_login: ({msg}) => {
     alert(`you are now logged in as '${CLNT_NAME}'`)
     FOUNTAIN_COLOR = msg
+    HOST_MSG('srvr_update_map', [SRVR_CLNT_ID])
   },
+  srvr_game_edit: ({sndr, msg}) => {
+    var login = LOGIN_ID[sndr]
+    if (login) {
+      if (check_player_turn(login, msg[0])) {
+        do_player_turn(login, msg[0], msg[1])
+      }
+    }
+    else {
+      HOST_MSG('clnt_rqst_login', [sndr], BAD_LOGIN_TXT)
+    }
+  },
+  srvr_update_map: () => {
+    HOST_MSG('clnt_update_map', null, save_game(GAME))
+  },
+  clnt_update_map: ({sndr, msg}) => {
+    if (sndr == SRVR_CLNT_ID && CLNT_ID != sndr) {
+      read_game(msg)
+      SEL_NODE = null
+      SEL_SPREADS = solve_spread()
+      SPREAD_START = USR_IO_EVNTS.nw
+    }
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -99,7 +165,7 @@ KNIFE_COLOR = 'black'
 SEL_SPREAD = null
 SEL_SPREADS = null
 SPREAD_START = null
-SPREAD_SPEED = 1e-1
+SPREAD_SPEED = 5e-2
 
 GAME = {
   nodes: [],
@@ -118,7 +184,7 @@ function new_node(position) {
 }
 function new_link(node1, node2) {
   if (node1 == node2 || node1.links[node2.idx]) return
-  if (!no_link_cross(node1, node2)) return
+  if (!no_link_cross(node1.position, node2.position)) return
 
   var link = {
     node1: node1,
@@ -147,14 +213,35 @@ function split_link(link, point, color) {
   new_link(link.node2, node)
   set_fountain(node, color)
 }
-function closest_node(position) {
+function closest_node(position, radius) {
   for (var i in GAME.nodes) {
     var node = GAME.nodes[i]
-    if (PT.dist(node.position, position) < NODE_RADIUS) {
+    if (PT.dist(node.position, position) < radius) {
       return node
     }
   }
   return null
+}
+function get_link_point(start_point) {
+  var closest_points = []
+  for (var i in GAME.links) {
+    var link = GAME.links[i]
+    var p1 = link.node1.position
+    var p2 = link.node2.position
+
+    var point = PT.closest_point_on_line(start_point, p1, p2)
+    if (point && PT.dist(start_point, point) < NODE_RADIUS) {
+      closest_points.push([link, point])
+    }
+  }
+
+  var link_point = closest_points.pop()
+  if (link_point && !closest_points.length) {
+    return link_point
+  }
+  else {
+    return null
+  }
 }
 function no_link_cross(position_a, position_b) {
   for (var i in GAME.links) {
@@ -213,7 +300,7 @@ function min_spread_length({node_stop, links}) {
 
       if (f1 && f2) len /= 2
 
-      if (len < min) {
+      if (len && len < min) {
         min = len
       }
     }
@@ -275,6 +362,10 @@ function solve_spread() {
     spreads.push([length += spread_length, spread])
   }
 
+  if (sanity == 0) log('SANITY')
+
+  // return null
+
   return spreads
 }
 
@@ -289,14 +380,14 @@ function save_game(game) {
     var link = game.links[i]
     links.push([link.node1.idx, link.node2.idx])
   }
-
-  return JSON.stringify([nodes, links])
+  return JSON.stringify([nodes, links, game.players])
 }
 function read_game(txt) {
   var save = JSON.parse(txt)
   GAME = {
     nodes: [],
-    links: []
+    links: [],
+    players: save[2]
   }
 
   var save_nodes = save[0]
@@ -315,6 +406,18 @@ function read_game(txt) {
     new_link(node1, node2)
   }
   return GAME
+}
+
+function get_scores({node_color, links}) {
+  var colors = {}
+  for (var i in links) {
+    var spread_link = links[i]
+    var l1 = spread_link[1], l2 = spread_link[2], length = spread_link.length
+    var c1 = node_color[l1.idx], c2 = node_color[l2.idx]
+    colors[c1] = l1.length + (colors[c1] || 0)
+    colors[c2] = l2.length + (colors[c2] || 0)
+  }
+  return colors
 }
 
 // -----------------------------------------------------------------------------
@@ -364,7 +467,8 @@ function node_mode(node) {
     if (node) {
       // TODO
     } else {
-      new_node(USR_IO_MWS)
+      var point = PT.copy(USR_IO_MWS)
+      HOST_MSG('srvr_game_edit', [SRVR_CLNT_ID], ['new_node', point])
     }
   }
 }
@@ -380,7 +484,10 @@ function link_mode(node) {
 
   if (USR_IO_MWS.hsDn) {
     if (SEL_NODE && node) {
-      new_link(node, SEL_NODE)
+      // new_link(node, SEL_NODE)
+
+      var link_idxs = [SEL_NODE.idx, node.idx]
+      HOST_MSG('srvr_game_edit', [SRVR_CLNT_ID], ['new_link',link_idxs])
     }
     SEL_NODE = node
   }
@@ -393,25 +500,18 @@ function split_mode(node, color) {
         PT.drawCircle(G, node.position, NODE_RADIUS, NODE_COLOR)
       }
       if (USR_IO_MWS.hsDn) {
-        set_fountain(node, color)
+        if (color == KNIFE_COLOR) {
+          HOST_MSG('srvr_game_edit', [SRVR_CLNT_ID], ['knife_node', node.idx])
+        }
+        else {
+          HOST_MSG('srvr_game_edit', [SRVR_CLNT_ID], ['color_node', node.idx])
+        }
       }
     }
   }
   else {
-    var closest_points = []
-    for (var i in GAME.links) {
-      var link = GAME.links[i]
-      var p1 = link.node1.position
-      var p2 = link.node2.position
-
-      var point = PT.closest_point_on_line(USR_IO_MWS, p1, p2)
-      if (point && PT.dist(USR_IO_MWS, point) < NODE_RADIUS) {
-        closest_points.push([link, point])
-      }
-    }
-
-    var link_point = closest_points.pop()
-    if (link_point && !closest_points.length) {
+    var link_point = get_link_point(USR_IO_MWS)
+    if (link_point) {
       var link = link_point[0], point = link_point[1]
       PT.fillCircle(G, point, NODE_RADIUS, color)
       if (color == KNIFE_COLOR) {
@@ -419,7 +519,13 @@ function split_mode(node, color) {
       }
 
       if (USR_IO_MWS.hsDn) {
-        split_link(link, point, color)
+        var point = PT.copy(USR_IO_MWS)
+        if (color == KNIFE_COLOR) {
+          HOST_MSG('srvr_game_edit', [SRVR_CLNT_ID], ['knife_split', point])
+        }
+        else {
+          HOST_MSG('srvr_game_edit', [SRVR_CLNT_ID], ['color_split', point])
+        }
       }
     }
   }
@@ -431,11 +537,12 @@ function draw_spread() {
       var max_length = SEL_SPREADS[SEL_SPREADS.length-1][0]
       var spread_length = (USR_IO_EVNTS.nw - SPREAD_START) * SPREAD_SPEED
       if (spread_length > max_length) spread_length = max_length
+      // log(SEL_SPREADS, spread_length)
 
       var temp_spread = null
       for (var i in SEL_SPREADS) {
         var sel_spread = SEL_SPREADS[i]
-        if (spread_length > sel_spread[0]) {
+        if (spread_length >= sel_spread[0]) {
           temp_spread = sel_spread
         }
       }
@@ -443,14 +550,13 @@ function draw_spread() {
       if (temp_spread) {
         SEL_SPREAD = copy_spread(temp_spread[1])
         do_spread(SEL_SPREAD, spread_length - temp_spread[0])
-        // log('SEL_SPREAD', SEL_SPREAD)
       }
       else {
         throw 'error'
       }
     }
     catch (e) {
-      // console.error(e)
+      console.error(e)
       SEL_SPREAD = SEL_SPREADS = null
     }
   }
@@ -506,8 +612,26 @@ GAME_TICK = () => {
 
   draw_nodes()
   draw_links()
+  if (SEL_SPREAD) {
+    var scores = get_scores(SEL_SPREAD)
+    var score_array = []
+    for (var c in scores) {
+      var score = scores[c]
+      if (score) {
+        score_array.push([c,score])
+      }
+    }
+    score_array.sort((a,b)=>b[1]-a[1])
 
-  var node = closest_node(USR_IO_MWS)
+    for (var i = 0; i < score_array.length; ++i) {
+      var color = score_array[i][0]
+      var score = Math.round(score_array[i][1])
+      G.fillStyle = color
+      G.fillText(score, 20, 20 * (1 + i))
+    }
+  }
+
+  var node = closest_node(USR_IO_MWS, NODE_RADIUS)
   if (MODE == 'node') {
     node_mode(node)
   }
@@ -518,15 +642,8 @@ GAME_TICK = () => {
     var color = MODE == 'knife' ? KNIFE_COLOR : FOUNTAIN_COLOR
     split_mode(node, color)
   }
-
-  if (USR_IO_MWS.hsDn) {
-    SEL_SPREADS = solve_spread()
-    SPREAD_START = USR_IO_EVNTS.nw
-  }
 }
 
-// read_game('[[[[70,365],"white"],[[347,221],"green"],[[443,508],"white"],[[244,705],"green"],[[166,510],"white"],[[370,355],"white"],[[211.44827586206895,623.6206896551724],"red"],[[316.0918633171341,395.9596136560991],"red"],[[187.72413793103448,564.3103448275862],"black"],[[303.0420766428974,243.85177243112912],"black"]],[[5,1],[0,4],[3,2],[2,5],[3,6],[4,7],[5,7],[4,8],[6,8],[1,9],[0,9]]]')
-// var spreads = solve_spread()
 
 // -----------------------------------------------------------------------------
 // IO
