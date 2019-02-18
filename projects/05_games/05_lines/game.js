@@ -40,7 +40,7 @@ GAME_CLNT_INIT = () => {
 
 DEFAULT_PASS = 'password'
 BAD_LOGIN_TXT = 'Incorrect Password\n'
-COLORS = ['crimson','blue','green','tan','turquoise',
+COLORS = ['red','green','blue','tan','turquoise',
   'burlywood','coral','cyan', 'orange', 'violet', 'purple', 'skyblue']
 function get_color() {
   for (var i in COLORS) {
@@ -286,6 +286,15 @@ SECURITY_FUN = {
     else {
       HOST_MSG('clnt_rqst_login', [sndr], BAD_LOGIN_TXT)
       log(`${sndr} bad login (srvr_rqst_new_game)`, sndr)
+    }
+  },
+  clnt_snd_msg: ({sndr, msg}) => {
+    var login = LOGIN_ID[sndr]
+    if (login) {
+      alert(`${login.name}: ${msg}`)
+    }
+    else {
+      alert(`<unknown>: ${msg}`)
     }
   }
 }
@@ -805,6 +814,9 @@ GAME_TICK = () => {
   if (USR_IO_KYS.hsDn['q'] && SEL_NODE) {
     SEL_NODE = null
     log('cleared selected node')
+  }
+  if (USR_IO_KYS.hsDn['m']) {
+    HOST_MSG('clnt_snd_msg', null, prompt('enter message'))
   }
   // if (USR_IO_KYS.hsDn['c']) {
   //   FOUNTAIN_COLOR = prompt('FOUNTAIN_COLOR')
