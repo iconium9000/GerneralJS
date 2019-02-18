@@ -6,12 +6,18 @@ log('init game.js', PROJECT_NAME)
 
 LINE_WIDTH = 5
 NODE_RADIUS = 20
+SMALL_RADIUS = 5
 NODE_COLOR = 'white'
 SANITY = 1e3
 
 NEW_GAME_POLL_TIMEOUT = 20e3
+CLNT_SIZE_INTERVAL = 4e3
+SRVR_SIZE_INTERVAL = 8e3
 
-
+SIZE = []
+MIN_SCREEN_SIZE = [500, 500]
+DEF_SIZE = [1920, 1080]
+GAME_SIZE = DEF_SIZE
 
 // -----------------------------------------------------------------------------
 // INIT
@@ -23,15 +29,18 @@ GAME_SRVR_INIT = () => {
   LOGIN_NAME = {}
   LOGIN_ID = {}
   LOGIN_COLOR = {}
+
+  SIZE_ID = {}
+  // setInterval(srvr_update_size, SRVR_SIZE_INTERVAL)
 }
-
-
 
 GAME_CLNT_INIT = () => {
   log('init game clnt')
 
   LOGIN = null
   SECURITY_FUN.clnt_rqst_login({msg:''})
+
+  setInterval(clnt_update_size, CLNT_SIZE_INTERVAL)
 }
 
 // -----------------------------------------------------------------------------
@@ -72,12 +81,14 @@ function do_player_turn(login, turn_type, arg) {
   switch (turn_type){
   case 'new_node':
     var point = arg
-    var node = closest_node(point, 2 * NODE_RADIUS)
-    if (node) {
-      log(`${login.name} node to close`)
-    } else {
-      new_node(point)
-      --player.n_nodes
+    if (point[0] < GAME_SIZE[0] && point[1] < GAME_SIZE[1]) {
+      var node = closest_node(point, 2 * NODE_RADIUS)
+      if (node) {
+        log(`${login.name} node to close`)
+      } else {
+        new_node(point)
+        --player.n_nodes
+      }
     }
     break
   case 'new_link':
@@ -175,6 +186,21 @@ function check_all_clnts_in_game() {
     }
   }
   return true
+}
+
+var get_min_size = PT.vcc('vvv', (c,m,n) => n < c ? n < m ? m : n : c, 2)
+function clnt_update_size() {
+  HOST_MSG('srvr_update_size', [SRVR_CLNT_ID], SIZE)
+  // log('clnt_update_size', SIZE)
+}
+function srvr_update_size() {
+  GAME_SIZE = DEF_SIZE
+  for (var id in SIZE_ID) {
+    var size = SIZE_ID[id] ? SIZE_ID[id].size || DEF_SIZE : DEF_SIZE
+    GAME_SIZE = get_min_size(GAME_SIZE, MIN_SCREEN_SIZE, size)
+  }
+  // log('srvr_update_size', GAME_SIZE, SIZE_ID)
+  HOST_MSG('clnt_update_size', null, GAME_SIZE)
 }
 
 // msg start 'srvr' rcv by srvr, start 'clnt' rcv by clnt
@@ -295,6 +321,21 @@ SECURITY_FUN = {
     }
     else {
       alert(`<unknown>: ${msg}`)
+    }
+  },
+  srvr_update_size: ({sndr, msg}) => {
+    if (SIZE_ID[sndr]) {
+      clearTimeout(SIZE_ID[sndr].timeout)
+    }
+    SIZE_ID[sndr] = {
+      size: msg,
+      timeout: setTimeout(() => delete SIZE_ID[sndr], SRVR_SIZE_INTERVAL)
+    }
+    srvr_update_size()
+  },
+  clnt_update_size: ({sndr, msg}) => {
+    if (sndr == SRVR_CLNT_ID) {
+      GAME_SIZE = msg
     }
   }
 }
@@ -608,6 +649,9 @@ function get_mode() {
 // DISPLAY GAME
 // -----------------------------------------------------------------------------
 
+function draw_game_size() {
+  PT.drawRect(G, [], GAME_SIZE, NODE_COLOR)
+}
 function draw_links() {
   for (var i in GAME.links) {
     var link = GAME.links[i]
@@ -640,9 +684,12 @@ function draw_nodes() {
   for (var i in GAME.nodes) {
     var node = GAME.nodes[i]
     var color = SEL_PROP ? SEL_PROP.node_color[i] : node.color
-    PT.fillCircle(G, node.position, NODE_RADIUS, color)
+    var real_color = color != NODE_COLOR && node.color != NODE_COLOR
+    var big_mode = MODE == 'node' || MODE == 'link'
+    var radius = big_mode || real_color ? NODE_RADIUS : SMALL_RADIUS
+    PT.fillCircle(G, node.position, radius, color)
     if (color == KNIFE_COLOR) {
-      PT.drawCircle(G, node.position, NODE_RADIUS, NODE_COLOR)
+      PT.drawCircle(G, node.position, radius, NODE_COLOR)
     }
   }
 }
@@ -786,9 +833,16 @@ GAME_TICK = () => {
   G.textAlign = 'left'
   G.lineWidth = LINE_WIDTH
 
-
   MODE = get_mode()
 
+  if (SIZE[0] != WH[0] || SIZE[1] != WH[1]) {
+    // log('update', SIZE, WH)
+    SIZE = PT.copy(WH)
+    clnt_update_size()
+  }
+
+
+  draw_game_size()
   draw_prop()
 
   // if (USR_IO_KYS.hsDn['m']) {
