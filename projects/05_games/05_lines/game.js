@@ -19,6 +19,8 @@ MIN_SCREEN_SIZE = [500, 500]
 DEF_SIZE = [1920, 1080]
 GAME_SIZE = DEF_SIZE
 
+MSGS = []
+
 // -----------------------------------------------------------------------------
 // INIT
 // -----------------------------------------------------------------------------
@@ -49,7 +51,7 @@ GAME_CLNT_INIT = () => {
 
 DEFAULT_PASS = 'password'
 BAD_LOGIN_TXT = 'Incorrect Password\n'
-COLORS = ['red','green','blue','tan','turquoise',
+COLORS = ['red','green','#0080ff','tan','turquoise',
   'burlywood','coral','cyan', 'orange', 'violet', 'purple', 'skyblue']
 function get_color() {
   for (var i in COLORS) {
@@ -314,14 +316,18 @@ SECURITY_FUN = {
       log(`${sndr} bad login (srvr_rqst_new_game)`, sndr)
     }
   },
-  clnt_snd_msg: ({sndr, msg}) => {
+  srvr_snd_msg: ({sndr, msg}) => {
     var login = LOGIN_ID[sndr]
     if (login) {
-      alert(`${login.name}: ${msg}`)
+      HOST_MSG('clnt_snd_msg', null, {
+        name: login.name,
+        color: login.color,
+        msg: msg
+      })
     }
-    else {
-      alert(`<unknown>: ${msg}`)
-    }
+  },
+  clnt_snd_msg: ({msg}) => {
+    MSGS.push(msg)
   },
   srvr_update_size: ({sndr, msg}) => {
     if (SIZE_ID[sndr]) {
@@ -816,6 +822,19 @@ function draw_scores() {
   }
 }
 
+function draw_msgs() {
+  MSGS.splice(0, MSGS.length - 5)
+
+  G.textAlign = 'right'
+  for (var i = 0; i < MSGS.length; ++i) {
+    var msg = MSGS[MSGS.length - i - 1]
+    if (msg) {
+      G.fillStyle = msg.color
+      G.fillText(`${msg.name}: ${msg.msg}`, WH[0] - 20, WH[1] - 20 * (i + 1))
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // TICK
 // -----------------------------------------------------------------------------
@@ -840,7 +859,6 @@ GAME_TICK = () => {
     SIZE = PT.copy(WH)
     clnt_update_size()
   }
-
 
   draw_game_size()
   draw_prop()
@@ -870,7 +888,7 @@ GAME_TICK = () => {
     log('cleared selected node')
   }
   if (USR_IO_KYS.hsDn['m']) {
-    HOST_MSG('clnt_snd_msg', null, prompt('enter message'))
+    HOST_MSG('srvr_snd_msg', [SRVR_CLNT_ID], prompt('enter message'))
   }
   // if (USR_IO_KYS.hsDn['c']) {
   //   FOUNTAIN_COLOR = prompt('FOUNTAIN_COLOR')
@@ -882,6 +900,7 @@ GAME_TICK = () => {
   draw_nodes()
   draw_links()
   draw_scores()
+  draw_msgs()
 
   var node = closest_node(USR_IO_MWS, NODE_RADIUS)
   if (MODE == 'node') {
