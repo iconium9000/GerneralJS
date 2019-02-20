@@ -1,4 +1,4 @@
-log = console.log
+sel_nodelog = console.log
 
 PROJECT_NAME = 'Line Game'
 GAME_HIDE_CURSER = false
@@ -51,8 +51,8 @@ GAME_CLNT_INIT = () => {
 
 DEFAULT_PASS = 'password'
 BAD_LOGIN_TXT = 'Incorrect Password\n'
-COLORS = ['red','green','#0080ff','tan','turquoise',
-  'burlywood','coral','cyan', 'orange', 'violet', 'purple', 'skyblue']
+COLORS = ['#ff5050','#00ff80','#0080ff','#ff8000','#ff40ff',
+  '#ffff40','#B22222','#00ffff', '#80ff00']
 function get_color() {
   for (var i in COLORS) {
     var color = COLORS[i]
@@ -265,7 +265,6 @@ SECURITY_FUN = {
   clnt_update_map: ({sndr, msg}) => {
     if (sndr == SRVR_CLNT_ID && CLNT_ID != sndr) {
       read_game(msg)
-      SEL_NODE = null
       SEL_PROPS = solve_prop()
       PROP_START = USR_IO_EVNTS.nw
       log('clnt_update_map')
@@ -358,7 +357,7 @@ SECURITY_FUN = {
 // -----------------------------------------------------------------------------
 
 MODE = 'node'
-SEL_NODE = null
+SEL_NODE_IDX = null
 FOUNTAIN_COLOR = NODE_COLOR
 KNIFE_COLOR = 'black'
 SEL_PROP = null
@@ -710,8 +709,10 @@ function node_mode(node) {
   }
 }
 function link_mode(node) {
-  if (SEL_NODE) {
-    var position_a = SEL_NODE.position
+  var sel_node = GAME.nodes[SEL_NODE_IDX]
+
+  if (sel_node) {
+    var position_a = sel_node.position
     var position_b = USR_IO_MWS
     var no_cross = node && no_link_cross(position_a, position_b)
     G.setLineDash(no_cross ? [] : [NODE_RADIUS,2 * LINE_WIDTH])
@@ -719,14 +720,12 @@ function link_mode(node) {
     G.setLineDash([])
   }
 
-  if (USR_IO_MWS.hsDn) {
-    if (SEL_NODE && node) {
-      // new_link(node, SEL_NODE)
-
-      var link_idxs = [SEL_NODE.idx, node.idx]
+  if (USR_IO_MWS.hsDn && node) {
+    if (sel_node) {
+      var link_idxs = [sel_node.idx, node.idx]
       HOST_MSG('srvr_game_edit', [SRVR_CLNT_ID], ['new_link',link_idxs])
     }
-    SEL_NODE = node
+    SEL_NODE_IDX = node.idx
   }
 }
 function split_mode(node, color) {
@@ -844,10 +843,14 @@ GAME_TICK = () => {
   WH = USR_IO_DSPLY.wh
   CNTR = PT.divs(WH,2)
 
+  G.font = '20px cortier'
+  G.textAlign = 'left'
+  G.fillStyle = FOUNTAIN_COLOR
+  G.fillText(`Your Name: '${CLNT_NAME}'`, 20, 20)
   G.textAlign = 'center'
   G.fillStyle = 'white'
-  G.font = '20px cortier'
   G.fillText('Restart (R)',CNTR[0],20)
+
 
   G.textAlign = 'left'
   G.lineWidth = LINE_WIDTH
@@ -865,7 +868,7 @@ GAME_TICK = () => {
 
   // if (USR_IO_KYS.hsDn['m']) {
   //   MODE = prompt('set mode')
-  //   SEL_NODE = null
+  //   SEL_NODE_IDX = null
   // }
   // if (USR_IO_KYS.hsDn['n']) {
   //   MODE = 'node'
@@ -883,8 +886,8 @@ GAME_TICK = () => {
   //   MODE = 'knife'
   //   log('mode switched to knife')
   // }
-  if (USR_IO_KYS.hsDn['q'] && SEL_NODE) {
-    SEL_NODE = null
+  if (USR_IO_KYS.hsDn['q'] && SEL_NODE_IDX) {
+    SEL_NODE_IDX = null
     log('cleared selected node')
   }
   if (USR_IO_KYS.hsDn['m']) {
@@ -913,6 +916,13 @@ GAME_TICK = () => {
     var color = MODE == 'knife' ? KNIFE_COLOR : FOUNTAIN_COLOR
     split_mode(node, color)
   }
+
+  //
+  // for (var i = 0; i < COLORS.length; ++i) {
+  //   var color = COLORS[i]
+  //   G.fillStyle = color
+  //   G.fillText(color, WH[0]-20, 100 + i * 20)
+  // }
 }
 
 
