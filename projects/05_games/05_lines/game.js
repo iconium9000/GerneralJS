@@ -1,6 +1,6 @@
 sel_nodelog = console.log
 
-PROJECT_NAME = 'Line Game'
+PROJECT_NAME = 'KnifeLine'
 GAME_HIDE_CURSER = false
 log('init game.js', PROJECT_NAME)
 
