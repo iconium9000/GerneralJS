@@ -8,13 +8,14 @@ log('init pt.js')
 
 PI = Math.PI
 PI2 = 2 * PI
+RAND = Math.random
 
 pt = PT = {}
 
 PT.shuffle = input => {
   for (var i = input.length-1; i >=0; i--) {
 
-    var randomIndex = Math.floor(Math.random()*(i+1))
+    var randomIndex = Math.floor(RAND()*(i+1))
     var itemAtIndex = input[randomIndex]
 
     input[randomIndex] = input[i]
@@ -233,7 +234,7 @@ PT.equal = (a,b) => {
 // returns random vector of length lf
 PT.rand = l => {
   var p = []
-  FU.forlen(l, i => p[i] = Math.random())
+  FU.forlen(l, i => p[i] = RAND())
   return p
 }
 
@@ -357,12 +358,7 @@ PT.color = p => PT.suma(PT.mats(p, 1, c => {
   c = ('0' + c).slice(-2)
   return c
 }, 3), '#')
-PT.crand = (p,r) => {
-  var t = PI2 * Math.random()
-  var u = Math.random() + Math.random()
-  var r = r * (u > 1 ? 2 - u : u)
-  return PT.sum(p,PT.circle(t,r))
-}
+PT.crand = (p,r) => PT.sum(p, PT.circle(PI2 * RAND(), r * Math.sqrt(RAND())))
 
 /**
   @param loc: [x,y] location on canvas
@@ -414,8 +410,8 @@ PT.sphere_to_cart = ([theta,phi,radius]) => {
   return [x,y,z]
 }
 PT.rand_sphere = () => PT.sphere_to_cart([
-  PI2 * Math.random(),
-  Math.acos( 2 * Math.random() - 1),1
+  PI2 * RAND(),
+  Math.acos( 2 * RAND() - 1),1
 ])
 
 PT.drawLine = (g,a,b,c) => {
