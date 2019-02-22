@@ -19,30 +19,6 @@ GAME_CLNT_INIT = () => {
 }
 
 // -----------------------------------------------------------------------------
-// SORT
-// -----------------------------------------------------------------------------
-
-var g = 6
-var k = 3
-function perm(array, start, depth) {
-  if (depth == k) return [array.slice()]
-  else {
-    var ret = []
-    for (array[depth] = start; array[depth] < g; ++array[depth]) {
-      ret = ret.concat(perm(array, array[depth] + 1, depth + 1))
-    }
-    return ret
-  }
-}
-for (var g = 1; g < 10; ++g) {
-  for (var k = 1; k <= g; ++k) {
-    var array = perm([], 0, 0)
-    log('-----', g, k, array.length)
-  }
-}
-
-
-// -----------------------------------------------------------------------------
 // GAME
 // -----------------------------------------------------------------------------
 
