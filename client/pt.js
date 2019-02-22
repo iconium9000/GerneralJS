@@ -312,6 +312,7 @@ PT.closest_point_on_line = (p,a,b) => {
 }
 
 PT.dot = (a,b,l) => PT.suma(PT.mul(a,b,l),l)
+PT.dot_auto = (a,b) => PT.suma(PT.mul(a,b))
 PT.cat = function() {
   var a = []
   FU.forEach(arguments, i => a = a.concat(i))
