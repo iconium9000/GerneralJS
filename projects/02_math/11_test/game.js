@@ -71,23 +71,29 @@ function get_orbit(p0, v0, mu, epoch) {
 
   var t0 = p01 * v02 > p02 * v01 ? 1 : -1
   var t = PI2 * t0 * Math.sqrt(Math.pow(a, 3) / mu)
+  var p = a * (1 - e * e)
+
+  var w = PI2 / t
 
   var orbit = {
     semi_major_axis: a,
     semi_minor_axis: b,
     focus: f,
+    semi_latus_rectum: p,
     argument_of_periapsis: q,
     eccentricity: e,
+    angular_frequency: w,
     period: t,
-    epoch: epoch
+    epoch: epoch,
+    standard_gravitational_parameter: mu,
   }
   orbit.epoch = 2 * orbit.epoch - angle4_t(orbit, angle4)
   return orbit
 }
 function get_orbital_distance(orbit, angle4) {
   var a = orbit.semi_major_axis, ecc = orbit.eccentricity
-  var q = orbit.argument_of_periapsis
-  return a * (1 - ecc * ecc) / (1 - ecc * Math.cos(angle4 - q))
+  var q = orbit.argument_of_periapsis, p = orbit.semi_latus_rectum
+  return p / (1 - ecc * Math.cos(angle4 - q))
 }
 function get_orbital_position(orbit, time) {
   var angle4 = t_angle4(orbit,time)
@@ -96,25 +102,24 @@ function get_orbital_position(orbit, time) {
 }
 
 function angle4_t(orbit, angle4) {
-  var tpi2 = orbit.period / PI2, ecc = orbit.eccentricity
+  var w = orbit.angular_frequency, ecc = orbit.eccentricity
   var a = orbit.semi_major_axis, b = orbit.semi_minor_axis, f = orbit.focus
-  var q = orbit.argument_of_periapsis
+  var q = orbit.argument_of_periapsis, p = orbit.semi_latus_rectum
 
   // angle4 -> angle3
   var angle3 = angle4 - q
 
   // angle3 -> angle1
-  var r = a * (1 - ecc * ecc) / (1 - ecc * Math.cos(angle3))
+  var r = p / (1 - ecc * Math.cos(angle3))
   var angle1 = Math.atan2(a/b*r * Math.sin(angle3), r * Math.cos(angle3) - f)
   angle1 += PI2 * Math.round(angle3 / PI2)
 
   // angle1 -> time
-  var time = tpi2 * (ecc * Math.sin(angle1) + angle1) + orbit.epoch
+  var time = (ecc * Math.sin(angle1) + angle1) / w + orbit.epoch
   return time
 }
 function t_angle4(orbit, time) {
-  var tpi2 = orbit.period / PI2
-  var ecc = orbit.eccentricity
+  var w = orbit.angular_frequency, ecc = orbit.eccentricity
   var a = orbit.semi_major_axis, b = orbit.semi_minor_axis, f = orbit.focus
   var q = orbit.argument_of_periapsis
 
@@ -124,8 +129,8 @@ function t_angle4(orbit, time) {
   var error = 1, tally = 0, abs_time = Math.abs(time)
   var max_error = 1e-4 / (abs_time > 1 ? abs_time : 1)
   for (tally = 0; tally < MAX_TALLY && error > max_error; ++tally) {
-    angle1 = time / tpi2 - ecc * Math.sin(angle1)
-    var temp = tpi2 * (ecc * Math.sin(angle1) + angle1)
+    angle1 = time * w - ecc * Math.sin(angle1)
+    var temp = (ecc * Math.sin(angle1) + angle1) / w
     error = FU.error(temp, time)
   }
   TALLY = tally
@@ -156,7 +161,6 @@ function draw_intersection(orbit, body, time) {
   var time1 = angle4_t(ORBIT, angle41)
   var time2 = angle4_t(ORBIT, angle42)
 
-
   var body_angle1 = get_angle(body, time1)
   var body_position1 = PT.circle(body_angle1, distance)
 
@@ -169,21 +173,56 @@ function draw_intersection(orbit, body, time) {
   PT.drawCircle(G, PT.sum(body_position1, CNTR), 5, body.color)
   PT.drawCircle(G, PT.sum(body_position2, CNTR), 5, body.color)
 }
-function get_intersection(orbit, body, time) {
+function get_intersection(orbit, body, start_time) {
   var a = orbit.semi_major_axis, b = orbit.semi_minor_axis, f = orbit.focus
-  var q = orbit.argument_of_periapsis
+  var q = orbit.argument_of_periapsis, p = orbit.semi_latus_rectum
+  var ecc = orbit.eccentricity, mu = orbit.standard_gravitational_parameter
 
   var distance = body.distance
-  var angle4 = t_angle4(orbit, time)
+  var angle4 = t_angle4(orbit, start_time)
   var angle40 = Math.acos((distance * a - b * b) / distance / f)
+  if (isNaN(angle40)) {
+    return {
+      angle_dist: PI2,
+      deltaV: Infinity,
+      transit_time: Infinity
+    }
+  }
+
   var angle41 = FU.round_over(q + angle40, angle4, PI2)
   var angle42 = FU.round_over(q - angle40, angle4, PI2)
-  var time1 = angle4_t(ORBIT, angle41)
-  var time2 = angle4_t(ORBIT, angle42)
-  var body_angle1 = get_angle(body, time1)
-  var body_angle2 = get_angle(body, time2)
+  var transit_time1 = angle4_t(ORBIT, angle41)
+  var transit_time2 = angle4_t(ORBIT, angle42)
+  var body_angle1 = get_angle(body, transit_time1)
+  var body_angle2 = get_angle(body, transit_time2)
+  var angle_dist1 = FU.period_dist(body_angle1, angle41, PI2)
+  var angle_dist2 = FU.period_dist(body_angle2, angle42, PI2)
 
+  if (angle_dist1 < angle_dist2) {
+    angle_dist = angle_dist1
+    body_angle = body_angle1
+    transit_time = transit_time1
+    angle = angle41
+  }
+  else {
+    angle_dist = angle_dist2
+    body_angle = body_angle2
+    transit_time = transit_time2
+    angle = angle42
+  }
 
+  var sin = Math.sin(angle), cos = Math.cos(angle)
+  var esinq = ecc * Math.sin(q), ecosq = ecc * Math.cos(q)
+
+  var v1 = PT.muls([esinq - sin, cos - ecosq], Math.sqrt(mu / p))
+  var v2 = PT.muls([-sin, cos], Math.sqrt(mu / distance))
+  var deltaV = PT.dist(v1, v2)
+
+  return {
+    angle_dist: angle_dist,
+    deltaV: deltaV,
+    transit_time: transit_time - start_time
+  }
 }
 
 function draw_orbit(orbit, color) {
