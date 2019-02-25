@@ -17,6 +17,8 @@ FU.setCookie = (cname, cvalue, exdays) => {
   document.cookie = `${cname}=${cvalue};expires=${d.toUTCString()};path=/`
 }
 
+
+FU.now = () => (new Date()).getTime()
 FU.error = (experimental_value, accepted_value) =>
   Math.abs((experimental_value - accepted_value) / accepted_value)
 FU.round_over = (value, base, period) => {
@@ -30,8 +32,8 @@ FU.round_over = (value, base, period) => {
   return value_offset + base_floor
 }
 FU.period_dist = (value1, value2, period) => {
-  var p4 = period / 4, p2 = period / 2
-  return p4 - Math.abs(p4 - Math.abs(value1 - value2) % p2)
+  var v12 = value1 - value2
+  return Math.abs(v12 - period * Math.floor(v12 / period + 0.5))
 }
 
 FU.sqr = x => x*x

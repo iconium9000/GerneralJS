@@ -37,6 +37,7 @@
     @wlPt
     @isRt
     @hsRt
+    @rtUp
 */
 
 err = console.error
@@ -70,9 +71,13 @@ function USR_IO_KYS() {
   USR_IO_KYS.hsUp = {}
 }
 
+function USR_IO_NOW() {
+  return (new Date()).getTime()
+}
+
 function USR_IO_EVNTS() {
   var e = USR_IO_EVNTS
-  e.nw = (new Date()).getTime()
+  e.nw = USR_IO_NOW()
   e.dt = e.nw - e.lst
   e.lst = e.nw
   e.tk = e.tk ? e.tk + 1 : 1
@@ -91,7 +96,7 @@ function USR_IO_SET_MWS() {
   USR_IO_MWS.hsDn = USR_IO_MWS.hsDrgd = USR_IO_MWS.hsUp = false
   USR_IO_MWS.prv = PT.copy(USR_IO_MWS)
   USR_IO_MWS.prv.isDn = USR_IO_MWS.isDn
-  USR_IO_MWS.hsRt = false
+  USR_IO_MWS.rtUp = USR_IO_MWS.hsRt = false
   USR_IO_MWS.hsWl = false
   USR_IO_MWS.wlPt = []
 }
@@ -118,7 +123,8 @@ function USR_IO_SET_MWS() {
   $(document).mouseup(e => {
     setMouse(e)
     USR_IO_MWS.isRt = USR_IO_MWS.isDn = false
-    USR_IO_MWS.hsUp = true
+    USR_IO_MWS.hsUp = e.button != 2
+    USR_IO_MWS.rtUp = e.button == 2
     USR_IO_KYS.isDn.Shift = USR_IO_MWS.shftDn = e.shiftKey
   })
   document.addEventListener('touchstart',e => {
