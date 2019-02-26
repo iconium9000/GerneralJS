@@ -46,7 +46,8 @@ SCALE = get_scale()
 NODE_AREA_VARY = 20e2
 NODE_MIN_SIZE = 2e2
 AREA_TO_SHIPS = 5 / NODE_MIN_SIZE
-SHIP_GROWTH = 0.5 / NODE_MIN_SIZE
+BASE_GROWTH = 0.5
+SHIP_GROWTH = 0.1 / NODE_MIN_SIZE
 DEFAULT_COLOR = 'white'
 FONT_SCALE = 6
 TIME_CHUNK = 10
@@ -99,6 +100,7 @@ function new_node() {
     color: DEFAULT_COLOR,
     radius: Math.sqrt(area / PI),
     area: area,
+    growth_rate: area * SHIP_GROWTH + BASE_GROWTH,
     timeline: [0],
     events: [{
       timelock: TIME,
@@ -134,7 +136,7 @@ function get_player(event, time) {
 }
 function get_ships(event, node, time) {
   if (event.player) {
-    return event.ships + node.area * SHIP_GROWTH * (time - event.time)
+    return event.ships + node.growth_rate * (time - event.time)
   }
   else {
     return event.ships
@@ -263,11 +265,56 @@ function send_ship(src_node, dst_node, player, src_time) {
 function send_ships(dst_node, src_nodes, start_time) {
   var player = PLAYER.color
   src_nodes.forEach(src_node => {
-    var event = get_event(src_node, start_time)
-    var ships = Math.floor(SEND_RATIO * get_ships(event, src_node, start_time))
-    var time = start_time
-    FU.forlen(ships, () => {
-      send_ship(src_node, dst_node, player, time += SHIP_DELAY)
+    if (src_node == dst_node) {
+      return // cannot send ships to the same node
+    }
+
+    start_time += RAND() * TIME_VARY
+
+    var pre_src_event = get_event(src_node, start_time)
+    var ships = get_ships(pre_src_event, src_node, start_time)
+    ships = Math.floor(SEND_RATIO * ships)
+
+    var dist = PT.dist(src_node.position, dst_node.position)
+    var transit_time = dist / SHIP_SPEED + RAND() * TIME_VARY
+
+    var src_event = {
+      sauce: player,
+      sign: -NEW_SHIP * ships,
+      time: start_time
+    }
+    insert_event(src_node, pre_src_event, src_event)
+
+    FU.forlen(ships, i => {
+
+      src_time = i * SHIP_DELAY + start_time
+      var dst_time = src_time + transit_time
+
+      var pre_dst_event = get_event(dst_node, dst_time)
+      var dst_event = {
+        time: dst_time,
+        sauce: player,
+        sign: NEW_SHIP
+      }
+      insert_event(dst_node, pre_dst_event, dst_event)
+
+      var ship = {
+        sauce: player, transit_time: transit_time,
+        src_node: src_node, dst_node: dst_node,
+        src_time: src_time, dst_time: dst_time,
+      }
+      var ship_idx = GAME.ships.length
+      GAME.ships.push(ship)
+      var src_time_idx = get_time_idx(src_time)
+      var dst_time_idx = get_time_idx(dst_time)
+      // log(src_time_idx, dst_time_idx)
+      for (var i = src_time_idx; i <= dst_time_idx; ++i) {
+        if (!(GAME.timeline[i] < ship_idx)) {
+          GAME.timeline[i] = ship_idx
+        }
+      }
+
+
     })
     // log(dst_node, src_node, time)
   })

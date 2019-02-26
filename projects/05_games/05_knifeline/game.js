@@ -14,6 +14,8 @@ NEW_GAME_POLL_TIMEOUT = 20e3
 CLNT_SIZE_INTERVAL = 4e3
 SRVR_SIZE_INTERVAL = 8e3
 
+CHANGE_TURN_INTERVAL = 5e3
+
 SIZE = []
 MIN_SCREEN_SIZE = [500, 500]
 DEF_SIZE = [1920, 1080]
@@ -34,8 +36,10 @@ GAME_SRVR_INIT = () => {
 
   SIZE_ID = {}
   // setInterval(srvr_update_size, SRVR_SIZE_INTERVAL)
-}
 
+  setInterval(check_turns, CHANGE_TURN_INTERVAL)
+
+}
 GAME_CLNT_INIT = () => {
   log('init game clnt')
 
@@ -63,9 +67,37 @@ function get_color() {
   return 'white'
 }
 
+function check_turns() {
+  var new_mode = get_mode()
+  if (new_mode) {
+    if (GAME.mode != new_mode) {
+      var turns = GAME.turns = []
+      GAME.turn_idx = 0
+      GAME.mode = new_mode
+      var n_players = FU.count(GAME.players)
+      var n_stat = STAT_FUNCTIONS[new_mode](n_players)
+
+      for (var player in GAME.players){
+        FU.forlen(n_stat, i => turns.push(player))
+      }
+      FU.shuffle(turns)
+    }
+    else {
+      ++GAME.turn_idx
+    }
+  }
+
+  GAME.turn = GAME.turns[GAME.turn_idx % GAME.turns.length]
+  log('GAME.turn: ', GAME.turn)
+
+  SECURITY_FUN.srvr_update_turn()
+}
+
 function check_player_turn(login, turn_type) {
   var mode = get_mode()
   var stat_name = FU.lookup(PLAYER_STATS, mode)
+  var turn_idx = GAME.turns[GAME.turn_idx]
+
   if (mode && stat_name && mode == TURN_TYPE_MODE[turn_type]) {
     var player = GAME.players[login.color]
     var stat = player[stat_name]
@@ -76,6 +108,7 @@ function check_player_turn(login, turn_type) {
   }
 }
 function do_player_turn(login, turn_type, arg) {
+
   var color = turn_type.slice(0,5) == 'knife' ? KNIFE_COLOR : login.color
   var player = GAME.players[login.color]
   if (!player) return
@@ -125,6 +158,7 @@ function do_player_turn(login, turn_type, arg) {
   }
 
   log(`do_player_turn: '${login.name}' '${turn_type}'`)
+  check_turns()
   SECURITY_FUN.srvr_update_map()
 }
 
@@ -149,10 +183,10 @@ function end_new_game_poll() {
       GAME.over = true
       return
     }
-    var n_nodes = 3
-    var n_links = n_players < 6 ? n_players + 1 : 6
-    var n_fountains = 2
-    var n_knives = 2
+    var n_nodes = STAT_FUNCTIONS.node(n_players)
+    var n_links = STAT_FUNCTIONS.link(n_players)
+    var n_fountains = STAT_FUNCTIONS.fountain(n_players)
+    var n_knives = STAT_FUNCTIONS.knife(n_players)
 
     for (var color in GAME.players) {
       var login = LOGIN_COLOR[color]
@@ -342,6 +376,12 @@ SECURITY_FUN = {
     if (sndr == SRVR_CLNT_ID) {
       GAME_SIZE = msg
     }
+  },
+  srvr_update_turn: () => {
+    HOST_MSG('clnt_update_turn', null, GAME.turn)
+  },
+  clnt_update_turn: () => {
+    
   }
 }
 
@@ -370,11 +410,20 @@ function new_game(poll, timeout) {
   return {
     players: {},
     poll: poll,
+    mode: null,
+    turns: [],
+    turn_idx: 0,
     over: false,
     timeout: timeout,
     nodes: [],
     links: []
   }
+}
+STAT_FUNCTIONS = {
+  node: n => 3,
+  link: n => n < 6 ? n + 1 : 6,
+  fountain: n => 2,
+  knife: n => 2,
 }
 PLAYER_STATS = {
   n_nodes: 'node',
@@ -599,7 +648,8 @@ function save_game(game) {
     var link = game.links[i]
     links.push([link.node1.idx, link.node2.idx])
   }
-  return JSON.stringify([nodes, links, game.players])
+
+  return JSON.stringify([nodes, links, game.players, game.turn])
 }
 function read_game(txt) {
   var save = JSON.parse(txt)
@@ -624,6 +674,8 @@ function read_game(txt) {
     var node2 = GAME.nodes[save_links[i][1]]
     new_link(node1, node2)
   }
+
+  GAME.turn = save[3]
   return GAME
 }
 
@@ -817,7 +869,6 @@ function draw_scores() {
       var pstat = stat ? `(Number of ${MODE}(s) ${player[stat]})` : ''
       G.fillText(`${player.name} ${pscore} ${pstat}`, 20, 20 * (3 + i))
     }
-    G.fillText(score_array.length, WH[0] - 40, 20)
   }
 }
 
@@ -847,6 +898,10 @@ GAME_TICK = () => {
   G.textAlign = 'left'
   G.fillStyle = FOUNTAIN_COLOR
   G.fillText(`Your Name: '${CLNT_NAME}'`, 20, 20)
+  if (GAME.turn == FOUNTAIN_COLOR) {
+    G.textAlign = 'right'
+    G.fillText('It is your turn', WH[0] - 20, 20)
+  }
   G.textAlign = 'center'
   G.fillStyle = 'white'
   G.fillText('Restart (R)',CNTR[0],20)
