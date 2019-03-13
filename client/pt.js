@@ -12,6 +12,28 @@ RAND = Math.random
 
 pt = PT = {}
 
+PT.fillText = (g, text, point, color) => {
+  if (color) g.fillStyle = color
+  g.fillText(text, point[0] || 0, point[1] || 0)
+}
+PT.centerTextBox = (g, text, point, boarder, font_size, font_clr, bg_clr) => {
+  var p1 = (point[0] || 0)
+  var p2 = (point[1] || 0) + font_size*0.225
+
+  var edge = [p1 - font_size*0.299*text.length, p2+font_size*0.22]
+  var size = [font_size*0.6*text.length, -font_size*0.89]
+
+  g.fillStyle = bg_clr
+  g.beginPath()
+  g.rect(edge[0], edge[1], size[0], size[1])
+  g.fill()
+
+  g.fillStyle = font_clr
+  g.textAlign = 'center'
+  g.font = `${Math.floor(font_size)}px courier new`
+  g.fillText(text, p1, p2)
+}
+
 PT.shuffle = input => {
   for (var i = input.length-1; i >=0; i--) {
 

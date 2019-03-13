@@ -96,8 +96,14 @@ function check_turns() {
 function check_player_turn(login, turn_type) {
   var mode = get_mode()
   var stat_name = FU.lookup(PLAYER_STATS, mode)
-  var turn_idx = GAME.turns[GAME.turn_idx]
 
+
+  log(GAME.turn == login.color)
+  // if (GAME.turn != login.color) {
+  //   log('bad turn', GAME.turn, login.color)
+  //   return false
+  // }
+  // else
   if (mode && stat_name && mode == TURN_TYPE_MODE[turn_type]) {
     var player = GAME.players[login.color]
     var stat = player[stat_name]
@@ -205,6 +211,7 @@ function end_new_game_poll() {
     }
 
     log(`new game with ${n_players} player(s)`)
+    check_turns()
     SECURITY_FUN.srvr_update_map()
   }
 }
@@ -381,7 +388,7 @@ SECURITY_FUN = {
     HOST_MSG('clnt_update_turn', null, GAME.turn)
   },
   clnt_update_turn: () => {
-    
+
   }
 }
 
@@ -898,13 +905,16 @@ GAME_TICK = () => {
   G.textAlign = 'left'
   G.fillStyle = FOUNTAIN_COLOR
   G.fillText(`Your Name: '${CLNT_NAME}'`, 20, 20)
+  G.textAlign = 'right'
   if (GAME.turn == FOUNTAIN_COLOR) {
-    G.textAlign = 'right'
-    G.fillText('It is your turn', WH[0] - 20, 20)
+    G.fillText('It is your turn', GAME_SIZE[0] - 20, 20)
+  }
+  else {
+    G.fillText('It is NOT your turn', GAME_SIZE[0] - 20, 20)
   }
   G.textAlign = 'center'
   G.fillStyle = 'white'
-  G.fillText('Restart (R)',CNTR[0],20)
+  G.fillText('Restart (R)',GAME_SIZE[0]/2,20)
 
 
   G.textAlign = 'left'

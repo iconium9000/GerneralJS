@@ -32,9 +32,7 @@ N_NODES = 1e2
 NODE_DENSITY = 1e4
 SIZE = Math.sqrt(NODE_DENSITY * N_NODES / PI) // circle layout
 
-PROJ = 0.5
 MAP = []
-
 SCALE_HELPER = 1
 SCALE_SPEED = 1e-3
 function get_scale() {
@@ -45,6 +43,8 @@ function get_scale() {
 SCALE = get_scale()
 NODE_AREA_VARY = 20e2
 NODE_MIN_SIZE = 2e2
+NODE_MAX_HIGHT = 60
+PROJ = 0.5 / NODE_MAX_HIGHT
 AREA_TO_SHIPS = 5 / NODE_MIN_SIZE
 BASE_GROWTH = 0.5
 SHIP_GROWTH = 0.1 / NODE_MIN_SIZE
@@ -53,7 +53,7 @@ FONT_SCALE = 6
 TIME_CHUNK = 10
 SHIP_SPEED = 20
 SHIP_DELAY = 5 / SHIP_SPEED
-SHIP_RADIUS = 4
+SHIP_RADIUS = 1
 TIME_VARY = 1e-5
 NEW_SHIP = 1
 SHIP_ARC_HIGHT = 2
@@ -96,7 +96,7 @@ function new_node() {
   var area = Math.pow(Math.random(),5) * NODE_AREA_VARY + NODE_MIN_SIZE
   var node = {
     // position: PT.mul(PT.rand(3), SIZE), // square layout
-    position: PT.crand([0,0,RAND()], SIZE), // circle layout
+    position: PT.crand([0,0,NODE_MAX_HIGHT * RAND()], SIZE), // circle layout
     color: DEFAULT_COLOR,
     radius: Math.sqrt(area / PI),
     area: area,
@@ -198,70 +198,6 @@ function insert_event(node, pre_event, event) {
 
 }
 
-function send_ship(src_node, dst_node, player, src_time) {
-  if (src_node == dst_node) {
-    return // cannot send ships to the same node
-  }
-
-  var dist = PT.dist(src_node.position, dst_node.position)
-  var transit_time = dist / SHIP_SPEED + RAND() * TIME_VARY
-
-  if (src_time < src_node.timelock) {
-    // cannot send ships before timelock
-    src_time = src_node.timelock + RAND() * TIME_VARY
-  }
-
-  var dst_time = src_time + transit_time
-  if (dst_time < dst_node.timelock) {
-    // ships cannot leave before timelock
-    dst_time = dst_node.timelock + RAND() * TIME_VARY
-    src_time = dst_time - transit_time
-  }
-
-  var pre_src_event = get_event(src_node, src_time)
-  // log(src_node, pre_src_event, player)
-  if (pre_src_event.player != player) {
-    return // cannot send ships from node not owned by player at launch
-  }
-
-  var pre_ships = get_ships(pre_src_event, src_node, src_time)
-  if (pre_ships < 1) {
-    return // cannot send ships from an empty node
-  }
-
-  var src_event = {
-    time: src_time,
-    sauce: player,
-    sign: -NEW_SHIP,
-  }
-  insert_event(src_node, pre_src_event, src_event)
-  src_node.timelock = src_time
-
-  var pre_dst_event = get_event(dst_node, dst_time)
-  var dst_event = {
-    time: dst_time,
-    sauce: player,
-    sign: NEW_SHIP
-  }
-  insert_event(dst_node, pre_dst_event, dst_event)
-
-  var ship = {
-    sauce: player, transit_time: transit_time,
-    src_node: src_node, dst_node: dst_node,
-    src_time: src_time, dst_time: dst_time,
-  }
-  var ship_idx = GAME.ships.length
-  GAME.ships.push(ship)
-  var src_time_idx = get_time_idx(src_time)
-  var dst_time_idx = get_time_idx(dst_time)
-  // log(src_time_idx, dst_time_idx)
-  for (var i = src_time_idx; i <= dst_time_idx; ++i) {
-    if (!(GAME.timeline[i] < ship_idx)) {
-      GAME.timeline[i] = ship_idx
-    }
-  }
-}
-
 function send_ships(dst_node, src_nodes, start_time) {
   var player = PLAYER.color
   src_nodes.forEach(src_node => {
@@ -276,7 +212,8 @@ function send_ships(dst_node, src_nodes, start_time) {
     ships = Math.floor(SEND_RATIO * ships)
 
     var dist = PT.dist(src_node.position, dst_node.position)
-    var transit_time = dist / SHIP_SPEED + RAND() * TIME_VARY
+    var radius_sum = 0//src_node.radius + dst_node.radius
+    var transit_time = (dist - radius_sum) / SHIP_SPEED + RAND() * TIME_VARY
 
     var src_event = {
       sauce: player,
@@ -302,21 +239,19 @@ function send_ships(dst_node, src_nodes, start_time) {
         sauce: player, transit_time: transit_time,
         src_node: src_node, dst_node: dst_node,
         src_time: src_time, dst_time: dst_time,
+        start: 0,//src_node.radius / dist,
+        scale: 1,//(dist - dst_node.radius) / dist
       }
       var ship_idx = GAME.ships.length
       GAME.ships.push(ship)
       var src_time_idx = get_time_idx(src_time)
       var dst_time_idx = get_time_idx(dst_time)
-      // log(src_time_idx, dst_time_idx)
       for (var i = src_time_idx; i <= dst_time_idx; ++i) {
         if (!(GAME.timeline[i] < ship_idx)) {
           GAME.timeline[i] = ship_idx
         }
       }
-
-
     })
-    // log(dst_node, src_node, time)
   })
   log('send')
 }
@@ -382,6 +317,7 @@ function draw_ships(time) {
       var src = ship.src_node.position
       var sub = PT.sub(dst, src)
       var transit_ratio = (time - ship.src_time) / ship.transit_time
+      transit_ratio = transit_ratio * ship.scale + ship.start
 
       var arc_hight = PT.length(sub) / SIZE / 2
       arc_hight *= 4 * transit_ratio * (1 - transit_ratio)
@@ -496,7 +432,6 @@ GAME_TICK = () => {
     SCALE = get_scale()
 
     PT.vece(MAP, PT.sub(USR_IO_MWS, CNTR), 1/pre_scale - 1/SCALE)
-
   }
   if (USR_IO_KYS.hsDn['z']) {
     MAP = PT.copy(PLAYER.start_node.position)
