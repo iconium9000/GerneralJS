@@ -1,4 +1,5 @@
 #!/bin/bash -e
+#3001_blockade.sh
 
 echo starting blockade on port 3001
 cd ~/Github/GeneralJS/

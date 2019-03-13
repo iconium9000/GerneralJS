@@ -1,4 +1,5 @@
 #!/bin/bash -e
+#3005_knifeline.sh
 
 echo starting knifeline on port 3005...
 
