@@ -1,153 +1,186 @@
+// input: node app <game path> <port>
+
 log = console.log
 err = console.error
-SRVR_CLNT_ID = 0
 
-var default_port = 2000
-var port = parseInt(process.argv[3]) || default_port
-var project = process.argv[2] || '00_template'
+__SRVR()
 
-var flags = {}
-for (var i = 3; i < process.argv.length; ++i) {
-  var txt = process.argv[i]
-  flags[txt] = flags[txt] || 0
-  ++flags[txt]
-}
+/**
+  This server is a modular method for enabling communicatoin between
+    a server and several clients
 
-var do_socket = !flags['nosock']
-var fake_client = flags['fake_client']
-location = null
+  Within the structure of the GeneralJS architecture are 4 primary directories
+    @root
+      contains other directories
+      contains node.js server information
+      contains git setup
+      contains README
+    @clients
+      store client information for use by a variaty of projects
+      contains folders (of any name) which MUST include
+        @index  index.html    the html file sent each of the clients
+        @init   init.js       the init file read by the server
+    @libs
 
-log('do', do_socket ? 'skt' : 'no_skt')
+    @projects
 
-if (fake_client) {
-  var express = require('express')
-  var app = express()
-  var serv = require('http').Server(app)
-  var fake_dirname = __dirname + '/client/fake_client/'
-  app.get('/',(req, res) => res.sendFile(fake_dirname + 'index.html'))
 
-  try {
-    serv.listen(port)
-  } catch (e) {
-    serv.listen(port = default_port)
-  }
-}
-else {
-  var express = require('express')
-  var app = express()
-  var serv = require('http').Server(app)
-  app.get('/', (req, res) => res.sendFile(__dirname + '/client/index.html'))
-  app.use('/client', express.static(__dirname + '/client'))
-  do_socket || app.use('/skt', express.static(__dirname + '/client/no_skt'))
-  app.use('/game', express.static(__dirname + '/projects/' + project))
+*/
 
-  PROJ_PATH = `projects/${project}/`
-  CLNT_PATH = `client/`
+function __SRVR() {
 
-  require(`./client/fu.js`)
-  require(`./client/pt.js`)
-  var fs = FS = require('fs')
+  log('init app')
 
-  try {
-    serv.listen(port)
-  } catch (e) {
-    serv.listen(port = default_port)
+  // init
+  {
+    require('./libs/fu.js')
   }
 
-  var socket_io = require('socket.io')(serv, {})
+  // setup server
+  {
+    var input_proj = process.argv[2]
+    var input_port = process.argv[3]
+    var default_proj = '00_template'
+    var default_port = 2000
+    var default_clnt = 'client2D'
+    PROJ_PATH = `projects/${input_proj || default_proj}/`
+    var srvr_proj = `/${PROJ_PATH}`
 
-  SRVR_CLNTS = {}
-  SRVR_CLNT_IDX = SRVR_CLNT_ID
+    var default_init = require('./clients/' + default_clnt + `/init.js`)
+    var proj_init = FU.safe(() => require(`.${srvr_proj}/init.js`), null)
 
-  CLNT_NAME = 'SRVR'
-  CLNT_ID = SRVR_CLNT_IDX
-  CLNT_KEY = CLNT_NAME
-  CLNT_SKT = null
-  CLNT = {
-    id: CLNT_ID,
-    key: CLNT_KEY,
-    skt: CLNT_SKT,
-    name: CLNT_NAME
-  }
-  SRVR_CLNTS[CLNT_ID] = CLNT
-  log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)
+    var proj_clnt = proj_init && proj_init.client
+    CLNT_PATH = `clients/${proj_clnt || default_clnt}`
+    var clnt_path = `/${CLNT_PATH}`
+    var clnt_init = FU.safe(() => require(`.${clnt_path}/init.js`), null)
 
-  var SRVR_MSG = (key,sndr,rcvr,msg) => {
-    // log('SRVR_MSG', key, sndr, rcvr, msg)
-    // log(SRVR_CLNTS)
 
-    // log(rcvr)
+    var ports = [
+      input_port,
+      proj_init && proj_init.port,
+      clnt_init && clnt_init.port,
+      default_init.port,
+      default_port,
+    ]
+    // express/socket setup
+    {
+      var express = require('express')
+      var app = express()
+      var http = require('http')
+      var serv = http.Server(app)
 
-    var snd = srvr_clnt => {
-      // log('snd_msg',srvr_clnt)
-      if (!srvr_clnt) return
-      else if (srvr_clnt.skt) srvr_clnt.skt.emit('msg',key,sndr,rcvr,msg)
-      else GAME_MSG(key,sndr,rcvr,msg)
-    }
-    if (rcvr) FU.forEach(rcvr, id => snd(SRVR_CLNTS[id]))
-    else FU.forEach(SRVR_CLNTS, snd)
-  }
-  HOST_MSG = (key, rcvr, msg) => SRVR_MSG(key,CLNT_ID,rcvr,msg)
 
-  // PROJECT_NAME : name of project
-  // GAME_MSG(key, sndr, rcvr, msg) : msg frm host -> clnt
-  // GAME_SRVR_INIT() : set up srvr
-  require(`./projects/${project}/game.js`)
-  log('init app.js', PROJECT_NAME, `port:${port}`)
+      var index_path = __dirname + clnt_path + '/index.html'
+      app.get('/', (req, res) => res.sendFile(index_path))
+      app.use('/client', express.static(__dirname + clnt_path))
+      app.use('/libs', express.static(__dirname + '/libs'))
+      app.use('/project', express.static(__dirname + srvr_proj))
 
-  process.openStdin().addListener('data', msg => {
-    log('datastrema',msg)
-    msg = msg.toString().trim().split(' ')
-    GAME_MSG(msg[0], CLNT_ID, [0], msg)
-  })
+      var port = null
+      for (var i in ports) {
+        try {
+          serv.listen(port = parseInt(ports[i]))
+          break
+        }
+        catch (e) {
+          continue
+        }
+      }
 
-  SRVR_WRITE_FILE_CALLBACK = ()=>{}
-  SRVR_WRITE_FILE = (file_name,obj) => fs.writeFileSync(PROJ_PATH+file_name,
-    JSON.stringify(obj), 'utf8',SRVR_WRITE_FILE_CALLBACK)
-  SRVR_READ_FILE = file_name => JSON.parse(fs.readFileSync(PROJ_PATH+file_name))
-  ON_SRVR_KILL = ()=>{}
-  GAME_SRVR_INIT()
+      log(`listening on port ${port}`)
 
-  process.on('SIGINT', () => {
-    ON_SRVR_KILL()
-    log('Killing server...')
-    process.exit()
-  })
-
-  socket_io.on('connection', clnt_skt => {
-    var clnt_id = ++SRVR_CLNT_IDX
-    var clnt_key = clnt_skt.id
-    var clnt_name = null
-    var clnt = SRVR_CLNTS[clnt_id] = {
-      id: clnt_id,
-      key: clnt_key,
-      name: clnt_name,
-      skt: clnt_skt
+      var socket_io = require('socket.io')(serv, {})
+      socket_io.on('connection', on_connection)
     }
 
-    log('connection', clnt_id, clnt_key)
+    function on_connection(clnt_skt) {
+      var clnt_id = ++SRVR_CLNT_IDX
+      var clnt_key = clnt_skt.id
+      var clnt_name = null
+      var clnt = SRVR_CLNTS[clnt_id] = {
+        id: clnt_id,
+        key: clnt_key,
+        name: clnt_name,
+        skt: clnt_skt
+      }
 
-    clnt_skt.on('disconnect', msg => {
-      delete SRVR_CLNTS[clnt_id]
-      log('disconnect', clnt_id, clnt_name, clnt_skt.id)
-    })
-    clnt_skt.on('msg', (key,rcvr,msg) => {
-      try {
-        SRVR_MSG(key,clnt_id,rcvr,msg)
-      }
-      catch (e) {
-        err(e)
-      }
-    })
-    clnt_skt.on('info', info => {
-      if (clnt_name == info.name) return
+      log('connection', clnt_id, clnt_key)
+
+      clnt_skt.on('disconnect', msg => {
+        delete SRVR_CLNTS[clnt_id]
+        log('disconnect', clnt_id, clnt_name, clnt_skt.id)
+      })
+      clnt_skt.on('msg', (key,rcvr,msg) => {
+        try {
+          SRVR_MSG(key,clnt_id,rcvr,msg)
+        }
+        catch (e) {
+          err(e)
+        }
+      })
+      clnt_skt.on('info', info => {
+        if (clnt_name == info.name) return
+
+        clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })
+        clnt.name = clnt_name = info.name
+        log('info',clnt_id,clnt_name,clnt_key)
+      })
 
       clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })
-      clnt.name = clnt_name = info.name
-      log('info',clnt_id,clnt_name,clnt_key)
+    }
+
+    function do_imports(init) {
+      if (init) {
+        var imports = {
+          libs: {},
+          project: {},
+        }
+        for (var i in init.libs) {
+          var lib_name = init.libs[i]
+          imports.libs[lib_name] = require(`./libs/${lib_name}.js`)
+        }
+        for (var i in init.project) {
+          var lib_name = init.project[i]
+          imports.project[lib_name] = require(`.${srvr_proj}/${lib_name}.js`)
+        }
+        return imports
+      }
+    }
+
+  }
+
+  // srvr/clnt io setup
+  {
+    require('./libs/srvr_io.js')
+
+    // collect imports
+    var clnt_imports = do_imports(clnt_init)
+    if (!clnt_imports) {
+      var default_imports = do_imports(default_init)
+    }
+    var proj_imports = do_imports(proj_init)
+
+    process.on('SIGINT', () => {
+      ON_SRVR_KILL()
+      log('Killing server...')
+      process.exit()
     })
 
-    clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })
-  })
-  // process.exit(-1)
+    if (proj_init && proj_init.srvr_init) {
+      proj_init.srvr_init()
+    }
+    else if (clnt_init && clnt_init.srvr_init) {
+      clnt_init.srvr_init()
+    }
+    else if (default_clnt && default_clnt.srvr_init) {
+      default_clnt.srvr_init()
+    }
+    else {
+      throw `srvr_init not found in proj_init, clnt_init, or default_init`
+    }
+  }
+
+
+
+  // project folder
 }

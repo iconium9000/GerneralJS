@@ -28,7 +28,7 @@ MSGS = []
 // -----------------------------------------------------------------------------
 
 GAME_SRVR_INIT = () => {
-  log('init game srvr')
+  log('init KnifeLine srvr')
 
   LOGIN_NAME = {}
   LOGIN_ID = {}
@@ -41,7 +41,7 @@ GAME_SRVR_INIT = () => {
 
 }
 GAME_CLNT_INIT = () => {
-  log('init game clnt')
+  log('init KnifeLine clnt')
 
   LOGIN = null
   SECURITY_FUN.clnt_rqst_login({msg:''})

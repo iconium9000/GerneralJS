@@ -1,7 +1,8 @@
+// 00_template init
+
 log('init 00_template.init')
 
 module.exports = {
-  port: 3000,
-  
+  client: 'clientMenu'
 
 }

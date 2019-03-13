@@ -16,7 +16,14 @@ FU.setCookie = (cname, cvalue, exdays) => {
   d.setTime(d.getTime() + (exdays*24*60*60*1000))
   document.cookie = `${cname}=${cvalue};expires=${d.toUTCString()};path=/`
 }
-
+FU.safe = (f,r) => {
+  try {
+    return f()
+  }
+  catch(e) {
+    return r
+  }
+}
 
 FU.now = () => (new Date()).getTime()
 FU.error = (experimental_value, accepted_value) =>
@@ -34,6 +41,51 @@ FU.round_over = (value, base, period) => {
 FU.period_dist = (value1, value2, period) => {
   var v12 = value1 - value2
   return Math.abs(v12 - period * Math.floor(v12 / period + 0.5))
+}
+
+FU.silly_name = () => {
+  var silly_name = document.cookie.length ?
+    document.cookie.split('=')[1] : 'Wisely'
+
+  var wisely_idx = 0
+  var wisely_txt = [
+  	[`Choose a name for the game.
+  Choose wisely, as it can't be changed later.`,`Wisely`],
+  	[`Ha-ha. Very funny`],
+  	[`Please Choose a name for the game.
+  Choose wisely, as it can't be changed later.`,`Changed Later`,],
+  	[`It can't be changed later.
+  Please type another name.`,`Another Name`,],
+  	[`I'm getting sick of you.`]
+  ]
+  while (true) {
+
+  	var ary = wisely_txt[wisely_idx % wisely_txt.length]
+  	var txt = ary[0]
+
+
+  	if (ary.length == 1) {
+  		alert(txt)
+  		++wisely_idx
+  		continue
+  	}
+
+  	var name = ary[1]
+
+  	silly_name = prompt(txt, silly_name || name)
+  	if (!silly_name) continue
+
+
+  	if (silly_name.toLowerCase() == name.toLowerCase()) {
+  		++wisely_idx
+  		silly_name = null
+  	}
+  	else break
+  }
+
+  FU.setCookie('NAME', silly_name, 2)
+
+  return silly_name
 }
 
 FU.sqr = x => x*x

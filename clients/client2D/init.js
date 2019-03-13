@@ -3,8 +3,13 @@ log('init index2D.init')
 
 module.exports = {
   port: 2000,
-
-  node: ['express', 'socket.io'],
   libs: ['fu', 'pt'],
-  project: ['game']
+  project: ['game'],
+
+  srvr_init: () => {
+    GAME_SRVR_INIT()
+  },
+  clnt_init: () => {
+    GAME_CLNT_INIT()
+  }
 }
