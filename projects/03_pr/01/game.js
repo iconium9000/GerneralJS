@@ -58,12 +58,12 @@ GAME_MSG = (key, sndr, rcvr, msg) => {
     }
     break
   case 'rqst_update':
-    var gameSave = JSON.parse(FS.readFileSync(SAVE_FILE))
+    var gameSave = JSON.parse(SRVR.fs.readFileSync(SAVE_FILE))
     HOST_MSG('update',[sndr],gameSave)
     break
   case 'save':
     try {
-      FS.writeFileSync(SAVE_FILE,msg)
+      SRVR.fs.writeFileSync(SAVE_FILE,msg)
       HOST_MSG('alert',[sndr],'Saved!')
     }
     catch (e) {
