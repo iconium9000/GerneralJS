@@ -1,6 +1,6 @@
 {
   "name": "generaljs",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "John FitzGerald\r General Purpose JavaScript Project",
   "main": "app.js",
   "scripts": {

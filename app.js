@@ -4,7 +4,7 @@ SRVR_CLNT_ID = 0
 
 var default_port = 2000
 var port = parseInt(process.argv[3]) || default_port
-var project = process.argv[2] || '0000_template'
+var project = process.argv[2] || '00_template'
 
 var flags = {}
 for (var i = 3; i < process.argv.length; ++i) {
@@ -107,7 +107,7 @@ else {
   SRVR_READ_FILE = file_name => JSON.parse(fs.readFileSync(PROJ_PATH+file_name))
   ON_SRVR_KILL = ()=>{}
   GAME_SRVR_INIT()
-  
+
   process.on('SIGINT', () => {
     ON_SRVR_KILL()
     log('Killing server...')
