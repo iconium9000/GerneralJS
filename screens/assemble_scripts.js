@@ -32,12 +32,27 @@ var startup_txt = `${bash_start}#startup_txt\necho startup.sh\n`
 for (var port in projects) {
   var project = projects[port]
 
-  clear_all_txt += `\t{ #try
+  clear_all_txt += `{ #try
     screen -X -S ${project.name} quit &&
     echo closed ${project.name} screen
   } || { #catch
     echo ${project.name} screen already closed
   }\n\n`
+
+  var bash_file = `projects/${project.proj}/init.sh`
+  startup_txt += `{
+    chmod +x ${directory}${bash_file}
+    screen -d -m -S ${project.name} ${directory}${bash_file}
+  }`
+
+  var project_txt = `${bash_start}\n#${project.name} init
+  echo starting ${project.name} on port ${port}
+
+  cd ${directory}
+  node app ${project.proj} ${port}`
+
+  write_file(bash_file, project_txt)
 }
 
 write_file('screens/clear_all.sh', clear_all_txt)
+write_file('screens/startup.sh', startup_txt)
