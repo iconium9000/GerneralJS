@@ -29,5 +29,5 @@ function write_file(file_name, txt) {
 
 var bash_start = '#!/bin/bash -e\n'
 
-var clear_all = `${bash_start}#clear_all.sh`
+var clear_all_txt = `${bash_start}#clear_all.sh`
 write_file('screen/clear_all.sh', clear_all_txt)
