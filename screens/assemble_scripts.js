@@ -1,6 +1,6 @@
 var fs = require('fs')
 var log = console.log
-var err = console.err
+var err = console.error
 
 var directory = process.argv[2]
 
