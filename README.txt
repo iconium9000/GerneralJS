@@ -7,6 +7,7 @@ Node server instructions:
   cmd: npm init
   cmd: npm install express
   cmd: npm install socket.io
+  cmd: npm install shelljs
 To activate server:
   cmd: node app <project_name> <port_name>
     project_name is the name of any sub-folder of 'projects'

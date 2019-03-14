@@ -5,7 +5,7 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js 0002_math/0010_heli 8080",
-    "deploy":"gcloud app deploy",
+    "deploy": "gcloud app deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -20,6 +20,7 @@
   "homepage": "https://github.com/iconium9000/GeneralJS#readme",
   "dependencies": {
     "express": "^4.16.4",
+    "shelljs": "^0.8.3",
     "socket.io": "^2.1.1"
   },
   "devDependencies": {}
