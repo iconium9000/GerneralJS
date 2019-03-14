@@ -40,7 +40,7 @@ projects.forEach(({title, name, proj, port}) => {
 
   var bash_file = `${__dirname}/projects/${proj}/init.sh`
   shell.exec(`mkdir ${__dirname}/projects/${proj}`)
-  shell.exec(`sudo creen -X -S ${name} quit`)
+  shell.exec(`sudo screen -X -S ${name} quit`)
 
   var project_txt = `${bash_start}\n#${name} init
     echo starting ${name} on port ${port}
