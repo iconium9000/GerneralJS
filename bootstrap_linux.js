@@ -47,7 +47,7 @@ projects.forEach(({title, name, proj, port}) => {
     cd ${__dirname}
     node app ${proj} ${port}`
 
-  log('write file', bash_file, project_txt)
+  // log('write file', bash_file, project_txt)
   FU.write_file(fs, bash_file, project_txt)
   shell.exec(`chmod +x ${bash_file}`)
   shell.exec(`sudo screen -d -m -S ${name} ${bash_file}`)
