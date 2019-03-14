@@ -3,6 +3,8 @@ var log = console.log
 
 var directory = process.argv[2]
 
+log(`init ${directory}/screens/assemble_scripts.js`)
+
 var games = {
   3000: [
     'menu_3000',
@@ -21,9 +23,11 @@ var games = {
   ],
 }
 
-function write_file(file_name, obj) {
-  fs.writeFileSync(file_name, JSON.stringify(obj), 'utf8', ()=>{})
+function write_file(file_name, txt) {
+  fs.writeFileSync(directory + file_name, txt, 'utf8', ()=>{})
 }
 
-log(directory)
-// fs.writeFileSync(directory + '')
+var bash_start = '#!/bin/bash -e\n'
+
+var clear_all = `${bash_start}#clear_all.sh`
+write_file('screen/clear_all.sh', clear_all_txt)
