@@ -3,9 +3,9 @@
 GENERALJS=$(pwd)
 
 echo
-echo --GO to "$GENERALJS"
+echo --GO to $(pwd)
 
-cd $GENERALJS
+cd $(pwd)
 
 {
   echo
@@ -18,35 +18,8 @@ cd $GENERALJS
 {
   echo
   echo --CREATE assembly instruections with nodeJS
-  node screens/assemble_scripts.js $GENERALJS
+  node bootstrap_linus.js
 }
-
-cd screens
-
-# {
-#   echo
-#   echo --CLEAR previous screens
-#   echo why not do it 3 times??
-#
-#   chmod +x clear_all.sh
-#   echo -clear_all try 1
-#   ./clear_all.sh
-#   echo -clear_all try 2
-#   ./clear_all.sh
-#   echo -clear_all try 3
-#   ./clear_all.sh
-#
-#   #rm clear_all.sh
-# }
-
-# {
-#   echo
-#   echo --START new servers
-#
-#   chmod +x startup.sh
-#   ./startup.sh
-#   #rm startup.sh
-# }
 
 {
   echo

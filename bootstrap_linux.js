@@ -2,10 +2,9 @@ var fs = require('fs')
 var log = console.log
 var err = console.error
 
-var directory = process.argv[2] + '/'
 var shell = require('shelljs')
 
-log(`init ${directory}screens/assemble_scripts.js`)
+log(`init ${__dirname}screens/assemble_scripts.js`)
 
 var projects = {
   3000:{
@@ -24,7 +23,7 @@ var projects = {
 
 function write_file(file_name, txt) {
   try {
-    fs.writeFileSync(directory + file_name, txt, 'utf8', ()=>{})
+    fs.writeFileSync(__dirname + file_name, txt, 'utf8', ()=>{})
     return true
   }
   catch (e) {
@@ -40,16 +39,16 @@ for (var port in projects) {
   var proj = projects[port].proj
 
   var bash_file = `projects/${proj}/init.sh`
-  shell.exec(`mkdir ${directory}projects/${proj}`)
+  shell.exec(`mkdir ${__dirname}projects/${proj}`)
   shell.exec(`screen -X -S ${name} quit`)
 
   var project_txt = `${bash_start}\n#${name} init
     echo starting ${name} on port ${port}
-    cd ${directory}
+    cd ${__dirname}
     node app ${proj} ${port}`
 
   write_file(bash_file, project_txt)
-  shell.exec(`chmod +x ${directory}${bash_file}`)
-  shell.exec(`screen -d -m -S ${name} ${directory}${bash_file}`)
+  shell.exec(`chmod +x ${__dirname}${bash_file}`)
+  shell.exec(`screen -d -m -S ${name} ${__dirname}${bash_file}`)
   shell.exec(`screen -ls`)
 }
