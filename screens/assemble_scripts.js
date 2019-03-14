@@ -51,9 +51,9 @@ for (var port in projects) {
   write_file(bash_file, project_txt)
   shell.exec(`chmod +x ${directory}${bash_file}`)
   shell.exec(`screen -d -m -S ${name} ${directory}${bash_file}`)
+  shell.exec(`screen -ls`)
 }
 
-shell.exec(`screen -ls`)
 
 
 //
