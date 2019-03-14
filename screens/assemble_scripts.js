@@ -3,7 +3,7 @@ var log = console.log
 
 var directory = process.argv[2]
 
-log(`init ${directory}/screens/assemble_scripts.js`)
+log(`init ${directory}screens/assemble_scripts.js`)
 
 var games = {
   3000: [
@@ -30,4 +30,4 @@ function write_file(file_name, txt) {
 var bash_start = '#!/bin/bash -e\n'
 
 var clear_all_txt = `${bash_start}#clear_all.sh`
-write_file('screen/clear_all.sh', clear_all_txt)
+write_file('screens/clear_all.sh', clear_all_txt)
