@@ -1,5 +1,6 @@
 var fs = require('fs')
 var log = console.log
+var err = console.err
 
 var directory = process.argv[2]
 
@@ -21,7 +22,12 @@ var projects = {
 }
 
 function write_file(file_name, txt) {
-  fs.writeFileSync(directory + file_name, txt, 'utf8', ()=>{})
+  try {
+    fs.writeFileSync(directory + file_name, txt, 'utf8', ()=>{})
+  }
+  catch (e) {
+    err(e)
+  }
 }
 
 var bash_start = '#!/bin/bash -e\n'
