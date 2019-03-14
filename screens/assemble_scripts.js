@@ -37,7 +37,7 @@ for (var port in projects) {
   var name = projects[port].name
   var proj = projects[port].proj
 
-  shell.exec(`mkdir ${directory}${proj}`)
+  shell.exec(`mkdir ${directory}projects/${proj}`)
 }
 
 
