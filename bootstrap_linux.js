@@ -3,42 +3,42 @@ var log = console.log
 var err = console.error
 
 var shell = require('shelljs')
+require('./libs/fu.js')
 
-log(`init ${__dirname}screens/assemble_scripts.js`)
+log(`init ${__dirname}/assemble_scripts.js`)
 
-var projects = {
-  3000:{
+var projects = [
+  {
+    title: 'Menu',
     name: 'menu_3000',
-    proj: '05_games/00_menu'
+    proj: '05_games/00_menu',
+    port: 3000,
   },
-  3001: {
+  {
+    title: 'Blockade (hard)',
     name: 'blockade_3001',
     proj: '05_games/01_blockade',
+    port: 3001,
   },
-  3005: {
+  {
+    title: 'Tanks',
+    name: 'tanks_3003',
+    proj: '05_games/03_tanks',
+    port: 3003,
+  },
+  {
+    title: 'KnifeLine',
     name: 'knifeline_3005',
     proj: '05_games/05_knifeline',
+    port: 3005,
   },
-}
-
-function write_file(file_name, txt) {
-  try {
-    fs.writeFileSync(`${__dirname}/${file_name}`, txt, 'utf8', ()=>{})
-    return true
-  }
-  catch (e) {
-    // err(e)
-    return false
-  }
-}
+]
 
 var bash_start = '#!/bin/bash -e\n'
 
-for (var port in projects) {
-  var name = projects[port].name
-  var proj = projects[port].proj
+projects.forEach(({title, name, proj, port}) => {
 
-  var bash_file = `projects/${proj}/init.sh`
+  var bash_file = `${__dirname}/projects/${proj}/init.sh`
   shell.exec(`mkdir ${__dirname}/projects/${proj}`)
   shell.exec(`screen -X -S ${name} quit`)
 
@@ -47,8 +47,10 @@ for (var port in projects) {
     cd ${__dirname}
     node app ${proj} ${port}`
 
-  write_file(bash_file, project_txt)
-  shell.exec(`chmod +x ${__dirname}/${bash_file}`)
-  shell.exec(`screen -d -m -S ${name} ${__dirname}/${bash_file}`)
+  log('write file', bash_file, project_txt)
+  FU.write_file(fs, bash_file, project_txt)
+  shell.exec(`chmod +x ${bash_file}`)
+  shell.exec(`screen -d -m -S ${name} ${bash_file}`)
+  shell.exec(`rm ${bash_file}`)
   shell.exec(`screen -ls`)
-}
+})

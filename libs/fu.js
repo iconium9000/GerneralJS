@@ -21,7 +21,19 @@ FU.safe = (f,r) => {
     return f()
   }
   catch(e) {
+    err(e)
     return r
+  }
+}
+
+FU.write_file = (fs, file_name, txt) => {
+  try {
+    fs.writeFileSync(file_name, txt, 'utf8', ()=>{})
+    return true
+  }
+  catch (e) {
+    // err(e)
+    return false
   }
 }
 
