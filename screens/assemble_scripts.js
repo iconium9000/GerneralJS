@@ -27,6 +27,7 @@ function write_file(file_name, txt) {
     return true
   }
   catch (e) {
+    err(e)
     return false
   }
 }
@@ -64,5 +65,7 @@ for (var port in projects) {
 
 startup_txt += 'screen -ls'
 
+log(`writting clear_all.sh`)
 write_file('screens/clear_all.sh', clear_all_txt)
+log(`writting startup.sh`)
 write_file('screens/startup.sh', startup_txt)

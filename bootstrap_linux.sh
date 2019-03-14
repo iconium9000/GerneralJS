@@ -36,7 +36,7 @@ cd screens
   echo -clear_all try 3
   ./clear_all.sh
 
-  rm clear_all.sh
+  #rm clear_all.sh
 }
 
 {
@@ -45,7 +45,7 @@ cd screens
 
   chmod +x startup.sh
   ./startup.sh
-  rm startup.sh
+  #rm startup.sh
 }
 
 {
