@@ -1,6 +1,8 @@
 var fs = require('fs')
 var log = console.log
 
+log(__dirname)
+
 
 var games = {
   3000: [
@@ -23,5 +25,7 @@ var games = {
 function write_file(file_name, obj) {
   fs.writeFileSync(file_name, JSON.stringify(obj), 'utf8', ()=>{})
 }
+
+fs.writeFileSync()
 
 log(process.argv)
