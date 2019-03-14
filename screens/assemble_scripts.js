@@ -33,15 +33,29 @@ function write_file(file_name, txt) {
   }
 }
 
+var bash_start = '#!/bin/bash -e\n'
+
 for (var port in projects) {
   var name = projects[port].name
   var proj = projects[port].proj
 
+  var bash_file = `projects/${project.proj}/init.sh`
   shell.exec(`mkdir ${directory}projects/${proj}`)
+  shell.exec(`screen -X -S ${name} quit`)
+
+  var project_txt = `${bash_start}\n#${name} init
+    echo starting ${name} on port ${port}
+    cd ${directory}
+    node app ${proj} ${port}`
+
+  write_file(bash_file, project_txt)
+  shell.exec(`chmod +x ${directory}${bash_file}`)
+  shell.exec(`screen -d -m -S ${name} ${directory}${bash_file}`)
 }
 
+shell.exec(`screen -ls`)
 
-// var bash_start = '#!/bin/bash -e\n'
+
 //
 // var clear_all_txt = `${bash_start}#clear_all.sh\necho init clear_all.sh\n`
 // var startup_txt = `${bash_start}#startup_txt\necho init startup.sh\n`
