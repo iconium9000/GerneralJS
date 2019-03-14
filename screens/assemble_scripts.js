@@ -24,9 +24,10 @@ var projects = {
 function write_file(file_name, txt) {
   try {
     fs.writeFileSync(directory + file_name, txt, 'utf8', ()=>{})
+    return true
   }
   catch (e) {
-    err(e)
+    return false
   }
 }
 
@@ -38,18 +39,7 @@ var startup_txt = `${bash_start}#startup_txt\necho startup.sh\n`
 for (var port in projects) {
   var project = projects[port]
 
-  clear_all_txt += `{ #try
-    screen -X -S ${project.name} quit &&
-    echo closed ${project.name} screen
-  } || { #catch
-    echo ${project.name} screen already closed
-  }\n\n`
-
   var bash_file = `projects/${project.proj}/init.sh`
-  startup_txt += `{
-    chmod +x ${directory}${bash_file}
-    screen -d -m -S ${project.name} ${directory}${bash_file}
-  }`
 
   var project_txt = `${bash_start}\n#${project.name} init
   echo starting ${project.name} on port ${port}
@@ -57,7 +47,19 @@ for (var port in projects) {
   cd ${directory}
   node app ${project.proj} ${port}`
 
-  write_file(bash_file, project_txt)
+  if (write_file(bash_file, project_txt)) {
+    clear_all_txt += `{ #try
+      screen -X -S ${project.name} quit &&
+      echo closed ${project.name} screen
+    } || { #catch
+      echo ${project.name} screen already closed
+    }\n\n`
+
+    startup_txt += `{
+      chmod +x ${directory}${bash_file}
+      screen -d -m -S ${project.name} ${directory}${bash_file}
+    }`
+  }
 }
 
 write_file('screens/clear_all.sh', clear_all_txt)
