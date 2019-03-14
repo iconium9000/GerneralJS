@@ -58,7 +58,7 @@ for (var port in projects) {
     startup_txt += `{
       chmod +x ${directory}${bash_file}
       screen -d -m -S ${project.name} ${directory}${bash_file}
-    }`
+    }\n\n`
   }
 }
 
