@@ -33,8 +33,8 @@ function write_file(file_name, txt) {
 
 var bash_start = '#!/bin/bash -e\n'
 
-var clear_all_txt = `${bash_start}#clear_all.sh\necho clear_all.sh\n`
-var startup_txt = `${bash_start}#startup_txt\necho startup.sh\n`
+var clear_all_txt = `${bash_start}#clear_all.sh\necho init clear_all.sh\n`
+var startup_txt = `${bash_start}#startup_txt\necho init startup.sh\n`
 
 for (var port in projects) {
   var project = projects[port]
@@ -61,6 +61,8 @@ for (var port in projects) {
     }\n\n`
   }
 }
+
+startup_txt += 'screen -ls'
 
 write_file('screens/clear_all.sh', clear_all_txt)
 write_file('screens/startup.sh', startup_txt)
