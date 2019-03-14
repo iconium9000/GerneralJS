@@ -3,6 +3,7 @@ var log = console.log
 var err = console.error
 
 var directory = process.argv[2] + '/'
+var shell = require('shelljs')
 
 log(`init ${directory}screens/assemble_scripts.js`)
 
