@@ -39,7 +39,7 @@ for (var port in projects) {
   var name = projects[port].name
   var proj = projects[port].proj
 
-  var bash_file = `projects/${project.proj}/init.sh`
+  var bash_file = `projects/${proj}/init.sh`
   shell.exec(`mkdir ${directory}projects/${proj}`)
   shell.exec(`screen -X -S ${name} quit`)
 
