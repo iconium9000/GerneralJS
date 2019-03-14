@@ -18,7 +18,7 @@ cd $(pwd)
 {
   echo
   echo --CREATE assembly instruections with nodeJS
-  node bootstrap_linus.js
+  node bootstrap_linux.js
 }
 
 {
