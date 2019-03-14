@@ -27,7 +27,7 @@ function write_file(file_name, txt) {
     return true
   }
   catch (e) {
-    err(e)
+    // err(e)
     return false
   }
 }
