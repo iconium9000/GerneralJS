@@ -33,6 +33,12 @@ function write_file(file_name, txt) {
   }
 }
 
+for (var port in projects) {
+  var name = projects[port].name
+  var proj = projects[port].proj
+
+  shell.exec(`mkdir ${proj}`)
+}
 
 
 // var bash_start = '#!/bin/bash -e\n'
