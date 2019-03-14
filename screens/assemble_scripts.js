@@ -4,7 +4,7 @@ var err = console.error
 
 var directory = process.argv[2]
 
-log(`init ${directory}screens/assemble_scripts.js`)
+log(`init ${directory}/screens/assemble_scripts.js`)
 
 var projects = {
   3000:{
@@ -45,7 +45,7 @@ for (var port in projects) {
   var project_txt = `${bash_start}\n#${project.name} init
   echo starting ${project.name} on port ${port}
 
-  cd ${directory}
+  cd ${directory}/
   node app ${project.proj} ${port}`
 
   if (write_file(bash_file, project_txt)) {
@@ -57,8 +57,8 @@ for (var port in projects) {
     }\n\n`
 
     startup_txt += `{
-      chmod +x ${directory}${bash_file}
-      screen -d -m -S ${project.name} ${directory}${bash_file}
+      chmod +x ${directory}/${bash_file}
+      screen -d -m -S ${project.name} ${directory}/${bash_file}
     }\n\n`
   }
 }
