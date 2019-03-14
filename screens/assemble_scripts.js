@@ -26,7 +26,8 @@ function write_file(file_name, txt) {
 
 var bash_start = '#!/bin/bash -e\n'
 
-var clear_all_txt = `${bash_start}#clear_all.sh\n`
+var clear_all_txt = `${bash_start}#clear_all.sh\necho clear_all.sh\n`
+var startup_txt = `${bash_start}#startup_txt\necho startup.sh\n`
 
 for (var port in projects) {
   var project = projects[port]
