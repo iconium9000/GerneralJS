@@ -36,7 +36,11 @@ var projects = [
 
 var bash_start = '#!/bin/bash -e\n'
 
-function setup_server({title, name, proj, port}) {
+function setup_server(project) {
+  var title = project.title
+  var name = project.name
+  var proj = project.proj
+  var port = project.port
 
   var bash_file = `${__dirname}/projects/${proj}/init.sh`
   // shell.exec(`mkdir ${__dirname}/projects/${proj}`)
