@@ -36,7 +36,7 @@ var projects = [
 
 var bash_start = '#!/bin/bash -e\n'
 
-projects.forEach(({title, name, proj, port}) => {
+function setup_server({title, name, proj, port}) {
 
   var bash_file = `${__dirname}/projects/${proj}/init.sh`
   // shell.exec(`mkdir ${__dirname}/projects/${proj}`)
@@ -53,4 +53,6 @@ projects.forEach(({title, name, proj, port}) => {
   shell.exec(`sudo screen -d -m -S ${name} ${bash_file}`)
   shell.exec(`rm ${bash_file}`)
   shell.exec(`sudo screen -ls`)
-})
+}
+
+projects.forEach(setup_server)
