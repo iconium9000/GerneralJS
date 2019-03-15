@@ -4,6 +4,57 @@ PROJECT_NAME = 'Battle Tanks'
 log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
 
+{
+  var n = 1000
+  var m = 5
+
+  var text = ''
+  FU.forlen(n, i => text += '0')
+
+  // var text = '000000010000000'
+
+  var tests = ['00001', '10000', '01010']
+  for (var i = 0; i < n; ++i) {
+    var test = ''
+    FU.forlen(i, j => test += '0')
+    test += '1'
+    tests.push(test)
+  }
+
+
+  var coms = []
+  tests.forEach(test => {
+
+    var proj = (test.length) * (text.length - test.length + 1)
+
+    var com = 0
+    for (var i = 0; i <= text.length - test.length; ++i) {
+      for (var j = 0; j < test.length; ++j) {
+        if (++com && text[i + j] == test[j]) {
+          if (j + 1 == test.length) {
+            coms.push([com, test.length, proj])
+            // log('found test', test.length)
+            // log('comparisons:', com)
+            return
+          }
+        }
+        else break
+      }
+    }
+
+    coms.push([com, test.length, proj])
+
+    // log('could not find test', test.length)
+    // log('comparisons:', com)
+
+  })
+
+  coms.sort((a,b)=>b[0]-a[0])
+  coms.forEach(i => log(i))
+
+
+
+}
 
 
 GAME_MSG = (key, sndr, rcvr, msg) => {
