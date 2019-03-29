@@ -3,8 +3,6 @@
 log = console.log
 err = console.error
 
-__SRVR()
-
 /**
   This server is a modular method for enabling communicatoin between
     a server and several clients
@@ -26,8 +24,9 @@ __SRVR()
 
 
 */
+//
 
-function __SRVR() {
+(function() {
 
   log('init app')
 
@@ -73,8 +72,11 @@ function __SRVR() {
       var index_path = __dirname + clnt_path + '/index.html'
       app.get('/', (req, res) => res.sendFile(index_path))
       app.use('/client', express.static(__dirname + clnt_path))
-      app.use('/libs', express.static(__dirname + '/libs'))
       app.use('/project', express.static(__dirname + srvr_proj))
+
+      function add_dir(clnt_dir, srvr_dir) {
+        app.use(clnt_dir, express.static(__dirname + srvr_dir))
+      }
 
       var port = null
       for (var i in ports) {
@@ -129,11 +131,23 @@ function __SRVR() {
       clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })
     }
 
-    function do_imports(init) {
+    function do_imports(init, dirs) {
       if (init) {
+        for (var dir_name in init.dirs) {
+          log('dir_name', dir_name)
+          if (dirs[dir_name]) {
+            continue
+          }
+          else {
+            dirs[dir_name] = true
+            add_dir(dir_name, init.dirs[dir_name])
+          }
+        }
+
         var imports = {
           libs: {},
           project: {},
+          modules: {},
         }
         for (var i in init.libs) {
           var lib_name = init.libs[i]
@@ -142,6 +156,10 @@ function __SRVR() {
         for (var i in init.project) {
           var lib_name = init.project[i]
           imports.project[lib_name] = require(`.${srvr_proj}/${lib_name}.js`)
+        }
+        for (var i in init.modules) {
+          var lib_name = init.modules[i]
+          imports.modules[lib_name] = require(`./node_modules/${lib_name}.js`)
         }
         return imports
       }
@@ -154,9 +172,11 @@ function __SRVR() {
     require('./libs/srvr_io.js')
 
     // collect imports
-    var clnt_imports = do_imports(clnt_init)
-    if (!clnt_imports) {
-      var default_imports = do_imports(default_init)
+    var dirs = {}
+    var proj_imports = do_imports(proj_init, dirs)
+    var clnt_imports = do_imports(clnt_init, dirs)
+    if (!proj_imports && !clnt_imports) {
+      var default_imports = do_imports(default_init, dirs)
     }
     var proj_imports = do_imports(proj_init)
 
@@ -180,7 +200,8 @@ function __SRVR() {
     }
   }
 
-
-
   // project folder
-}
+
+
+  return 'Started Server Successfully!'
+}());

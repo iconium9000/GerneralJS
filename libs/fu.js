@@ -144,9 +144,19 @@ FU.forlen = (l,f) => {
     f(i,l)
   }
 }
-FU.forEach = (l,f) => {
-  var p = {}
+FU.forEach = (l,f,k) => {
+  var p = k || {}
   for (var i in l) p[i] = f(l[i],i,l)
+  return p
+}
+FU.forEach2 = (a,f,k) => {
+  var p = k || []
+  for (var i = 0; i < a.length; ++i) {
+    var a1 = a[i]
+    for (var j = i+1; j < a.length; ++j) {
+      p.push(f(a1,a[j],i,j,p.length))
+    }
+  }
   return p
 }
 FU.rand_char = () => {

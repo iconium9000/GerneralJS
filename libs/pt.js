@@ -445,6 +445,17 @@ PT.drawLine = (g,a,b,c) => {
   g.lineTo(b[0] || 0, b[1] || 0)
   g.stroke()
 }
+PT.drawLines = (g,ps,c) => {
+  if (c) g.strokeStyle = c
+  if (ps.length < 2) return
+
+  g.beginPath()
+  g.moveTo(ps[0][0] || 0, ps[0][1] || 0)
+  for (var i = 1; i < ps.length; ++i) {
+    g.lineTo(ps[i][0] || 0, ps[i][1] || 0)
+  }
+  g.stroke()
+}
 PT.drawCircle = (g, p, r, c) => {
   if (!r) return
   if (c) g.strokeStyle = c

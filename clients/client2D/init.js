@@ -6,6 +6,11 @@ module.exports = {
   port: 2000,
   libs: ['fu', 'pt'],
   project: ['game'],
+  modules: [],
+  dirs: {
+    '/libs': '/libs',
+    '/jq': '/node_modules/jquery/dist',
+  },
 
   srvr_init: () => {
     GAME_SRVR_INIT()

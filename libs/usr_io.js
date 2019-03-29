@@ -42,7 +42,7 @@
 
 err = console.error
 log = console.log
-log('init io.js')
+log('init usr_io.js')
 
 function USR_IO_TICK(f) {
   USR_IO_DSPLY()
