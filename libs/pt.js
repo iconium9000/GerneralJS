@@ -16,22 +16,82 @@ PT.fillText = (g, text, point, color) => {
   if (color) g.fillStyle = color
   g.fillText(text, point[0] || 0, point[1] || 0)
 }
-PT.centerTextBox = (g, text, point, boarder, font_size, font_clr, bg_clr) => {
+PT.centerTextBox = (g, text, point, boarder, font_size, font_c, bg_c) => {
   var p1 = (point[0] || 0)
   var p2 = (point[1] || 0) + font_size*0.225
 
   var edge = [p1 - font_size*0.299*text.length, p2+font_size*0.22]
   var size = [font_size*0.6*text.length, -font_size*0.89]
 
-  g.fillStyle = bg_clr
+  g.fillStyle = bg_c
   g.beginPath()
   g.rect(edge[0], edge[1], size[0], size[1])
   g.fill()
 
-  g.fillStyle = font_clr
+  g.fillStyle = font_c
   g.textAlign = 'center'
   g.font = `${Math.floor(font_size)}px courier new`
   g.fillText(text, p1, p2)
+}
+PT.controlBox = (g, point, wh, font_size, mws, functionArray) => {
+  var px = point[0], py = point[1]
+  var w = wh[0], h = wh[1]
+  if (0 > px || px > w || 0 > py || py > h) {
+    return false
+  }
+  var mx = mws[0], my = mws[1]
+
+  g.font = `${Math.floor(font_size)}px courier new`
+  var padding = 10, bx = 0
+  var by = (functionArray.length) * (font_size + padding) + padding
+  functionArray.forEach(array => {
+    var len = 0
+    array.forEach(fun => {
+      len += (fun.txt = `${fun.txt}`).length
+    })
+    var x = (len * font_size * 0.6) + (1+array.length) * padding
+    bx = x > bx ? x : bx
+  })
+  if (px + bx > w) {
+    px -= bx
+  }
+  if (py + by > h) {
+    py -= by
+  }
+
+  var notdown = mws.hsDn || !(mws.isDn || mws.isRt)
+  var inbox = notdown && px < mx && mx < (px+bx) && py < my && my < (py+by)
+
+  var y = py
+  PT.fillRect(g, [px,py], [bx, by], 'black')
+  g.textAlign = 'left'
+  functionArray.forEach(array => {
+    // log(array)
+    var x = px + padding
+    var y1 = y + padding/2
+    y += font_size + padding
+    var y2 = y + padding/2
+    array.forEach(funs => {
+      var x0 = x
+      var x1 = x - padding/2
+      x += funs.txt.length * font_size * 0.6 + padding
+      var x2 = x - padding/2
+
+      var insubbox = inbox&&funs.act&&x1 < mx && mx < x2 && y1 < my && my < y2
+      var sel = insubbox ? 'grey' : funs.sel
+      if (sel) {
+        PT.fillRect(G, [x1,y1], [x2-x1,y2-y1], sel)
+      }
+      if (insubbox && mws.hsDn) {
+        funs.act && funs.act()
+      }
+      g.fillStyle = 'white'
+      g.fillText(funs.txt, x0, y)
+    })
+  })
+  PT.drawRect(g, [px,py], [bx, by], 'white')
+
+  return inbox
 }
 
 PT.shuffle = input => {
