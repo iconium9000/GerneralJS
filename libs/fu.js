@@ -159,6 +159,14 @@ FU.forEach2 = (a,f,k) => {
   }
   return p
 }
+FU.trimArray = a => {
+  for (var i in a) {
+    if (a[i] == undefined) {
+      a.splice(i,1)
+    }
+  }
+  return a
+}
 FU.rand_char = () => {
 
 }
