@@ -19,6 +19,7 @@ GAME_CLNT_INIT = () => {
 // -----------------------------------------------------------------------------
 // GAME
 // -----------------------------------------------------------------------------
+err('START')
 
 var opar = {
   '(': ')',
@@ -46,6 +47,47 @@ var opas = [
   {'pow': true, 'log': true},
   {'dot': true}
 ]
+var opn = {
+  'sat': 1,
+  'equ': 2,
+  'add': 3,
+  'sub': 3,
+  'div': 4,
+  'mul': 5,
+  'pow': 6,
+  'log': 7,
+  'dot': 8,
+}
+var opr = {
+  'sat': 0,
+  'equ': 0,
+  'add': 1.125,
+  'sub': 1.125,
+  'div': 1.25,
+  'mul': 1.375,
+  'dot': 1.375,
+  'pow': 1.5,
+  'log': 1.625,
+}
+var opc = {
+  'sat': ',\n',
+  'equ': ' = ',
+  'add': ' + ',
+  'sub': ' - ',
+  'mul': ' * ',
+  'dot': ' ',
+  'div': ' / ',
+  'pow': '^',
+  'log': ' @ ',
+}
+var bs = {
+  'char': true,
+  'num': true,
+}
+var sat = {
+  'sat': 'sat',
+  'equ': 'equ',
+}
 
 /**
   @language
@@ -56,8 +98,7 @@ var opas = [
   A := M | A + M | A - M
   M :=
 */
-
-var funs = {
+parsef.f = {
   'txt': f => {
     var word = null
     var nf = ['flatA']
@@ -143,34 +184,34 @@ var funs = {
       nf.push(word)
       // flag = true
     }
-    return parser(nf)
+    return parsef(nf)
   },
   'flatA': f => {
     var top = ['flatB']
     var cpar = null
     var stack = []
     for (var i = 1; i < f.length; ++i) {
-      var sf = f[i], sf0 = sf[0], sf1 = sf[1]
-      if (sf0 == 'opar') {
+      var fi = f[i], fi0 = fi[0], fi1 = fi[1]
+      if (fi0 == 'opar') {
         stack.push(top,cpar)
-        cpar = sf1
+        cpar = fi1
         top.push(top = ['flatB'])
       }
-      else if (sf0 == 'cpar') {
-        if (sf1 == cpar) {
+      else if (fi0 == 'cpar') {
+        if (fi1 == cpar) {
           cpar = stack.pop()
           top = stack.pop()
         }
         else {
-          throw `BAD cpar for '${sf1}' at idx ${i}`
+          throw `BAD cpar for '${fi1}' at idx ${i}`
         }
       }
-      else top.push(sf)
+      else top.push(fi)
     }
     if (stack.length) {
       throw `NO cpar`
     }
-    return parser(top)
+    return parsef(top)
   },
   'flatB': f => {
 
@@ -178,18 +219,18 @@ var funs = {
       var sopas = opas[i]
 
       for (var j = f.length-1; j > 0; --j) {
-        var sf = parser(f[j]), sf0 = sf[0], sf1 = sf[1]
+        var fi = parsef(f[j]), fi0 = fi[0], fi1 = fi[1]
 
-        if (sf0 == 'op' && sopas[sf1]) {
-          var sub = [sf1]
-          var a1 = parser(f.slice(0,j))
-          if (a1[0] == sf1) {
+        if (fi0 == 'op' && sopas[fi1]) {
+          var sub = [fi1]
+          var a1 = parsef(f.slice(0,j))
+          if (a1[0] == fi1) {
             sub = sub.concat(a1.slice(1))
           }
           else {
             sub.push(a1)
           }
-          var a2 = parser(['flatB'].concat(f.slice(j+1,f.length)))
+          var a2 = parsef(['flatB'].concat(f.slice(j+1,f.length)))
           sub.push(a2)
           return sub
         }
@@ -200,7 +241,7 @@ var funs = {
       return ['null']
     }
     else if (f.length == 2) {
-      return parser(f[1])
+      return parsef(f[1])
     }
     else {
       log(f)
@@ -208,21 +249,246 @@ var funs = {
     }
   },
 }
-function parser(f) {
-  if (funs[f[0]]) return funs[f[0]](f)
-  else return f
+function parsef(f) {
+  if (parsef.f[f[0]]) {
+    return parsef.f[f[0]](f)
+  }
+  else {
+    return f
+  }
 }
-log(parser(['txt',`
-  e, TWRe, TWRw, av, tank, g, isp, throttle,
+function chartf(f, table, flag, d) {
+  if (!d) {
+    chartf.d = 0
+  }
+  if (++chartf.d > 1e4) {
+    throw 'overflow'
+  }
+  for (var i = 1; i < f.length; ++i) {
+    var fi = f[i], fi0 = fi[0], fi1 = fi[1]
+    if (!table[fi1] && bs[fi0]) {
+      table[fi1] = fi0 == 'num' ? 'defined' : flag
+    }
+    else {
+      chartf(fi, table, 'undefined', true)
+    }
+  }
+}
+function scoref(f) {
+  var f0 = f[0]
+  var o = opr[f0]
+  if (o == undefined) {
+    return 0
+  }
+  else {
+    var n = (f.length-2)*o
+    for (var i = 1; i < f.length; ++i) {
+      n += scoref(f[i])
+    }
+    return n
+  }
+}
+function printf(f) {
+  var f0 = f[0], f1 = f[1]
+  if (bs[f0]) {
+    return f1
+  }
+  if (f.length == 1) {
+    return ''
+  }
+
+  var c = opc[f0], n = opn[f0]
+  if (c) {
+    var s = ''
+    var flag = false
+    for (var i = 1; i < f.length-1; ++i) {
+      var fi = f[i]
+      var p = printf(fi)
+      var pn = opn[fi[0]]
+      if (pn < n) {
+        // log('les', fi[0], f0)
+        p = `(${p})`
+      }
+      else {
+        // log('gtr', fi[0], f0)
+      }
+      s += p + c
+    }
+    if (f.length > 1) {
+      var fi = f[f.length-1]
+      var p = printf(fi)
+      var pn = opn[fi[0]]
+      if (pn < n) {
+        p = `(${p})`
+      }
+      s += p
+    }
+    return s
+  }
+}
+
+function hashf(f,h) {
+  var p = printf(f)
+  var f0 = f[0]
+  var hp = h[p]
+  if (hp) {
+    return
+  }
+  var s = scoref(f)
+  h[p] = ['scr',s,f]
+  if (bs[f0]) {
+    return
+  }
+  for (var i = 1; i < f.length; ++i) {
+    hashf(f[i], h)
+  }
+  return p
+}
+
+simplef.c = {
+  'add': true,
+  'sub': true,
+  'div': true,
+  'mul': true,
+  'dot': true,
+  'pow': true,
+  'log': true,
+}
+simplef.t = {
+  'sat': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'equ': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'add': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'sub': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'div': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'mul': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'dot': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'pow': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+  'log': {
+    'add': (f,m) => {},
+    'sub': (f,m) => {},
+    'div': (f,m) => {},
+    'mul': (f,m) => {},
+    'dot': (f,m) => {},
+    'pow': (f,m) => {},
+    'log': (f,m) => {},
+  },
+}
+
+
+function simplef(f,h) {
+  var p = hashf(f,h)
+  var hp = h[p], hps = hp[1]
+  var f0 = f[0]
+  var t = simplef.t[f0]
+  if (!t) {
+    return f
+  }
+
+  log(t)
+
+
+  return 'err'
+}
+
+
+var rocket_science = `
+  1 - 2 - 4 + 3 - 4,
+  e, TWRe, TWRw, av, tank, g, isp, deltaV, throttle,
   dry = av + prop/tank + thrust/(TWRe g),
   TWRw = thrust / (wet g),
   TWRd = thrust throttle / (dry g),
   wet = prop + dry,
   deltaV = isp g * e @ (wet / dry),
-`]))
+`
+var test = `
+  a = b / c
+`
 
+// var f = parsef(['txt',rocket_science])
+var f = parsef(['txt',test])
 
+var chart = {}
+var htable = {}
+var score = scoref(f)
+var print = printf(f)
+// var hash = hashf(f, htable)
+err('+ simplef')
+var simple = simplef(f, htable)
+err('- simplef')
 
+chartf(f, chart, 'defined')
+log('f', f)
+log('table', chart)
+log('score', score)
+log('print', print)
+log('htable', htable)
+log('simple', simple)
+
+err('END')
 // -----------------------------------------------------------------------------
 // TICK
 // -----------------------------------------------------------------------------
