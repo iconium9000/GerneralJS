@@ -1,7 +1,6 @@
 // input: node app <game path> <port>
 
-log = console.log
-err = console.error
+// err = console.error
 
 /**
   This server is a modular method for enabling communicatoin between
@@ -27,7 +26,7 @@ err = console.error
 //
 
 (function() {
-
+  log = console.log
   log('init app')
 
   // init
@@ -117,7 +116,7 @@ err = console.error
           SRVR_MSG(key,clnt_id,rcvr,msg)
         }
         catch (e) {
-          err(e)
+          log(e)
         }
       })
       clnt_skt.on('info', info => {
