@@ -36,13 +36,13 @@
 <script>
   document.getElementById('title').innerHTML = PROJECT_NAME
 	GAME_HIDE_CURSER && $(canvas).css('cursor', 'none')
-	GAME_CLNT_INIT()
-
-	function index_tick() {
-		USR_IO_TICK(GAME_TICK)
-		window.requestAnimationFrame(index_tick)
-	}
-	index_tick()
-
+  GAME_START = () => {
+    GAME_CLNT_INIT()
+    function index_tick() {
+      USR_IO_TICK(GAME_TICK)
+      window.requestAnimationFrame(index_tick)
+    }
+    index_tick()
+  }
 </script>
 </body>

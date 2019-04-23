@@ -37,6 +37,8 @@ function __init_srvr_io() {
       CLNT_KEY = info.key
       CLNT_ID = info.id
       log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)
+      
+      GAME_START()
     })
 
     CLNT_SKT && CLNT_SKT.on('msg', (key, sndr, rcvr, msg) => {
