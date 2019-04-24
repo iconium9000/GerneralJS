@@ -46,10 +46,13 @@ X_TABLE = {
 
 solve_game.min_len = ({nodes, links}, {colors, props}) => {
   var min = Infinity
-  links.forEach((link, id) => {
-    if (!link) return
+  props.forEach((prop, id) => {
+    if (!prop) {
+      return
+    }
 
-    var prop = props[id]
+    var link = links[id]
+
     var c1 = colors[link.node1_id], f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
     var c2 = colors[link.node2_id], f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
 
@@ -79,15 +82,12 @@ solve_game.at_len = (game, solves, len) => {
   var dif = len - solve.length
   solve.length = len
 
-  game.links.forEach((link,id) => {
-    if (!link) {
+  solve.props.forEach((prop,id) => {
+    if (!prop || prop.locked) {
       return
     }
 
-    var prop = solve.props[id]
-    if (prop.locked) {
-      return
-    }
+    var link = game.links[id]
 
     var c1 = solve.colors[link.node1_id]
     var c2 = solve.colors[link.node2_id]
@@ -120,7 +120,6 @@ function solve_game(game) {
     if (!link) {
       return
     }
-
     solve.props[id] = { p1: 0, p2: 0, locked: false, }
   })
   // --------------------------------------------------------------------------|
@@ -132,8 +131,7 @@ function solve_game(game) {
 
     log('min_len', min_len)
     solve.props.forEach((prop,id) => {
-      if (!prop) return
-      if (prop.locked) {
+      if (!prop || prop.locked) {
         return
       }
 
@@ -151,13 +149,11 @@ function solve_game(game) {
         prop.p2 += min_len
       }
     })
-    game.links.forEach((link,id) => {
-      if (!link) return
-
-      var prop = solve.props[id]
-      if (prop.locked) {
+    solve.props.forEach((prop,id) => {
+      if (!prop || prop.locked) {
         return
       }
+      var link = game.links[id]
 
       var c1 = solve.colors[link.node1_id]
       var c2 = solve.colors[link.node2_id]
@@ -167,7 +163,6 @@ function solve_game(game) {
 
       var over = prop.p1 + prop.p2 - len
       if (over >= 0) {
-        log(over, id, solves.length)
         prop.locked = true
 
         if (f1 && f2) {
@@ -175,12 +170,10 @@ function solve_game(game) {
           prop.p2 -= over / 2
         }
         else if (f1 && c2 != KNIFE_COLOR) {
-          log(log('1', link.node2_id))
           prop.p1 -= over
           solve.colors[link.node2_id] = c1
         }
         else if (f2 && c1 != KNIFE_COLOR) {
-          log(log('2', link.node1_id))
           prop.p2 -= over
           solve.colors[link.node1_id] = c2
         }
@@ -592,10 +585,12 @@ GAME_CLNT_INIT = () => {
         var i = 100
 
         // PT.fillText(G, solve.length, [30, i += FONT_SIZE], 'white')
-        game.links.forEach((link,id) => {
-          if (!link) {
+        solve.props.forEach((prop,id) => {
+          if (!prop || prop.locked) {
             return
           }
+
+          var link = game.links[id]
 
           var prop = solve.props[id]
           var c1 = solve.colors[link.node1_id]
@@ -616,8 +611,6 @@ GAME_CLNT_INIT = () => {
         var unit = PT.divs(PT.sub(p4, p1), link.dist)
         var stat = game.stats[link.clnt_id]
         var color = game.state == 'link' && stat ? stat.color : DEF_COLOR
-
-
 
         if (!solve || game.state == 'link') {
           PT.drawLine(G, p1, p4, color)
