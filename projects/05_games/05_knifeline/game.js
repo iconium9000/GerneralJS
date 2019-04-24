@@ -11,6 +11,7 @@ GAME_TICK = () => {}
 // STATS
 // -----------------------------------------------------------------------------
 
+GROUTH_SPEED = 5e-2
 SANITY = 1e3
 NEW_GAME_TIMEOUT = 1
 VIEWPORT = [600,700]
@@ -64,17 +65,30 @@ solve_game.min_len = ({nodes, links}, {colors, props}) => {
   })
   return min
 }
-solve_game.at_len = (len, game, solves) => {
+solve_game.at_len = (game, solves, len) => {
   var sel_solve = null
   solves.forEach(solve => {
-    if (len > length) {
+    if (len > solve.length) {
       sel_solve = solve
     }
   })
+  if (!sel_solve) {
+    return
+  }
   var solve = JSON.parse(JSON.stringify(sel_solve))
   var dif = len - solve.length
+  solve.length = len
 
   game.links.forEach((link,id) => {
+    if (!link) {
+      return
+    }
+
+    var prop = solve.props[id]
+    if (prop.locked) {
+      return
+    }
+
     var c1 = solve.colors[link.node1_id]
     var c2 = solve.colors[link.node2_id]
     var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
@@ -83,11 +97,9 @@ solve_game.at_len = (len, game, solves) => {
 
     if (f1) {
       prop.p1 += dif
-      prop.c1 = c1
     }
     if (f2) {
       prop.p2 += dif
-      prop.c2 = c2
     }
   })
 
@@ -109,9 +121,7 @@ function solve_game(game) {
       return
     }
 
-    var c1 = solve.colors[link.node1_id]
-    var c2 = solve.colors[link.node2_id]
-    solve.props[id] = { p1: 0, p2: 0, c1: c1, c2: c2, locked: false, }
+    solve.props[id] = { p1: 0, p2: 0, locked: false, }
   })
   // --------------------------------------------------------------------------|
 
@@ -121,6 +131,26 @@ function solve_game(game) {
   while (isFinite(min_len = solve_game.min_len(game, solve)) && --sanity > 0) {
 
     log('min_len', min_len)
+    solve.props.forEach((prop,id) => {
+      if (!prop) return
+      if (prop.locked) {
+        return
+      }
+
+      var link = game.links[id]
+
+      var c1 = solve.colors[link.node1_id]
+      var c2 = solve.colors[link.node2_id]
+      var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
+      var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
+
+      if (f1) {
+        prop.p1 += min_len
+      }
+      if (f2) {
+        prop.p2 += min_len
+      }
+    })
     game.links.forEach((link,id) => {
       if (!link) return
 
@@ -135,16 +165,9 @@ function solve_game(game) {
       var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
       var len = link.length
 
-      if (f1) {
-        prop.p1 += min_len
-        prop.c1 = c1
-      }
-      if (f2) {
-        prop.p2 += min_len
-        prop.c2 = c2
-      }
       var over = prop.p1 + prop.p2 - len
       if (over >= 0) {
+        log(over, id, solves.length)
         prop.locked = true
 
         if (f1 && f2) {
@@ -152,9 +175,13 @@ function solve_game(game) {
           prop.p2 -= over / 2
         }
         else if (f1 && c2 != KNIFE_COLOR) {
+          log(log('1', link.node2_id))
+          prop.p1 -= over
           solve.colors[link.node2_id] = c1
         }
         else if (f2 && c1 != KNIFE_COLOR) {
+          log(log('2', link.node1_id))
+          prop.p2 -= over
           solve.colors[link.node1_id] = c2
         }
       }
@@ -340,6 +367,12 @@ GAME_SRVR_INIT = () => {
         if (!stat) {
           log('TODO no game stat for ', clnt.name)
           return // REALLY shouldn't happen, but hey, doesn't hurt to check
+        }
+
+        // ------------------------------------------------------------------|||
+        log('inbox', msg.mws, VIEWPORT, PT.inbox(msg.mws, [0,0], VIEWPORT))
+        if (!PT.inbox(msg.mws, [0,0], VIEWPORT)) {
+          return
         }
 
         // ------------------------------------------------------------------|||
@@ -537,24 +570,13 @@ GAME_CLNT_INIT = () => {
     // Send Click Msg --------------------------------------------------------||
     if (USR_IO_MWS.hsUp) {
       HOST_MSG('Click', [SRVR_CLNT_ID], { mws: PT.copy(USR_IO_MWS) })
-      log('Click', game)
     }
 
+    // Draw game -------------------------------------------------------------||
     var wh = [LINE_WIDTH*3, LINE_WIDTH*2+FONT_SIZE]
     if (game) {
-      game.links.forEach(link => {
-        if (!link) {
-          return
-        }
 
-        var p1 = game.nodes[link.node1_id].position
-        var p2 = game.nodes[link.node2_id].position
-        var stat = game.stats[link.clnt_id]
-        var color = game.state == 'link' && stat ? stat.color : DEF_COLOR
-
-        PT.drawLine(G, p1, p2, color)
-      })
-
+      // --------------------------------------------------------------------|||
       var plr_stat = game.stats[CLNT_ID]
       if (game.state == 'link' && plr_stat && plr_stat.sel_node_id >= 0) {
         var sel_node = game.nodes[plr_stat.sel_node_id]
@@ -562,9 +584,65 @@ GAME_CLNT_INIT = () => {
         PT.drawLine(G, sel_node.position, USR_IO_MWS, plr_stat.color)
       }
 
-      game.nodes.forEach(node => {
+
+      var len = (FU.now() - game.solve_time) * GROUTH_SPEED
+      var solve = solve_game.at_len(game, game.solves, len)
+
+      if (solve) {
+        var i = 100
+
+        // PT.fillText(G, solve.length, [30, i += FONT_SIZE], 'white')
+        game.links.forEach((link,id) => {
+          if (!link) {
+            return
+          }
+
+          var prop = solve.props[id]
+          var c1 = solve.colors[link.node1_id]
+          var c2 = solve.colors[link.node2_id]
+          // PT.fillText(G, prop.p1, [30, i += FONT_SIZE], c1)
+          // PT.fillText(G, prop.p2, [30, i += FONT_SIZE], c2)
+        })
+      }
+
+      // --------------------------------------------------------------------|||
+      game.links.forEach((link,id) => {
+        if (!link) {
+          return
+        }
+
+        var p1 = game.nodes[link.node1_id].position
+        var p4 = game.nodes[link.node2_id].position
+        var unit = PT.divs(PT.sub(p4, p1), link.dist)
+        var stat = game.stats[link.clnt_id]
+        var color = game.state == 'link' && stat ? stat.color : DEF_COLOR
+
+
+
+        if (!solve || game.state == 'link') {
+          PT.drawLine(G, p1, p4, color)
+        }
+        else {
+          var prop = solve.props[id]
+          var l1 = prop.p1 + NODE_RADIUS
+          var l3 = prop.p2 + NODE_RADIUS
+          var l2 = link.dist - l1 - l3
+          var p2 = PT.vec(p1, unit, l1)
+          var p3 = PT.vec(p2, unit, l2)
+          var p4 = PT.vec(p3, unit, l3)
+          var c1 = solve.colors[link.node1_id]
+          var c2 = solve.colors[link.node2_id]
+
+          PT.drawLine(G, p1, p2, c1)
+          PT.drawLine(G, p2, p3, DEF_COLOR)
+          PT.drawLine(G, p3, p4, c2)
+        }
+      })
+
+      // --------------------------------------------------------------------|||
+      game.nodes.forEach((node,id) => {
         var in_color = 'white'
-        var out_color = 'white'
+        var out_color = solve ? solve.colors[id] : 'white'
 
         if (game.state == 'node') {
           var stat = game.stats[node.clnt_id]
@@ -573,15 +651,8 @@ GAME_CLNT_INIT = () => {
           }
         }
 
-        if (node.fountain) {
+        if (node.fountain || node.knife) {
           var stat = game.stats[node.clnt_id]
-          if (stat) {
-            in_color = out_color = stat.color
-          }
-        }
-        if (node.knife) {
-          var stat = game.stats[node.clnt_id]
-          out_color = KNIFE_COLOR
           if (stat) {
             in_color = stat.color
           }
@@ -591,6 +662,7 @@ GAME_CLNT_INIT = () => {
         PT.drawCircle(G, node.position, DRAW_RADIUS, out_color)
       })
 
+      // -------------------------------------------------------------------||||
       var nt = N_TABLE[game.state], xt = X_TABLE[game.state]
       if (nt) {
         FU.forEach(game.stats, stat => {
@@ -636,10 +708,9 @@ GAME_CLNT_INIT = () => {
       case 'Update Game':
         // TODO game update
         game = msg.game
-        log('game', game)
-        var solves = solve_game(game)
-        var solve = solve_game.at_len(100, game, solves)
-        log(solve, solves)
+        game.solves = solve_game(game)
+        game.solve_time = FU.now()
+        log('Update', game)
         return
       // ---------------------------------------------------------------------||
       case 'Game Timer':
