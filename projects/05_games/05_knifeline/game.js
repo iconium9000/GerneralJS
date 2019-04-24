@@ -11,11 +11,17 @@ GAME_TICK = () => {}
 // STATS
 // -----------------------------------------------------------------------------
 
+SANITY = 1e3
+NEW_GAME_TIMEOUT = 1
 VIEWPORT = [600,700]
-NODE_RADIUS = 20
+LINE_WIDTH = 6
+DRAW_RADIUS = 20
+NODE_RADIUS = DRAW_RADIUS+LINE_WIDTH/2
+FONT_SIZE = 30
+FONT = `${FONT_SIZE}px sans-serif`
 DEF_COLOR = 'white'
 KNIFE_COLOR = 'black'
-NEW_GAME_TIMEOUT = 10
+SALT = 1e-7
 COLORS = ['#ff5050','#00ff80','#0080ff','#ff8000','#ff40ff',
   '#ffff40','#B22222','#00ffff', '#80ff00']
 
@@ -23,6 +29,147 @@ N_NODES = 3
 N_LINKS = n => n < 6 ? n + 1 : 6
 N_FOUNTAINS = 2
 N_KNIVES = 2
+
+N_TABLE = {
+  'node': 'n_nodes',
+  'link': 'n_links',
+  'fountain': 'n_fountains',
+  'knife': 'n_knives',
+}
+X_TABLE = {
+  'node': 'Node(s)',
+  'link': 'Link(s)',
+  'fountain': 'Fountain(s)',
+  'knife': 'Knife(s)',
+}
+
+solve_game.min_len = ({nodes, links}, {colors, props}) => {
+  var min = Infinity
+  links.forEach((link, id) => {
+    if (!link) return
+
+    var prop = props[id]
+    var c1 = colors[link.node1_id], f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
+    var c2 = colors[link.node2_id], f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
+
+    if (f1 || f2) {
+      var len = link.length - prop.p1 - prop.p2
+      if (f1 && f2) {
+        len /= 2
+      }
+      if (len > 0 && len < min) {
+        min = len
+      }
+    }
+  })
+  return min
+}
+solve_game.at_len = (len, game, solves) => {
+  var sel_solve = null
+  solves.forEach(solve => {
+    if (len > length) {
+      sel_solve = solve
+    }
+  })
+  var solve = JSON.parse(JSON.stringify(sel_solve))
+  var dif = len - solve.length
+
+  game.links.forEach((link,id) => {
+    var c1 = solve.colors[link.node1_id]
+    var c2 = solve.colors[link.node2_id]
+    var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
+    var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
+    var len = link.length
+
+    if (f1) {
+      prop.p1 += dif
+      prop.c1 = c1
+    }
+    if (f2) {
+      prop.p2 += dif
+      prop.c2 = c2
+    }
+  })
+
+  return solve
+}
+function solve_game(game) {
+  var solve = {
+    colors: [],
+    props: [],
+    length: 0,
+  }
+  game.nodes.forEach(node => {
+    var stat = game.stats[node.clnt_id]
+    solve.colors.push(ink = node.fountain ? stat.color :
+      node.knife ? KNIFE_COLOR : DEF_COLOR)
+  })
+  game.links.forEach((link,id) => {
+    if (!link) {
+      return
+    }
+
+    var c1 = solve.colors[link.node1_id]
+    var c2 = solve.colors[link.node2_id]
+    solve.props[id] = { p1: 0, p2: 0, c1: c1, c2: c2, locked: false, }
+  })
+  // --------------------------------------------------------------------------|
+
+  var sanity = SANITY
+  var solves = [JSON.parse(JSON.stringify(solve))]
+  var min_len = 0
+  while (isFinite(min_len = solve_game.min_len(game, solve)) && --sanity > 0) {
+
+    log('min_len', min_len)
+    game.links.forEach((link,id) => {
+      if (!link) return
+
+      var prop = solve.props[id]
+      if (prop.locked) {
+        return
+      }
+
+      var c1 = solve.colors[link.node1_id]
+      var c2 = solve.colors[link.node2_id]
+      var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
+      var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
+      var len = link.length
+
+      if (f1) {
+        prop.p1 += min_len
+        prop.c1 = c1
+      }
+      if (f2) {
+        prop.p2 += min_len
+        prop.c2 = c2
+      }
+      var over = prop.p1 + prop.p2 - len
+      if (over >= 0) {
+        prop.locked = true
+
+        if (f1 && f2) {
+          prop.p1 -= over / 2
+          prop.p2 -= over / 2
+        }
+        else if (f1 && c2 != KNIFE_COLOR) {
+          solve.colors[link.node2_id] = c1
+        }
+        else if (f2 && c1 != KNIFE_COLOR) {
+          solve.colors[link.node1_id] = c2
+        }
+      }
+    })
+
+    solve.length += min_len
+    solves.push(JSON.parse(JSON.stringify(solve)))
+  }
+
+  if (sanity <= 0) {
+    log('SANITY')
+  }
+
+  return solves
+}
 
 // -----------------------------------------------------------------------------
 // SRVR INIT
@@ -32,11 +179,47 @@ GAME_SRVR_INIT = () => {
 
   GAMES = []
 
+  // --------------------------------------------------------------------------|
+  function new_node(game, sndr, position) {
+    var node = {
+      id: game.nodes.length,
+      clnt_id: sndr,
+      position: position,
+      fountain: false,
+      knife: false,
+      links: {},
+    }
+    game.nodes.push(node)
+    return node
+  }
+
+  // --------------------------------------------------------------------------|
+  function new_link(game, sndr, node1, node2) {
+    if (node1.links[node2.id]) {
+      return
+    }
+
+    var dist = PT.dist(node1.position, node2.position)
+    var link = {
+      id: game.links.length,
+      clnt_id: sndr,
+      node1_id: node1.id,
+      node2_id: node2.id,
+      dist: dist,
+      length: dist - NODE_RADIUS * 2 + SALT * Math.random(),
+    }
+    game.links.push(link)
+    node1.links[node2.id] = true
+    node2.links[node1.id] = true
+    return link
+  }
+
   // SRVR MSG -----------------------------------------------------------------|
   GAME_MSG = (key, sndr, rcvr, msg) => {
     if (sndr == SRVR_CLNT_ID) {
       return
     }
+
 
     var clnt = SRVR_CLNTS[sndr]
     if (!clnt) {
@@ -104,7 +287,7 @@ GAME_SRVR_INIT = () => {
               game.stats[clnt_id] = {
                 sel_node_id: -1,
                 color: COLORS[idx],
-                name:
+                name: clnt.name,
                 n_nodes: N_NODES,
                 n_fountains: N_FOUNTAINS,
                 n_knives: N_KNIVES,
@@ -162,12 +345,15 @@ GAME_SRVR_INIT = () => {
         // ------------------------------------------------------------------|||
         // select node if mws dist to node is less than NODE_RADIUS
         // select the most recent (topmost) node
-        var node = null
-        var rad = (game.state == 'node' ? 2 : 1) * NODE_RADIUS
+        var node = null, node_soi = false
         for (var i in game.nodes) {
           var temp_node = game.nodes[i]
-          if (PT.dist(temp_node.position, msg.mws) < rad) {
+          var dist = PT.dist(temp_node.position, msg.mws)
+          if (dist < NODE_RADIUS) {
             node = temp_node
+          }
+          if (dist < 2 * NODE_RADIUS) {
+            node_soi = true
           }
         }
 
@@ -180,15 +366,16 @@ GAME_SRVR_INIT = () => {
           var closest_points = []
           for (var i in game.links) {
             var temp_link = game.links[i]
-            var p1 = game.nodes[temp_link.node1].position
-            var p2 = game.nodes[temp_link.node2].position
+            var p1 = game.nodes[temp_link.node1_id].position
+            var p2 = game.nodes[temp_link.node2_id].position
 
-            var point = PT.closest_point_on_line(mws, p1, p2)
-            if (point && PT.dist(mws, point) < NODE_RADIUS) {
-              closest_points.push(link, point)
+            var point = PT.closest_point_on_line(msg.mws, p1, p2)
+            if (point && PT.dist(msg.mws, point) < NODE_RADIUS) {
+              closest_points.push(temp_link, point)
             }
           }
           // ---------------------------------------------------------------||||
+          log(closest_points)
           link_point = closest_points.pop()
           link = closest_points.pop()
           if (closest_points.length) {
@@ -207,22 +394,14 @@ GAME_SRVR_INIT = () => {
           // ----------------------------------------------------------------|||
           case 'node':
             // Check if player can place node
-            if (node || stat.n_nodes <= 0) {
+            if (node || node_soi || stat.n_nodes <= 0) {
               return
             }
 
             // -------------------------------------------------------------||||
-            var node = {
-              id: game.nodes.length,
-              clnt: sndr,
-              position: msg.mws,
-              fountain: false,
-              knife: false,
-              links: {},
-            }
+            new_node(game, sndr, msg.mws)
             stat.n_nodes -= 1
             game.n_nodes -= 1
-            game.nodes.push(node)
             if (game.n_nodes <= 0) {
               game.state = 'link'
             }
@@ -230,31 +409,29 @@ GAME_SRVR_INIT = () => {
 
           // ----------------------------------------------------------------|||
           case 'link':
-            if (!node || stat.n_links <= 0) {
+            if (!node) {
+              stat.sel_node_id = -1
+              break
+            }
+
+            if (stat.n_links <= 0) {
               return
             }
 
             var sel_node = game.nodes[stat.sel_node_id]
             if (sel_node) {
 
-              if (node == sel_node || node.links[sel_node.id]) {
+              if (new_link(game, sndr, node, sel_node)) {
+                stat.n_links -= 1
+                game.n_links -= 1
+                stat.sel_node_id = -1
+                if (game.n_links <= 0) {
+                  game.state = 'fountain'
+                }
+                break
+              }
+              else {
                 return
-              }
-
-              // -----------------------------------------------------------||||
-              var link = {
-                id: game.links.length,
-                clnt: sndr,
-                node1_id: node.id,
-                node2_id: sel_node.id,
-              }
-              game.links.push(link)
-              node.links[sel_node.id] = true
-              sel_node.links[node.id] = true
-              stat.n_links -= 1
-              game.n_links -= 1
-              if (game.n_links <= 0) {
-                game.state = 'fountain'
               }
             }
             else {
@@ -268,67 +445,22 @@ GAME_SRVR_INIT = () => {
               return
             }
 
-            if (node) {
-              if (node.fountain) {
-                return
-              }
-
-              node.clnt = sndr
-              node.fountain = true
-            }
-            else if (link) {
-
-              delete game.links[link.id]
-              var node1 = game.nodes[link.node1_id]
-              var node2 = game.nodes[link.node2_id]
-              delete node1[node2.id]
-              delete node2[node1.id]
-
-              var node = {
-                id: game.nodes.length,
-                clnt: sndr,
-                position: position,
-                fountain: false,
-                knife: true,
-                links: {},
-              }
-              game.nodes.push(node)
-
-              var link1 = {
-                id: game.links.length,
-                clnt: sndr,
-                node1_id: node1.id,
-                node2_id: node2.id,
-              }
-              game.links.push(link1)
-              node1.links[node.id] = true
-              node.links[node1.id] = true
-
-              var link2 = {
-                id: game.links.length,
-                clnt: sndr,
-                node1_id: node.id,
-                node2_id: node2.id,
-              }
-              game.links.push(link2)
-              node.links[node2.id] = true
-              node2.links[node.id] = true
-            }
-            else {
-              return
-            }
-
-            game.n_fountains -= 1
-            stat.n_fountains -= 1
-            if (game.n_fountains <= 0) {
-              game.state = 'knife'
-            }
-            break
-
           // ----------------------------------------------------------------|||
           case 'knife':
             if (stat.n_knives <= 0) {
               return
+            }
+
+            if (link && !node && !node_soi) {
+              var node1 = game.nodes[link.node1_id]
+              var node2 = game.nodes[link.node2_id]
+              delete game.links[link.id]
+              delete node1.links[node2.id]
+              delete node2.links[node1.id]
+
+              node = new_node(game, sndr, link_point)
+              new_link(game, sndr, node, node1)
+              new_link(game, sndr, node, node2)
             }
 
             if (node) {
@@ -336,55 +468,26 @@ GAME_SRVR_INIT = () => {
                 return
               }
 
-              node.clnt = sndr
-              node.knife = true
-            }
-            else if (link) {
-
-              delete game.links[link.id]
-              var node1 = game.nodes[link.node1]
-              var node2 = game.nodes[link.node2]
-              delete node1[node2.id]
-              delete node2[node1.id]
-
-              var node = {
-                id: game.nodes.length,
-                clnt: sndr,
-                position: position,
-                fountain: false,
-                knife: true,
-                links: {},
-              }
-              game.nodes.push(node)
-
-              var link1 = {
-                id: game.links.length,
-                clnt: sndr,
-                node1_id: node1.id,
-                node2_id: node.id,
-              }
-              game.links.push(link1)
-              node1.links[node.id] = true
-              node.links[node1.id] = true
-
-              var link2 = {
-                id: game.links.length,
-                clnt: sndr,
-                node1_id: node.id,
-                node2_id: node2.id,
-              }
-              game.links.push(link2)
-              node.links[node2.id] = true
-              node2.links[node.id] = true
+              node.clnt_id = sndr
+              node[game.state] = true
             }
             else {
               return
             }
 
-            game.n_knives -= 1
-            stat.n_knives -= 1
-            if (game.n_knives <= 0) {
-              game.state = 'finished'
+            if (game.state == 'fountain') {
+              stat.n_fountains -= 1
+              game.n_fountains -= 1
+              if (game.n_fountains <= 0) {
+                game.state = 'knife'
+              }
+            }
+            else {
+              stat.n_knives -= 1
+              game.n_knives -= 1
+              if (game.n_knives <= 0) {
+                game.state = 'finished'
+              }
             }
             break
 
@@ -422,32 +525,42 @@ GAME_CLNT_INIT = () => {
     G = USR_IO_DSPLY.g
     WH = USR_IO_DSPLY.wh
 
-    G.lineWidth = 6
+    G.lineWidth = LINE_WIDTH
+    G.font = FONT
     PT.drawRect(G, [10,10], VIEWPORT, 'white')
 
     // Rqst New Game ---------------------------------------------------------||
     if (USR_IO_KYS.hsDn['q']) {
       HOST_MSG('Rqst New Game?', [SRVR_CLNT_ID])
     }
+
     // Send Click Msg --------------------------------------------------------||
     if (USR_IO_MWS.hsUp) {
       HOST_MSG('Click', [SRVR_CLNT_ID], { mws: PT.copy(USR_IO_MWS) })
       log('Click', game)
     }
 
+    var wh = [LINE_WIDTH*3, LINE_WIDTH*2+FONT_SIZE]
     if (game) {
       game.links.forEach(link => {
         if (!link) {
           return
         }
 
-        var p1 = game.nodes[link.node1].position
-        var p2 = game.nodes[link.node2].position
-        var stat = game.stats[link.clnt]
+        var p1 = game.nodes[link.node1_id].position
+        var p2 = game.nodes[link.node2_id].position
+        var stat = game.stats[link.clnt_id]
         var color = game.state == 'link' && stat ? stat.color : DEF_COLOR
 
         PT.drawLine(G, p1, p2, color)
       })
+
+      var plr_stat = game.stats[CLNT_ID]
+      if (game.state == 'link' && plr_stat && plr_stat.sel_node_id >= 0) {
+        var sel_node = game.nodes[plr_stat.sel_node_id]
+
+        PT.drawLine(G, sel_node.position, USR_IO_MWS, plr_stat.color)
+      }
 
       game.nodes.forEach(node => {
         var in_color = 'white'
@@ -463,22 +576,35 @@ GAME_CLNT_INIT = () => {
         if (node.fountain) {
           var stat = game.stats[node.clnt_id]
           if (stat) {
-            in_color = stat.color
+            in_color = out_color = stat.color
           }
         }
         if (node.knife) {
           var stat = game.stats[node.clnt_id]
-          in_color = KNIFE_COLOR
+          out_color = KNIFE_COLOR
           if (stat) {
-            out_color = stat.color
+            in_color = stat.color
           }
         }
 
-        PT.fullCircle(G, node.position, NODE_RADIUS, in_color)
-        PT.drawCircle(G, node.position, NODE_RADIUS, out_color)
+        PT.fillCircle(G, node.position, DRAW_RADIUS, in_color)
+        PT.drawCircle(G, node.position, DRAW_RADIUS, out_color)
       })
 
-
+      var nt = N_TABLE[game.state], xt = X_TABLE[game.state]
+      if (nt) {
+        FU.forEach(game.stats, stat => {
+          var txt = `${stat.name} (${xt}: ${stat[nt]})`
+          PT.fillText(G, txt, wh, stat.color)
+          wh[1] += FONT_SIZE + LINE_WIDTH
+        })
+      }
+      else {
+        PT.fillText(G, 'TODO GAME OVER!', wh, 'white')
+      }
+    }
+    else {
+      PT.fillText(G, 'No Game', wh,'white')
     }
   }
 
@@ -511,6 +637,9 @@ GAME_CLNT_INIT = () => {
         // TODO game update
         game = msg.game
         log('game', game)
+        var solves = solve_game(game)
+        var solve = solve_game.at_len(100, game, solves)
+        log(solve, solves)
         return
       // ---------------------------------------------------------------------||
       case 'Game Timer':
