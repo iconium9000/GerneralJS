@@ -7,6 +7,8 @@ require('./libs/fu.js')
 
 log(`init ${__dirname}/assemble_scripts.js`)
 
+log(`this is a test`)
+
 var projects = [
   {
     title: 'Menu',
