@@ -72,6 +72,8 @@ function min_pipe_len(solve) {
 }
 function solve_game(game) {
 
+  log('solve_game')
+
   var solve = {
     pipes: [],
     colors: [],
@@ -127,6 +129,14 @@ function solve_game(game) {
 
   // --------------------------------------------------------------------------|
   var solves = [solve]
+
+  var sanity = SANITY
+  while (isFinite(min_len = min_pipe_len(solve)) && --sanity > 0) {
+    
+  }
+  if (sanity <= 0) {
+    log('SANITY')
+  }
 
 
   return solves
