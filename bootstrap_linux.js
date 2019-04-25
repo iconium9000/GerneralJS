@@ -48,7 +48,7 @@ function setup_server(project) {
 
   log('setup', title)
 
-  // shell.exec(`sudo screen -X -S ${name} quit`)
+  shell.exec(`sudo screen -X -S ${name} quit`)
 
   // var project_txt = `${bash_start}\n#${name} init
   //   echo starting ${name} on port ${port}
