@@ -48,7 +48,7 @@ function setup_server(project) {
 
   log('setup', title)
 
-  log('kill prev screen session')
+  log('kill screen session')
   shell.exec(`sudo screen -X -S ${name} quit`)
 
   var project_txt = `${bash_start}\n#${name} init
@@ -56,11 +56,15 @@ function setup_server(project) {
     cd ${__dirname}
     node app ${proj} ${port}`
 
-  log('write file', bash_file, project_txt)
+  log('write file', bash_file)
   FU.write_file(fs, bash_file, project_txt)
+  log('enable', bash_file)
   shell.exec(`chmod +x ${bash_file}`)
+  log('open screen and start server')
   shell.exec(`sudo screen -d -m -S ${name} ${bash_file}`)
+  log('rm', bash_file)
   shell.exec(`rm ${bash_file}`)
+  log('check active screen')
   shell.exec(`sudo screen -ls`)
 }
 
