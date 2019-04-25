@@ -37,14 +37,17 @@ var projects = [
 var bash_start = '#!/bin/bash -e\n'
 
 function setup_server(project) {
-  log(project)
-  // var title = project.title
-  // var name = project.name
-  // var proj = project.proj
-  // var port = project.port
-  //
-  // var bash_file = `${__dirname}/projects/${proj}/init.sh`
-  // // shell.exec(`mkdir ${__dirname}/projects/${proj}`)
+
+  var title = project.title
+  var name = project.name
+  var proj = project.proj
+  var port = project.port
+
+  var bash_file = `${__dirname}/projects/${proj}/init.sh`
+  // shell.exec(`mkdir ${__dirname}/projects/${proj}`)
+
+  log('setup', title)
+
   // shell.exec(`sudo screen -X -S ${name} quit`)
 
   // var project_txt = `${bash_start}\n#${name} init
