@@ -5,7 +5,7 @@ var err = console.error
 var shell = require('shelljs')
 require('./libs/fu.js')
 
-log(`init ${__dirname}/assemble_scripts.js`)
+log(`* init ${__dirname}/assemble_scripts.js`)
 
 var projects = [
   {
@@ -46,9 +46,9 @@ function setup_server(project) {
   var bash_file = `${__dirname}/projects/${proj}/init.sh`
   // shell.exec(`mkdir ${__dirname}/projects/${proj}`)
 
-  log('setup', title)
+  log('\n\n** setup', title)
 
-  log('kill screen session')
+  log('* kill screen session')
   shell.exec(`sudo screen -X -S ${name} quit`)
 
   var project_txt = `${bash_start}\n#${name} init
@@ -56,15 +56,15 @@ function setup_server(project) {
     cd ${__dirname}
     node app ${proj} ${port}`
 
-  log('write file', bash_file)
+  log('* write file', bash_file)
   FU.write_file(fs, bash_file, project_txt)
-  log('enable', bash_file)
+  log('* enable', bash_file)
   shell.exec(`chmod +x ${bash_file}`)
-  log('open screen and start server')
+  log('* start server on new screen')
   shell.exec(`sudo screen -d -m -S ${name} ${bash_file}`)
-  log('rm', bash_file)
+  log('* rm', bash_file)
   shell.exec(`rm ${bash_file}`)
-  log('check active screen')
+  log('* check active screen')
   shell.exec(`sudo screen -ls`)
 }
 
