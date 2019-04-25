@@ -48,19 +48,20 @@ function setup_server(project) {
 
   log('setup', title)
 
+  log('kill prev screen session')
   shell.exec(`sudo screen -X -S ${name} quit`)
 
-  // var project_txt = `${bash_start}\n#${name} init
-  //   echo starting ${name} on port ${port}
-  //   cd ${__dirname}
-  //   node app ${proj} ${port}`
+  var project_txt = `${bash_start}\n#${name} init
+    echo starting ${name} on port ${port}
+    cd ${__dirname}
+    node app ${proj} ${port}`
 
-  // log('write file', bash_file, project_txt)
-  // FU.write_file(fs, bash_file, project_txt)
-  // shell.exec(`chmod +x ${bash_file}`)
-  // shell.exec(`sudo screen -d -m -S ${name} ${bash_file}`)
-  // shell.exec(`rm ${bash_file}`)
-  // shell.exec(`sudo screen -ls`)
+  log('write file', bash_file, project_txt)
+  FU.write_file(fs, bash_file, project_txt)
+  shell.exec(`chmod +x ${bash_file}`)
+  shell.exec(`sudo screen -d -m -S ${name} ${bash_file}`)
+  shell.exec(`rm ${bash_file}`)
+  shell.exec(`sudo screen -ls`)
 }
 
 projects.forEach(setup_server)
