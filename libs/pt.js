@@ -329,6 +329,7 @@ PT.length = (p,l) => Math.sqrt(PT.suma(PT.mul(p,p,l)))
 PT.dist = (a,b) => PT.length(PT.sub(a,b))
 PT.invert = p => [-p[1] || 0, p[0] || 0]
 PT.tan2 = p => Math.atan2(p[1] || 0, p[0] || 0)
+PT.atan = p => Math.atan2(p[1] || 0, p[0] || 0)
 PT.invert2x2 = m => {
   var a = m[0][0], b = m[1][0], c = m[0][1], d = m[1][1]
   var det = a*d-b*c

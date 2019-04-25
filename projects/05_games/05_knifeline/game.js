@@ -23,6 +23,7 @@ FONT = `${FONT_SIZE}px sans-serif`
 DEF_COLOR = 'white'
 KNIFE_COLOR = 'black'
 SALT = 1e-7
+MIN_LEN = 1e-10
 COLORS = ['#ff5050','#00ff80','#0080ff','#ff8000','#ff40ff',
   '#ffff40','#B22222','#00ffff', '#80ff00']
 
@@ -44,151 +45,94 @@ X_TABLE = {
   'knife': 'Knife(s)',
 }
 
-solve_game.min_len = ({nodes, links}, {colors, props}) => {
+
+function copy_solve(solve) {
+  return JSON.parse(JSON.stringify(solve))
+}
+function min_pipe_len(solve) {
   var min = Infinity
-  props.forEach((prop, id) => {
-    if (!prop) {
-      return
-    }
-
-    var link = links[id]
-
-    var c1 = colors[link.node1_id], f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
-    var c2 = colors[link.node2_id], f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
+  solve.pipes.forEach(pipe => {
+    var c1 = solve.colors[pipe.c1], c2 = solve.colors[pipe.c2]
+    var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
+    var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
 
     if (f1 || f2) {
-      var len = link.length - prop.p1 - prop.p2
+      var len = pipe.len - pipe.len1 - pipe.len2
+
       if (f1 && f2) {
         len /= 2
       }
-      if (len > 0 && len < min) {
+
+      if (MIN_LEN < len && len < min) {
         min = len
       }
     }
   })
   return min
 }
-solve_game.at_len = (game, solves, len) => {
-  var sel_solve = null
-  solves.forEach(solve => {
-    if (len > solve.length) {
-      sel_solve = solve
-    }
-  })
-  if (!sel_solve) {
-    return
-  }
-  var solve = JSON.parse(JSON.stringify(sel_solve))
-  var dif = len - solve.length
-  solve.length = len
-
-  solve.props.forEach((prop,id) => {
-    if (!prop || prop.locked) {
-      return
-    }
-
-    var link = game.links[id]
-
-    var c1 = solve.colors[link.node1_id]
-    var c2 = solve.colors[link.node2_id]
-    var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
-    var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
-    var len = link.length
-
-    if (f1) {
-      prop.p1 += dif
-    }
-    if (f2) {
-      prop.p2 += dif
-    }
-  })
-
-  return solve
-}
 function solve_game(game) {
+
   var solve = {
+    pipes: [],
     colors: [],
-    props: [],
-    length: 0,
   }
-  game.nodes.forEach(node => {
-    var stat = game.stats[node.clnt_id]
-    solve.colors.push(ink = node.fountain ? stat.color :
-      node.knife ? KNIFE_COLOR : DEF_COLOR)
-  })
+  // --------------------------------------------------------------------------|
   game.links.forEach((link,id) => {
-    if (!link) {
-      return
+    var pipe = {
+      id: id, link_id: id,
+      c1: solve.colors.length,
+      c2: solve.colors.length+1,
+      len: link.length,
+      len1: 0, len2: 0,
+      locked: false,
+      pipes: [],
     }
-    solve.props[id] = { p1: 0, p2: 0, locked: false, }
+    solve.pipes.push(pipe)
+    solve.colors.push(DEF_COLOR,DEF_COLOR)
   })
   // --------------------------------------------------------------------------|
+  game.nodes.forEach((node,id) => {
+    var stat = game.stats[node.clnt_id]
+    var c = node.fountain ? stat ? stat.color :
+      DEF_COLOR : node.knife ? KNIFE_COLOR : DEF_COLOR
+    var len = c == DEF_COLOR ? 0 : 0.5
 
-  var sanity = SANITY
-  var solves = [JSON.parse(JSON.stringify(solve))]
-  var min_len = 0
-  while (isFinite(min_len = solve_game.min_len(game, solve)) && --sanity > 0) {
+    node.sub_links.forEach((sub_link, i) => {
+      var pipe_len = len * sub_link.length
+      var link1 = game.links[sub_link.link1_id]
+      var link2 = game.links[sub_link.link2_id]
+      var pipe1 = solve.pipes[sub_link.link1_id]
+      var pipe2 = solve.pipes[sub_link.link2_id]
 
-    log('min_len', min_len)
-    solve.props.forEach((prop,id) => {
-      if (!prop || prop.locked) {
-        return
+      var pipe = {
+        id: solve.pipes.length,
+        c1: link1.node1_id == id ? pipe1.c1 : pipe1.c2,
+        c2: link2.node1_id == id ? pipe2.c1 : pipe2.c2,
+        len: sub_link.length,
+        len1: pipe_len, len2: pipe_len,
+        locked: !!len,
+        pipes: [pipe1.id]
       }
-
-      var link = game.links[id]
-
-      var c1 = solve.colors[link.node1_id]
-      var c2 = solve.colors[link.node2_id]
-      var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
-      var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
-
-      if (f1) {
-        prop.p1 += min_len
+      pipe1.pipes.push(pipe.id)
+      solve.colors[pipe.c1] = c
+      if (pipe1 != pipe2) {
+        pipe2.pipes.push(pipe.id)
+        pipe.pipes.push(pipe2.id)
+        solve.colors[pipe.c2] = c
       }
-      if (f2) {
-        prop.p2 += min_len
-      }
+      solve.pipes.push(pipe)
+      sub_link.pipe_id = pipe.id
     })
-    solve.props.forEach((prop,id) => {
-      if (!prop || prop.locked) {
-        return
-      }
-      var link = game.links[id]
+  })
 
-      var c1 = solve.colors[link.node1_id]
-      var c2 = solve.colors[link.node2_id]
-      var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
-      var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
-      var len = link.length
+  // --------------------------------------------------------------------------|
+  var solves = [solve]
 
-      var over = prop.p1 + prop.p2 - len
-      if (over >= 0) {
-        prop.locked = true
-
-        if (f1 && f2) {
-          prop.p1 -= over / 2
-          prop.p2 -= over / 2
-        }
-        else if (f1 && c2 != KNIFE_COLOR) {
-          prop.p1 -= over
-          solve.colors[link.node2_id] = c1
-        }
-        else if (f2 && c1 != KNIFE_COLOR) {
-          prop.p2 -= over
-          solve.colors[link.node1_id] = c2
-        }
-      }
-    })
-
-    solve.length += min_len
-    solves.push(JSON.parse(JSON.stringify(solve)))
-  }
-
-  if (sanity <= 0) {
-    log('SANITY')
-  }
 
   return solves
+}
+function solve_at(game, solves, len) {
+
 }
 
 // -----------------------------------------------------------------------------
@@ -208,30 +152,84 @@ GAME_SRVR_INIT = () => {
       fountain: false,
       knife: false,
       links: {},
+      sub_links: [],
     }
     game.nodes.push(node)
     return node
   }
 
   // --------------------------------------------------------------------------|
+  function split_node(game, node1) {
+    var links = []
+    FU.forEach(node1.links, (link_id, node2_id) => {
+      var link = game.links[link_id]
+      var node2 = game.nodes[node2_id]
+      var angle = PT.atan(PT.sub(node2.position, node1.position))
+      angle = (PI2 + angle) % PI2
+      links.push([angle,node2,link_id])
+    })
+    node1.sub_links = []
+    if (links.length == 0) {
+      return
+    }
+
+    links.sort((a,b)=>a[0]-b[0])
+    var prev = links[links.length-1]
+    links.forEach(([angle,node2,link_id], idx) => {
+      var sub_link = {
+        id: node1.sub_links.length,
+        length: DRAW_RADIUS * ((PI2 + angle - prev[0]) % PI2),
+        angle1: prev[0],
+        angle2: angle,
+        link1_id: prev[2],
+        link2_id: link_id
+      }
+      if (sub_link.length < MIN_LEN) {
+        sub_link.length = DRAW_RADIUS * PI2
+      }
+      node1.sub_links.push(sub_link)
+      prev = links[idx]
+    })
+  }
+
+  // --------------------------------------------------------------------------|
   function new_link(game, sndr, node1, node2) {
-    if (node1.links[node2.id]) {
+    if (node1.links[node2.id] != undefined) {
       return
     }
 
     var dist = PT.dist(node1.position, node2.position)
     var link = {
-      id: game.links.length,
+      id: FU.indexOf(game.links),
       clnt_id: sndr,
       node1_id: node1.id,
       node2_id: node2.id,
       dist: dist,
       length: dist - NODE_RADIUS * 2 + SALT * Math.random(),
     }
-    game.links.push(link)
-    node1.links[node2.id] = true
-    node2.links[node1.id] = true
+    if (link.id < 0) {
+      link.id = game.links.length
+      game.links.push(link)
+    }
+    else {
+      game.links[link.id] = link
+    }
+    node1.links[node2.id] = link.id
+    node2.links[node1.id] = link.id
+    split_node(game, node1)
+    split_node(game, node2)
     return link
+  }
+
+  // --------------------------------------------------------------------------|
+  function rmv_link(game, link) {
+    var node1 = game.nodes[link.node1_id]
+    var node2 = game.nodes[link.node2_id]
+    delete game.links[link.id]
+    delete node1.links[node2.id]
+    delete node2.links[node1.id]
+    split_node(game, node1)
+    split_node(game, node2)
   }
 
   // SRVR MSG -----------------------------------------------------------------|
@@ -480,10 +478,7 @@ GAME_SRVR_INIT = () => {
             if (link && !node && !node_soi) {
               var node1 = game.nodes[link.node1_id]
               var node2 = game.nodes[link.node2_id]
-              delete game.links[link.id]
-              delete node1.links[node2.id]
-              delete node2.links[node1.id]
-
+              rmv_link(game, link)
               node = new_node(game, sndr, link_point)
               new_link(game, sndr, node, node1)
               new_link(game, sndr, node, node2)
@@ -573,86 +568,22 @@ GAME_CLNT_INIT = () => {
       var plr_stat = game.stats[CLNT_ID]
       if (game.state == 'link' && plr_stat && plr_stat.sel_node_id >= 0) {
         var sel_node = game.nodes[plr_stat.sel_node_id]
-
         PT.drawLine(G, sel_node.position, USR_IO_MWS, plr_stat.color)
       }
 
-
       var len = (FU.now() - game.solve_time) * GROUTH_SPEED
-      var solve = solve_game.at_len(game, game.solves, len)
-
-      if (solve) {
-        var i = 100
-
-        // PT.fillText(G, solve.length, [30, i += FONT_SIZE], 'white')
-        solve.props.forEach((prop,id) => {
-          if (!prop || prop.locked) {
-            return
-          }
-
-          var link = game.links[id]
-
-          var prop = solve.props[id]
-          var c1 = solve.colors[link.node1_id]
-          var c2 = solve.colors[link.node2_id]
-          // PT.fillText(G, prop.p1, [30, i += FONT_SIZE], c1)
-          // PT.fillText(G, prop.p2, [30, i += FONT_SIZE], c2)
-        })
-      }
+      var solve = solve_at(game, game.solves, len)
 
       // --------------------------------------------------------------------|||
       game.links.forEach((link,id) => {
-        if (!link) {
-          return
-        }
-
         var p1 = game.nodes[link.node1_id].position
-        var p4 = game.nodes[link.node2_id].position
-        var unit = PT.divs(PT.sub(p4, p1), link.dist)
-        var stat = game.stats[link.clnt_id]
-        var color = game.state == 'link' && stat ? stat.color : DEF_COLOR
-
-        if (!solve || game.state == 'link') {
-          PT.drawLine(G, p1, p4, color)
-        }
-        else {
-          var prop = solve.props[id]
-          var l1 = prop.p1 + NODE_RADIUS
-          var l3 = prop.p2 + NODE_RADIUS
-          var l2 = link.dist - l1 - l3
-          var p2 = PT.vec(p1, unit, l1)
-          var p3 = PT.vec(p2, unit, l2)
-          var p4 = PT.vec(p3, unit, l3)
-          var c1 = solve.colors[link.node1_id]
-          var c2 = solve.colors[link.node2_id]
-
-          PT.drawLine(G, p1, p2, c1)
-          PT.drawLine(G, p2, p3, DEF_COLOR)
-          PT.drawLine(G, p3, p4, c2)
-        }
+        var p2 = game.nodes[link.node2_id].position
+        PT.drawLine(G, p1, p2, 'white')
       })
 
       // --------------------------------------------------------------------|||
       game.nodes.forEach((node,id) => {
-        var in_color = 'white'
-        var out_color = solve ? solve.colors[id] : 'white'
-
-        if (game.state == 'node') {
-          var stat = game.stats[node.clnt_id]
-          if (stat) {
-            out_color = stat.color
-          }
-        }
-
-        if (node.fountain || node.knife) {
-          var stat = game.stats[node.clnt_id]
-          if (stat) {
-            in_color = stat.color
-          }
-        }
-
-        PT.fillCircle(G, node.position, DRAW_RADIUS, in_color)
-        PT.drawCircle(G, node.position, DRAW_RADIUS, out_color)
+        PT.fillCircle(G, node.position, NODE_RADIUS, 'white')
       })
 
       // -------------------------------------------------------------------||||

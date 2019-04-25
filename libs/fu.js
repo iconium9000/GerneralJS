@@ -135,6 +135,14 @@ FU.count = o => {
   for (var i in o) ++c
   return c
 }
+FU.indexOf = (a,o) => {
+  for (var i = 0; i < a.length; ++i) {
+    if (o == a[i]) {
+      return i
+    }
+  }
+  return -1
+}
 FU.lookup = (a,o) => {
   for (var i in a) if (a[i] == o) return i
   return null
