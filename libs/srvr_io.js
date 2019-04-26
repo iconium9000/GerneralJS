@@ -64,8 +64,28 @@ function __init_srvr_io() {
       name: CLNT_NAME
     }
     SRVR_CLNTS[CLNT_ID] = CLNT
+    NUM_SRVR_CLNTS = 0
 
     var fs = require('fs')
+
+    if (process.on) {
+      process.on('message', (tok, ...msg) => {
+        log('on high msg', tok, ...msg)
+      })
+    }
+
+    SRVR_IO_CONNECTION = clnt => {
+      var phone_home = process.argv[3]
+      if (phone_home && process.send) {
+        process.send(phone_home, 'connect', clnt.name)
+      }
+    }
+    SRVR_IO_DISCONNECT = clnt => {
+      var phone_home = process.argv[3]
+      if (phone_home && process.send) {
+        process.send(phone_home, 'disconnect', clnt.name)
+      }
+    }
 
     SRVR_MSG = (key,sndr,rcvr,msg) => {
       var snd = srvr_clnt => {

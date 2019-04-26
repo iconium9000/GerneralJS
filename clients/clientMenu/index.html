@@ -1,9 +1,20 @@
 <head> <title id="title">iconium9000 Games</title></head>
+
 <body>
-  <p><a href="http://technofuzz.iconium9000.com:3000">Home</a></p>
-  <p><a href="http://technofuzz.iconium9000.com:3001">Blockade Hard</a></p>
-  <p><a href="http://technofuzz.iconium9000.com:3003">Tank Game</a></p>
-  <p><a href="http://technofuzz.iconium9000.com:3005">Knifeline</a></p>
-  <p><a href="https://iconium9000.github.io/mazeGame/">MazeGame Mobile</a></p>
-  <p><a href="https://iconium9000.github.io/3dMazeGame/">MazeGame Desktop</a></p>
+  <div id="menu"></div>
+    <script src="jq/jquery.js"> </script>
+    <script src="libs/fu.js"></script>
+    <script type="text/javascript">
+      log = console.log
+      err = console.error
+
+      log('init clientMenu index.html')
+
+      PROJ_PATH = 'project/'
+      LIBS_PATH = 'libs/'
+      CLNT_PATH = 'client/'
+    </script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="libs/srvr_io.js"></script>
+    <script src="menu.js"></script>
 </body>

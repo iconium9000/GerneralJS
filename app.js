@@ -46,7 +46,7 @@ err = console.error
     var srvr_proj = `/${PROJ_PATH}`
 
     var default_init = require('./clients/' + default_clnt + `/init.js`)
-    var proj_init = FU.safe(() => require(`.${srvr_proj}/init.js`), null)
+    var proj_init = FU.safe(() => require(`.${srvr_proj}init.js`), null)
 
     var proj_clnt = proj_init && proj_init.client
     CLNT_PATH = `clients/${proj_clnt || default_clnt}`
@@ -109,6 +109,8 @@ err = console.error
       log('connection', clnt_id, clnt_key)
 
       clnt_skt.on('disconnect', msg => {
+        SRVR_IO_DISCONNECT(clnt)
+
         delete SRVR_CLNTS[clnt_id]
         log('disconnect', clnt_id, clnt_name, clnt_skt.id)
       })
@@ -126,6 +128,8 @@ err = console.error
         clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })
         clnt.name = clnt_name = info.name
         log('info',clnt_id,clnt_name,clnt_key)
+
+        SRVR_IO_CONNECTION(clnt)
       })
 
       clnt_skt.emit('info',{ id:clnt_id, key:clnt_key })

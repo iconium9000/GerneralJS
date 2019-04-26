@@ -4,6 +4,8 @@ log('init fu.js')
 
 fu = FU = new Object
 
+FU.clnt_count_file_name = `clnt_count.json`
+
 FU.reqFrame = () => window.requestAnimationFrame ||
   window.webkitRequestAnimationFrame ||
   window.mozRequestAnimationFrame ||

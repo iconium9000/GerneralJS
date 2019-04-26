@@ -3,6 +3,7 @@ var log = console.log
 var err = console.error
 
 var shell = require('shelljs')
+var child_process = require('child_process')
 require('./libs/fu.js')
 
 log(`* init ${__dirname}/assemble_scripts.js`)
@@ -33,39 +34,19 @@ var projects = [
     port: 3005,
   },
 ]
+var project_table = {}
+var mu = projects[0].name
 
-var bash_start = '#!/bin/bash -e\n'
-
-function setup_server(project) {
-
-  var title = project.title
-  var name = project.name
-  var proj = project.proj
-  var port = project.port
-
-  var bash_file = `${__dirname}/projects/${proj}/init.sh`
-  // shell.exec(`mkdir ${__dirname}/projects/${proj}`)
-
-  log('\n\n** setup', title)
-
-  log('* kill screen session')
-  shell.exec(`sudo screen -X -S ${name} quit`)
-
-  var project_txt = `${bash_start}\n#${name} init
-    echo starting ${name} on port ${port}
-    cd ${__dirname}
-    node app ${proj} ${port}`
-
-  log('* write file', bash_file)
-  FU.write_file(fs, bash_file, project_txt)
-  log('* enable', bash_file)
-  shell.exec(`chmod +x ${bash_file}`)
-  log('* start server on new screen')
-  shell.exec(`sudo screen -d -m -S ${name} ${bash_file}`)
-  log('* rm', bash_file)
-  shell.exec(`rm ${bash_file}`)
-  log('* check active screen')
-  shell.exec(`sudo screen -ls`)
-}
-
-projects.forEach(setup_server)
+projects.forEach((project,i) => {
+  project_table[project.name] = project
+  project.child = child_process.fork('app.js', [project.proj, project.port, mu])
+})
+projects.forEach((project1) => {
+  project1.child.on('message', (tok, ...msg) => {
+    var project2 = project_table[tok]
+    if (!project2) {
+      return
+    }
+    project2.child.send('message', [project1.name, ...msg])
+  })
+})
