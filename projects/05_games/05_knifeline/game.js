@@ -75,13 +75,14 @@ function solve_game(game) {
   log('solve_game')
 
   var solve = {
+    len: 0,
     pipes: [],
     colors: [],
   }
   // --------------------------------------------------------------------------|
   game.links.forEach((link,id) => {
     var pipe = {
-      id: id, link_id: id,
+      id: id,
       c1: solve.colors.length,
       c2: solve.colors.length+1,
       len: link.length,
@@ -132,7 +133,55 @@ function solve_game(game) {
 
   var sanity = SANITY
   while (isFinite(min_len = min_pipe_len(solve)) && --sanity > 0) {
-    
+    solve = copy_solve(solve)
+    solve.len += min_len
+
+    solve.pipes.forEach((pipe) => {
+      if (pipe.locked) {
+        return
+      }
+
+      var c1 = solve.colors[pipe.c1], c2 = solve.colors[pipe.c2]
+      var f1 = c1 != DEF_COLOR && c1 != KNIFE_COLOR
+      var f2 = c2 != DEF_COLOR && c2 != KNIFE_COLOR
+      if (c1 != DEF_COLOR && c1 != KNIFE_COLOR) {
+        pipe.len1 += min_len
+      }
+      if (c2 != DEF_COLOR && c2 != KNIFE_COLOR) {
+        pipe.len2 += min_len
+      }
+    })
+
+    solve.pipes.forEach((pipe) => {
+      if (pipe.locked) {
+        return
+      }
+
+      var over = pipe.len1 + pipe.len2 - pipe.len
+      if (over < 0) {
+        return
+      }
+      pipe.locked = true
+      if (pipe.len1 && pipe.len2) {
+        over /= 2
+      }
+      if (pipe.len1) {
+        pipe.len1 -= over
+      }
+      if (pipe.len2) {
+        pipe.len2 -= over
+      }
+
+      var c1 = solve.colors[pipe.c1], c2 = solve.colors[pipe.c2]
+      if (c1 == DEF_COLOR || c1 == KNIFE_COLOR) {
+        solve.colors[pipe.c1] = c2
+      }
+      else if (c2 == DEF_COLOR || c2 == KNIFE_COLOR) {
+        solve.colors[pipe.c2] = c1
+      }
+    })
+
+    solves.push(solve)
   }
   if (sanity <= 0) {
     log('SANITY')
@@ -142,7 +191,24 @@ function solve_game(game) {
   return solves
 }
 function solve_at(game, solves, len) {
-
+  var prev_solve = solves[0]
+  solves.forEach(solve => {
+    if (solve.len < len) {
+      prev_solve = solve
+    }
+  })
+  var solve = copy_solve(prev_solve)
+  var dif = len - solve.len
+  solve.pipes.forEach((pipe) => {
+    var c1 = solve.colors[pipe.c1], c2 = solve.colors[pipe.c2]
+    if (c1 != DEF_COLOR && c1 != KNIFE_COLOR) {
+      pipe.len1 += dif
+    }
+    if (c2 != DEF_COLOR && c2 != KNIFE_COLOR) {
+      pipe.len2 += dif
+    }
+  })
+  return solve
 }
 
 // -----------------------------------------------------------------------------
@@ -587,8 +653,27 @@ GAME_CLNT_INIT = () => {
       // --------------------------------------------------------------------|||
       game.links.forEach((link,id) => {
         var p1 = game.nodes[link.node1_id].position
-        var p2 = game.nodes[link.node2_id].position
-        PT.drawLine(G, p1, p2, 'white')
+        var p4 = game.nodes[link.node2_id].position
+
+
+        if (solve) {
+          var pipe = solve.pipes[id]
+          var unit = PT.unit(PT.sub(p4, p1))
+          var c1 = solve.colors[pipe.c1], c2 = solve.colors[pipe.c2]
+
+          var l1 = NODE_RADIUS + pipe.len1
+          var l2 = NODE_RADIUS + pipe.len - pipe.len2
+          var l3 = NODE_RADIUS + pipe.len + NODE_RADIUS
+          var p2 = PT.vec(p1, unit, NODE_RADIUS + pipe.len1)
+          var p3 = PT.vec(p4, unit, -(NODE_RADIUS + pipe.len2))
+
+          PT.drawLine(G, p1, p2, c1)
+          PT.drawLine(G, p2, p3, DEF_COLOR)
+          PT.drawLine(G, p3, p4, c2)
+        }
+        else {
+          PT.drawLine(G, p1, p4, 'white')
+        }
       })
 
       // --------------------------------------------------------------------|||
