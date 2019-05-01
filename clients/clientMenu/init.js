@@ -12,6 +12,10 @@ module.exports = {
     '/jq': '/node_modules/jquery/dist',
   },
 
-  srvr_init: () => {},
-  clnt_init: () => {},
+  srvr_init: () => {
+    GAME_SRVR_INIT()
+  },
+  clnt_init: () => {
+    GAME_CLNT_INIT()
+  },
 }

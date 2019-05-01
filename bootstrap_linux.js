@@ -8,6 +8,8 @@ require('./libs/fu.js')
 
 log(`* init ${__dirname}/assemble_scripts.js`)
 
+// log(process.argv)
+
 var projects = [
   {
     title: 'Menu',
@@ -35,18 +37,28 @@ var projects = [
   },
 ]
 var project_table = {}
-var mu = projects[0].name
+var project_list = []
+var phone_home = projects[0].name
+var host_name = process.argv[2] || 'http://technofuzz.iconium9000.com'
+
+projects.forEach(({title, name, port},i) => {
+  project_list.push({title: title, name: name, port: port, usrs: {}})
+})
+
+// log(project_list)
 
 projects.forEach((project,i) => {
   project_table[project.name] = project
-  project.child = child_process.fork('app.js', [project.proj, project.port, mu])
+  var fork = [project.proj, project.port, phone_home, host_name]
+  project.child = child_process.fork('app.js', fork)
 })
 projects.forEach((project1) => {
-  project1.child.on('message', (tok, ...msg) => {
+  project1.child.on('message', ([tok, ...msg]) => {
     var project2 = project_table[tok]
-    if (!project2) {
-      return
+    if (project2) {
+      project2.child.send([project1.name, ...msg])
     }
-    project2.child.send('message', [project1.name, ...msg])
   })
 })
+
+project_table[phone_home].child.send(['projects'].concat(project_list))

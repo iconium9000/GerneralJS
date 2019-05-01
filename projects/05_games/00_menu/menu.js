@@ -1,12 +1,79 @@
 log('init menu.js')
 
-var list = [
-  ['http://technofuzz.iconium9000.com:3000', 'Home'],
-  ['http://technofuzz.iconium9000.com:3001', 'Blockade Hard'],
-  ['http://technofuzz.iconium9000.com:3003', 'Tank Game'],
-  ['http://technofuzz.iconium9000.com:3005', 'Knifeline'],
-  ['https://iconium9000.github.io/mazeGame/', 'MazeGame Mobile'],
-  ['https://iconium9000.github.io/3dMazeGame/', 'MazeGame Desktop'],
-]
+GAME_SRVR_INIT = () => {
+  var phone_home = process.argv[4]
+  var host_name = process.argv[5]
+  var projects = []
+  var project_table = {}
 
-log('script')
+  function usr_srvr_io(project, tok, usr_name) {
+    if (tok == 'connect') {
+      project.usrs[usr_name] = true
+    }
+    else if (tok == 'disconnect') {
+      delete project.usrs[usr_name]
+    }
+
+    log('usr_srvr_io', tok, usr_name)
+    var clnts = []
+    FU.forEach(SRVR_CLNTS, (clnt,id) => clnts.push(id))
+    HOST_MSG('Update', clnts, projects)
+  }
+
+  if (process.on) {
+    process.on('message', ([tok, ...msg]) => {
+      if (tok == 'projects') {
+        projects = []
+        msg.forEach((project) => {
+          projects.push(project)
+          project_table[project.name] = project
+        })
+      }
+      else {
+        var project = project_table[tok]
+        log('MENU', tok, ...msg)
+        if (project) {
+          usr_srvr_io(project, ...msg)
+        }
+      }
+    })
+  }
+
+  GAME_MSG = (key, sndr, rcvr, msg) => {
+    if (sndr == SRVR_CLNT_ID) {
+      return
+    }
+    if (key == 'Rqst Update') {
+      HOST_MSG('Update', [sndr], projects)
+    }
+  }
+}
+
+GAME_CLNT_INIT = () => {
+  log('GAME_CLNT_INIT')
+
+  HOST_MSG('Rqst Update', [SRVR_CLNT_ID])
+  GAME_MSG = (key, sndr, rcvr, msg) => {
+    if (sndr != SRVR_CLNT_ID) {
+      return
+    }
+
+    if (key == 'Update') {
+      var menu = ''
+      // log('msg',msg)
+      msg.forEach((project,i) => {
+        menu += `<p>${project.name}\n`
+      })
+      log('menu', menu)
+      document.getElementById('menu').innerHTML = menu
+    }
+  }
+}
+
+//
+
+// if (process.on) {
+//   // process.on('message', ([tok, ...msg]) => {
+//   //   log('MENU', tok, ...msg)
+//   // })
+// }

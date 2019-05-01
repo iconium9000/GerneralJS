@@ -26,9 +26,10 @@ function __init_srvr_io() {
     CLNT_KEY = null
     CLNT_NAME = FU.silly_name()
 
-    HOST_MSG = (key, rcvr, msg) => {
-      CLNT_SKT.emit('msg', key, rcvr, msg)
+    HOST_MSG = (key, rcvr, ...msg) => {
+      CLNT_SKT.emit('msg', key, rcvr, ...msg)
     }
+    GAME_MSG = () => {}
 
     CLNT_SKT.on('info', info => {
       if (CLNT_KEY == info.key) return
@@ -39,8 +40,8 @@ function __init_srvr_io() {
       log('info',CLNT_ID,CLNT_NAME,CLNT_KEY)
     })
 
-    CLNT_SKT && CLNT_SKT.on('msg', (key, sndr, rcvr, msg) => {
-      GAME_MSG(key, sndr, rcvr, msg)
+    CLNT_SKT && CLNT_SKT.on('msg', (key, sndr, rcvr, ...msg) => {
+      GAME_MSG(key, sndr, rcvr, ...msg)
     })
 
     CLNT_SKT && CLNT_SKT.emit('info', {name: CLNT_NAME})
@@ -68,35 +69,46 @@ function __init_srvr_io() {
 
     var fs = require('fs')
 
-    if (process.on) {
-      process.on('message', (tok, ...msg) => {
-        log('on high msg', tok, ...msg)
-      })
-    }
+    // if (process.on) {
+    //   process.on('message', ([tok, ...msg]) => {
+    //     log('SRVR_IO:BOOTSTRAP', tok, ...msg)
+    //   })
+    // }
 
     SRVR_IO_CONNECTION = clnt => {
-      var phone_home = process.argv[3]
+      var phone_home = process.argv[4]
       if (phone_home && process.send) {
-        process.send(phone_home, 'connect', clnt.name)
+        process.send([phone_home, 'connect', clnt.name])
       }
     }
     SRVR_IO_DISCONNECT = clnt => {
-      var phone_home = process.argv[3]
+      var phone_home = process.argv[4]
       if (phone_home && process.send) {
-        process.send(phone_home, 'disconnect', clnt.name)
+        process.send([phone_home, 'disconnect', clnt.name])
       }
     }
 
-    SRVR_MSG = (key,sndr,rcvr,msg) => {
+    SRVR_MSG = (key,sndr,rcvr, ...msg) => {
       var snd = srvr_clnt => {
-        if (!srvr_clnt) return
-        else if (srvr_clnt.skt) srvr_clnt.skt.emit('msg',key,sndr,rcvr,msg)
-        else GAME_MSG(key,sndr,rcvr,msg)
+        if (!srvr_clnt) {
+          return
+        }
+        else if (srvr_clnt.skt) {
+          srvr_clnt.skt.emit('msg', key, sndr, rcvr, ...msg)
+        }
+        else {
+          GAME_MSG(key, sndr, rcvr, ...msg)
+        }
       }
-      if (rcvr) FU.forEach(rcvr, id => snd(SRVR_CLNTS[id]))
-      else FU.forEach(SRVR_CLNTS, snd)
+      if (rcvr) {
+        FU.forEach(rcvr, id => snd(SRVR_CLNTS[id]))
+      }
+      else {
+        FU.forEach(SRVR_CLNTS, snd)
+      }
     }
-    HOST_MSG = (key, rcvr, msg) => SRVR_MSG(key,CLNT_ID,rcvr,msg)
+    HOST_MSG = (key, rcvr, ...msg) => SRVR_MSG(key, CLNT_ID, rcvr, ...msg)
+    GAME_MSG = () => {}
 
     function rcv_console_input(msg) {
       log('datastrema',msg)

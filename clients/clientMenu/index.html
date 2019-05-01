@@ -1,20 +1,23 @@
-<head> <title id="title">iconium9000 Games</title></head>
+<head> <title id="title">Iconium9000 Games</title></head>
 
 <body>
   <div id="menu"></div>
-    <script src="jq/jquery.js"> </script>
-    <script src="libs/fu.js"></script>
-    <script type="text/javascript">
-      log = console.log
-      err = console.error
+  <script src="jq/jquery.js"> </script>
+  <script src="libs/fu.js"></script>
+  <script type="text/javascript">
+    log = console.log
+    err = console.error
 
-      log('init clientMenu index.html')
+    log('init clientMenu index.html')
 
-      PROJ_PATH = 'project/'
-      LIBS_PATH = 'libs/'
-      CLNT_PATH = 'client/'
-    </script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="libs/srvr_io.js"></script>
-    <script src="menu.js"></script>
+    PROJ_PATH = 'project/'
+    LIBS_PATH = 'libs/'
+    CLNT_PATH = 'client/'
+  </script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="libs/srvr_io.js"></script>
+  <script src="project/menu.js"></script>
+  <script>
+    GAME_CLNT_INIT()
+  </script>
 </body>
