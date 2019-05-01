@@ -42,7 +42,13 @@ var phone_home = projects[0].name
 var host_name = process.argv[2] || 'http://technofuzz.iconium9000.com'
 
 projects.forEach(({title, name, port},i) => {
-  project_list.push({title: title, name: name, port: port, usrs: {}})
+  project_list.push({
+    title: title,
+    name: name,
+    port: port,
+    usrs: {},
+    href: `${host_name}:${port}`
+  })
 })
 
 // log(project_list)

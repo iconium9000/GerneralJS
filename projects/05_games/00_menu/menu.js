@@ -62,10 +62,12 @@ GAME_CLNT_INIT = () => {
       var menu = ''
       // log('msg',msg)
       msg.forEach((project,i) => {
-        menu += `<p>${project.name}\n`
+        menu += `<p><a href="${project.href}">${project.title}</a></p>\n`
+
+        //<p><a href="http://technofuzz.iconium9000.com:3000">Home</a></p>
       })
       log('menu', menu)
-      document.getElementById('menu').innerHTML = menu
+      // document.getElementById('menu').innerHTML = menu
     }
   }
 }
