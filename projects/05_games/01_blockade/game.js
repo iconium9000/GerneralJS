@@ -340,6 +340,9 @@ function draw_players() {
     g.fillStyle = color
     g.font = `bold ${Math.floor(w/NAME_SCALE)}px arial,serif`
     g.fillText(plr[2],10,HELI[1]+HELI_H*h*0.6)
+
+    var score_line = plr[3] * w / TEMP_MAX_SCORE
+    PT.drawLine(g,[score_line,0],[score_line,SCORE_HIGHT*2],color)
   }
 }
 
