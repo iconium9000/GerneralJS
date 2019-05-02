@@ -10,6 +10,7 @@ log('init game.js', PROJECT_NAME)
 GAME_HIDE_CURSER = false
 IS_MOBILE = false
 
+THRUST_COLOR = '#ff000080'
 COLORS = ['green','yellow','orange','red','purple','magenta','lightblue','blue']
 
 HOLD = false
@@ -124,7 +125,6 @@ function rcv_new_bar(msg) {
   if (CLNT_ID != SRVR_CLNT_ID && BAR_QUEUE < MAX_BAR_QUEUE) BAR_QUEUE.push(msg)
 }
 function rcv_player_update(sndr,msg) {
-  // log('rcv_player_update')
   if (sndr != CLNT_ID) {
     PLAYERS[sndr] = msg
   }
@@ -259,7 +259,8 @@ GAME_CLNT_INIT = () => {
         SCORE,                // 3
         ALL_SCORE,            // 4
         MY_DEATHS,            // 5
-        MAX_SCORE             // 6
+        MAX_SCORE,            // 6
+        SPACE_DOWN,           // 7
       ])
     for (var i in PLAYERS) if (PLAYERS[i][1]-- < 0) delete PLAYERS[i]
   },UPDATE_FREQ)
@@ -320,10 +321,30 @@ function draw_black_frost() {
   PT.fillRect(USR_IO_DSPLY.g,[],USR_IO_DSPLY.wh,'#000000a0')
 }
 
+function draw_thrust() {
+  var g = USR_IO_DSPLY.g
+
+  var mid = PT.sum(HELI, PT.mul(HELI_BOX, [0.5, 0.8]))
+  var left = PT.sum(HELI, PT.mul(HELI_BOX, [0.3, 1.6]))
+  var right = PT.sum(HELI, PT.mul(HELI_BOX, [0.7, 1.6]))
+
+  g.fillStyle = THRUST_COLOR
+  g.beginPath()
+  g.moveTo(mid[0], mid[1])
+  g.lineTo(left[0], left[1])
+  g.lineTo(right[0], right[1])
+  g.fill()
+}
+
 function draw_player() {
   HELI[1] = USR_IO_DSPLY.wh[1] * HELI_Y
   var color = BAR_QUEUE.length>2?'red':PAUSED?'grey':'white'
-  PT.fillRect(USR_IO_DSPLY.g,HELI,HELI_BOX,color)
+  var g = USR_IO_DSPLY.g
+
+  if (SPACE_DOWN) {
+    draw_thrust()
+  }
+  PT.fillRect(g,HELI,HELI_BOX,color)
 }
 
 function draw_players() {
@@ -333,13 +354,22 @@ function draw_players() {
 
   for (var i in PLAYERS) {
     var plr = PLAYERS[i]
+    var space_down = plr[7]
+
     HELI[1] = h * plr[0]
+
+    if (space_down) {
+      draw_thrust()
+    }
+
     var color = get_color(plr[3] / TEMP_MAX_SCORE)
     PT.drawRect(g,HELI,HELI_BOX,color)
 
+
     g.fillStyle = color
     g.font = `bold ${Math.floor(w/NAME_SCALE)}px arial,serif`
-    g.fillText(plr[2],10,HELI[1]+HELI_H*h*0.6)
+    var x = HELI[0] + LINE_WIDTH + 1
+    g.fillText(plr[2],x,HELI[1]+HELI_H*h*0.6)
 
     var score_line = plr[3] * w / TEMP_MAX_SCORE
     PT.drawLine(g,[score_line,0],[score_line,SCORE_HIGHT*2],color)
