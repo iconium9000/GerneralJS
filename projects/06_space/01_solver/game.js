@@ -88,16 +88,6 @@ var sat = {
   'sat': 'sat',
   'equ': 'equ',
 }
-
-/**
-  @language
-
-  S := P | S = P
-  P := D ( P ) P | P ( P ) | ( P ) P
-  D := A | D / A
-  A := M | A + M | A - M
-  M :=
-*/
 parsef.f = {
   'txt': f => {
     var word = null
@@ -345,7 +335,15 @@ function hashf(f,h) {
   return p
 }
 
-simplef.c = {
+simplef.s = (f,h) => {
+
+}
+function simplef(f) {
+  
+}
+
+
+solvef.c = {
   'add': true,
   'sub': true,
   'div': true,
@@ -353,8 +351,10 @@ simplef.c = {
   'dot': true,
   'pow': true,
   'log': true,
+  'char': true,
+  'num': true,
 }
-simplef.t = {
+solvef.t = {
   'sat': {
     'add': (f,m) => {},
     'sub': (f,m) => {},
@@ -437,19 +437,25 @@ simplef.t = {
     'log': (f,m) => {},
   },
 }
-
-
-function simplef(f,h) {
+solvef.o = ['add','sub','div','mul','pow','log']
+function solvef(f,h) {
   var p = hashf(f,h)
   var hp = h[p], hps = hp[1]
   var f0 = f[0]
-  var t = simplef.t[f0]
-  if (!t) {
-    return f
+  if (bs[f0]) {
+    return
   }
 
-  log(t)
-
+  var ha = []
+  FU.forEach(h, i => ha.push(i[2]))
+  for (var i = 0; i < ha.length; ++i) {
+    var hf = ha[i], hf0 = hf[0]
+    if (solvef.c[hf0]) {
+      solvef.o.forEach(o => {
+        simplef([o,f,hf])
+      })
+    }
+  }
 
   return 'err'
 }
@@ -476,9 +482,9 @@ var htable = {}
 var score = scoref(f)
 var print = printf(f)
 // var hash = hashf(f, htable)
-err('+ simplef')
-var simple = simplef(f, htable)
-err('- simplef')
+err('+ solvef')
+var solve = solvef(f, htable)
+err('- solvef')
 
 chartf(f, chart, 'defined')
 log('f', f)
@@ -486,7 +492,7 @@ log('table', chart)
 log('score', score)
 log('print', print)
 log('htable', htable)
-log('simple', simple)
+log('solve', solve)
 
 err('END')
 // -----------------------------------------------------------------------------
