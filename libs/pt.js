@@ -533,6 +533,14 @@ PT.fillCircle = (g, p, r, c) => {
   g.arc(p[0] || 0, p[1] || 0, r, 0, 2 * Math.PI)
   g.fill()
 }
+PT.drawArcLength = (g, p, r, a, l, c) => {
+  if (!r) return
+  if (c) g.fillStyle = c
+
+  g.beginPath()
+  g.arc(p[0] || 0, p[1] || 0, r, a, a + l / r)
+  g.stroke()
+}
 
 PT.drawSquare = (g, p, r, c) => {
   if (c) g.strokeStyle = c

@@ -13,7 +13,7 @@ GAME_TICK = () => {}
 
 GROUTH_SPEED = 5e-2
 SANITY = 1e3
-NEW_GAME_TIMEOUT = 1
+NEW_GAME_TIMEOUT = 5
 VIEWPORT = [600,700]
 LINE_WIDTH = 6
 DRAW_RADIUS = 20
@@ -173,10 +173,10 @@ function solve_game(game) {
       }
 
       var c1 = solve.colors[pipe.c1], c2 = solve.colors[pipe.c2]
-      if (c1 == DEF_COLOR || c1 == KNIFE_COLOR) {
+      if (c1 == DEF_COLOR) {
         solve.colors[pipe.c1] = c2
       }
-      else if (c2 == DEF_COLOR || c2 == KNIFE_COLOR) {
+      else if (c2 == DEF_COLOR) {
         solve.colors[pipe.c2] = c1
       }
     })
@@ -200,6 +200,10 @@ function solve_at(game, solves, len) {
   var solve = copy_solve(prev_solve)
   var dif = len - solve.len
   solve.pipes.forEach((pipe) => {
+    if (pipe.locked) {
+      return
+    }
+
     var c1 = solve.colors[pipe.c1], c2 = solve.colors[pipe.c2]
     if (c1 != DEF_COLOR && c1 != KNIFE_COLOR) {
       pipe.len1 += dif
@@ -650,6 +654,26 @@ GAME_CLNT_INIT = () => {
       var len = (FU.now() - game.solve_time) * GROUTH_SPEED
       var solve = solve_at(game, game.solves, len)
 
+
+      var w = USR_IO_DSPLY.wh[1]
+      var x = 20
+      var y = w - 20
+      solve.pipes.forEach((pipe) => {
+        var p0 = [x, y]
+        var p1 = [x, y - pipe.len1]
+        var p2 = [x, y - (pipe.len - pipe.len2)]
+        var p3 = [x, y - pipe.len]
+
+        var c1 = solve.colors[pipe.c1]
+        var c2 = solve.colors[pipe.c2]
+
+        PT.drawLine(G, p0, p1, c1)
+        PT.drawLine(G, p1, p2, DEF_COLOR)
+        PT.drawLine(G, p2, p3, c2)
+        x += 20
+      })
+
+
       // --------------------------------------------------------------------|||
       game.links.forEach((link,id) => {
         var p1 = game.nodes[link.node1_id].position
@@ -678,7 +702,29 @@ GAME_CLNT_INIT = () => {
 
       // --------------------------------------------------------------------|||
       game.nodes.forEach((node,id) => {
-        PT.fillCircle(G, node.position, NODE_RADIUS, 'white')
+        if (solve) {
+
+          var in_color = 'white'
+          var stat = game.stats[node.clnt_id]
+          if (stat && (node.fountain || game.state == 'node')) {
+            in_color = stat.color
+          }
+
+          PT.fillCircle(G, node.position, DRAW_RADIUS, in_color)
+
+          node.sub_links.forEach((sub_link,i) => {
+            var pipe = solve.pipes[sub_link.pipe_id]
+            var p = node.position
+            var c1 = solve.colors[pipe.c1]
+            var c2 = solve.colors[pipe.c2]
+            // PT.drawCircle(G, p, DRAW_RADIUS, DEF_COLOR)
+            // PT.drawArcLength(G, p, DRAW_RADIUS, sub_link.angle1, pipe.len1, c1)
+            // PT.drawArcLength(G, p, DRAW_RADIUS, sub_link.angle2, -pipe.len2, c2)
+          })
+        }
+        else {
+          PT.fillCircle(G, node.position, NODE_RADIUS, DEF_COLOR)
+        }
       })
 
       // -------------------------------------------------------------------||||
