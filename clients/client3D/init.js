@@ -5,7 +5,7 @@ module.exports = {
   client: 'client3D',
   port: 2000,
   libs: ['fu', 'pt'],
-  // project: ['game'],
+  project: ['srvr'],
   modules: ['three/build/three.min'],
   dirs: {
     '/libs': '/libs',
