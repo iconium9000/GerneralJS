@@ -86,7 +86,7 @@ function USR_IO_EVNTS() {
 function USR_IO_DSPLY() {
   var d = USR_IO_DSPLY
   d.cnvs = d.cnvs || INDEX_CANVAS
-  d.g = d.g || d.cnvs.getContext('2d')
+  d.g = d.g || (d.cnvs.getContext && d.cnvs.getContext('2d'))
   d.w = d.cnvs.width = window.innerWidth - 20
   d.h = d.cnvs.height = window.innerHeight - 22
   d.wh = [d.w,d.h]

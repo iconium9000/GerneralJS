@@ -22,7 +22,7 @@
 
   log('init client2D index.html')
 
-  INDEX_CANVAS = document.getElementById('canvas')
+  INDEX_CANVAS = document.getElementsByTagName('body')[0]
   GAME_HIDE_CURSER = true
   PROJ_PATH = 'project/'
   LIBS_PATH = 'libs/'
@@ -31,10 +31,6 @@
 <script src="libs/pt.js"></script>
 <script src="libs/usr_io.js"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script type="text/javascript">
-  USR_IO_INIT()
-  var reqFrame = FU.reqFrame()
-</script>
 <script src="libs/srvr_io.js"></script>
 <script src="three/three.min.js"></script>
 <script src="project/clnt.js"></script>

@@ -11,10 +11,16 @@ var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 var cube = new THREE.Mesh( geometry, material );
 scene.add( cube );
 
+camera.position.x = 0.5;
+camera.position.y = 0.5;
 camera.position.z = 5;
 
+USR_IO_INIT()
+var reqFrame = FU.reqFrame()
+
 function animate() {
-  requestAnimationFrame( animate );
+  USR_IO_TICK(() => {})
   renderer.render( scene, camera );
+  reqFrame( animate );
 }
 animate();
