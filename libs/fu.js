@@ -4,6 +4,8 @@ log('init fu.js')
 
 fu = FU = new Object
 
+FU.bound = (v,min,max) => v < min ? min : v > max ? max : v
+
 FU.clnt_count_file_name = `clnt_count.json`
 
 FU.reqFrame = () => window.requestAnimationFrame ||
@@ -102,6 +104,7 @@ FU.silly_name = () => {
   return silly_name
 }
 
+FU.copy = v => JSON.parse(JSON.stringify(v))
 FU.sqr = x => x*x
 FU.cub = x => x*x*x
 FU.mod = (x,y) => x < 0 ? y + (x%y) : x%y

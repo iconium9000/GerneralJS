@@ -23,9 +23,11 @@ PT.centerTextBox = (g, text, point, boarder, font_size, font_c, bg_c) => {
   var edge = [p1 - font_size*0.299*text.length, p2+font_size*0.22]
   var size = [font_size*0.6*text.length, -font_size*0.89]
 
+
   g.fillStyle = bg_c
   g.beginPath()
-  g.rect(edge[0], edge[1], size[0], size[1])
+  var b = boarder, b2 = 2*boarder
+  g.rect(edge[0]-b, edge[1]+b, size[0]+b2, size[1]-b2)
   g.fill()
 
   g.fillStyle = font_c

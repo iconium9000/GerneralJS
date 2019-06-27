@@ -45,6 +45,9 @@ function __init_srvr_io() {
     })
 
     CLNT_SKT && CLNT_SKT.emit('info', {name: CLNT_NAME})
+
+    GAME_CLNT_INIT = () => {}
+    GAME_TICK = () => {}
   }
 
   function init_srvr() {
@@ -66,6 +69,8 @@ function __init_srvr_io() {
     }
     SRVR_CLNTS[CLNT_ID] = CLNT
     NUM_SRVR_CLNTS = 0
+
+    GAME_SRVR_INIT = () => {}
 
     var fs = require('fs')
 

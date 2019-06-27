@@ -1,6 +1,8 @@
 log('init 01_test/07_ksp menu.js')
 
 PROJECT_NAME = 'ksp'
+KSP_PATH = `/home/john/.local/share/Steam/steamapps/\
+common/Kerbal\ Space\ Program/GameData`
 
 GAME_SRVR_INIT = () => {
 
@@ -14,7 +16,7 @@ GAME_SRVR_INIT = () => {
       // log('do update')
       var parts = null
       var path = 'projects/01_test/07_ksp'
-      var child = cp.fork(path + '/fork.js', ['/home/john/Downloads/GameData'])
+      var child = cp.fork(path + '/fork.js', [KSP_PATH])
       child.on('message', parts => {
         HOST_MSG('Update', [sndr], parts)
       })
