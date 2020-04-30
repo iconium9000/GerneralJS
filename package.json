@@ -20,7 +20,7 @@
   "homepage": "https://github.com/iconium9000/GeneralJS#readme",
   "dependencies": {
     "express": "^4.16.4",
-    "jquery": "^3.4.1",
+    "jquery": "^3.5.0",
     "shelljs": "^0.8.3",
     "socket.io": "^2.2.0",
     "three": "^0.102.1"
