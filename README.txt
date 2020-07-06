@@ -1,5 +1,8 @@
 John FitzGerald
-General Purpose JavaScript Project
+General Purpose JavaScript Project Platform
+Developed as a way to streamline the process of prototyping new ideas.
+Allowed for a central libary which can be modified separitely from each individual project.
+My tendency to do this has repeatedly come back to bite me. I really should have placed each project in its own Reposetory and not be afraid of duplicate code.
 
 This repository is managed by a node server.
 Node server instructions:
